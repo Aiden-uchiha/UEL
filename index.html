@@ -709,7 +709,8 @@ const app = {
   db: null,
   auth: null,
   _draft: null,
-  _suppress: false
+  _suppress: false,
+  _cloudLoaded: false
 };
 window.app = app;
 
@@ -751,6 +752,14 @@ function loadLocal(){
 
 async function saveState(opts){
   opts = opts || {};
+
+  /* Safety: never push to the cloud before we have read what is already there.
+     Without this, a browser with empty local storage can wipe the real league. */
+  if (firebaseReady && app.db && !app._cloudLoaded && !opts.force){
+    toast('⏳ Still loading the cloud save, wait a second and try again', 'err');
+    return;
+  }
+
   if (!opts.silent) app._suppress = true;
   try { localStorage.setItem(LS_KEY, JSON.stringify(app.state)); } catch(e){ console.warn('LS save failed', e); }
   try { localStorage.setItem(LS_LOGS, JSON.stringify(app.state.logs.slice(-200))); } catch(e){}
@@ -802,6 +811,7 @@ function initFirebase(){
 
     /* live sync */
     app.db.doc(DOC_PATH).onSnapshot(snap => {
+      app._cloudLoaded = true;
       if (!snap.exists) return;
       if (snap.metadata && snap.metadata.hasPendingWrites) return;
       if (app._suppress) return;
@@ -809,7 +819,7 @@ function initFirebase(){
       render();
     }, err => {
       console.warn('snapshot error', err);
-      toast('☁️ Could not read the cloud save: ' + (err.code || err.message), 'err');
+      toast('☁️ Could not read the cloud save, editing is locked until reload: ' + (err.code || err.message), 'err');
     });
 
     /* auth */
@@ -1974,7 +1984,6 @@ VIEWS.fixtures = () => {
         <button class="btn lime" data-act="fixture:create"><span class="emoji">➕</span> Fixture</button>
         <button class="btn" data-act="fixture:autogen"><span class="emoji">🔁</span> Auto Fixtures</button>
         <button class="btn magenta" data-act="tournament:create"><span class="emoji">🏆</span> Tournament</button>
-        <button class="btn gold" data-act="fixture:autoall"><span class="emoji">🎲</span> Auto-Play All</button>
       ` : ''}
     </div>
   </div>
@@ -3338,22 +3347,6 @@ document.addEventListener('click', async e => {
     await logAdmin('Auto-simulated fixture');
     await saveState(); render();
     toast('🎲 Match simulated', 'ok');
-    return;
-  }
-  if (act === 'fixture:autoall'){
-    if (!app.isAdmin) return;
-    
-    // Fix: Process newly created KO fixtures
-    let safety = 0;
-    while (safety++ < 100) {
-      const pending = app.state.fixtures.filter(f => !f.played);
-      if (!pending.length) break;
-      pending.forEach(f => simulateFixture(f.id));
-    }
-    
-    await logAdmin('Auto-simulated all pending fixtures');
-    await saveState(); render();
-    toast('🎲 Simulated all matches', 'ok');
     return;
   }
 
