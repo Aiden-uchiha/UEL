@@ -452,6 +452,40 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   border-radius: 6px;
 }
 
+/* ---------- paste report preview ---------- */
+.rp-match{
+  border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;margin-bottom:8px;
+  background:rgba(0,240,255,.035);
+}
+
+/* ---------- match tracker ---------- */
+.trk-score{display:flex;align-items:center;justify-content:center;gap:14px;margin:4px 0 14px;flex-wrap:wrap}
+.trk-side{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;text-align:center;min-width:90px}
+.trk-side b{font-weight:800;color:#fff}
+.trk-num{
+  font-size:32px;font-weight:900;color:var(--cyan);
+  font-variant-numeric:tabular-nums;letter-spacing:1px;
+  text-shadow:0 0 18px rgba(0,240,255,.55);
+}
+.trk-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){ .trk-cols{grid-template-columns:1fr} }
+.trk-team-head{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--cyan);margin-bottom:6px}
+.trk-row{display:flex;align-items:center;gap:5px;padding:5px 0;border-bottom:1px dashed rgba(255,255,255,.07)}
+.trk-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;font-size:13px;cursor:pointer;transition:opacity .15s ease}
+.trk-name:hover{color:var(--cyan)}
+.trk-name.out{opacity:.4;text-decoration:line-through}
+.trk-chip{
+  cursor:pointer;flex:0 0 auto;min-width:46px;
+  border:1px solid var(--line);background:rgba(0,240,255,.05);color:var(--txt);
+  border-radius:8px;padding:5px 6px;font-size:11.5px;font-weight:800;font-family:inherit;
+  transition:all .12s ease;
+}
+.trk-chip:hover{background:rgba(0,240,255,.18);transform:translateY(-1px)}
+.trk-chip:active{transform:scale(.94)}
+.trk-chip.on{color:var(--lime);border-color:rgba(139,255,60,.6);background:rgba(139,255,60,.14);box-shadow:0 0 12px rgba(139,255,60,.22)}
+.trk-chip.off{opacity:.28;pointer-events:none}
+
 /* ---------- match detail: one block per leg ---------- */
 .leg-block{
   margin-top:14px;padding:12px;
@@ -1968,7 +2002,8 @@ VIEWS.fixtures = () => {
               ? `<button class="btn sm" data-act="match:view" data-id="${f.matchId}">📊</button>
                  <button class="btn sm" data-act="match:edit" data-id="${f.matchId}">✏️</button>
                  <button class="btn sm danger" data-act="match:del" data-id="${f.matchId}">🗑️</button>`
-              : `<button class="btn sm lime" data-act="match:record" data-id="${f.id}">📝</button>
+              : `<button class="btn sm lime" data-act="track:open" data-id="${f.id}">▶️</button>
+                 <button class="btn sm" data-act="match:record" data-id="${f.id}">📝</button>
                  <button class="btn sm gold" data-act="fixture:auto" data-id="${f.id}">🎲</button>`
           ) : (f.played ? `<button class="btn sm" data-act="match:view" data-id="${f.matchId}">📊</button>` : '')}
           ${app.isAdmin ? `<button class="btn sm danger" data-act="fixture:del" data-id="${f.id}">🗑️</button>` : ''}
@@ -1983,6 +2018,7 @@ VIEWS.fixtures = () => {
       ${app.isAdmin ? `
         <button class="btn lime" data-act="fixture:create"><span class="emoji">➕</span> Fixture</button>
         <button class="btn" data-act="fixture:autogen"><span class="emoji">🔁</span> Auto Fixtures</button>
+        <button class="btn" data-act="report:open"><span class="emoji">📋</span> Paste Report</button>
         <button class="btn magenta" data-act="tournament:create"><span class="emoji">🏆</span> Tournament</button>
       ` : ''}
     </div>
@@ -2346,7 +2382,8 @@ function tournamentDetail(t){
       <div class="mc-footer" style="margin-top:6px;padding-top:6px;justify-content:center">
         ${app.isAdmin ? (f.played
           ? `<button class="btn sm" data-act="match:view" data-id="${f.matchId}">📊</button>`
-          : `<button class="btn sm lime" data-act="match:record" data-id="${f.id}">📝</button>
+          : `<button class="btn sm lime" data-act="track:open" data-id="${f.id}">▶️</button>
+             <button class="btn sm" data-act="match:record" data-id="${f.id}">📝</button>
              <button class="btn sm gold" data-act="fixture:auto" data-id="${f.id}">🎲</button>`) : ''}
       </div>
     </div>`;
@@ -2426,7 +2463,7 @@ VIEWS.awards = () => {
     if (isDisabled && !app.isAdmin) return '';
     
     const top = a.rows[0];
-    return `<div class="card anim" style="${isDisabled ? 'opacity:0.5;border-color:var(--red)' : ''}">
+    return `<div class="card anim clickable" ${isDisabled ? '' : `data-act="award:view" data-award="${esc(a.key)}" title="See all ${esc(a.title)}"`} style="${isDisabled ? 'opacity:0.5;border-color:var(--red)' : ''}">
       <div class="between" style="margin-bottom:8px">
         <div class="row" style="gap:8px">
           <span class="emoji float" style="font-size:22px">${a.icon}</span>
@@ -2439,7 +2476,7 @@ VIEWS.awards = () => {
         ` : ''}
       </div>
       <div class="tiny muted" style="margin-bottom:8px;min-height:30px">${esc(a.desc)}</div>
-      ${!isDisabled ? (top ? `<div class="between clickable" data-act="award:view" data-award="${esc(a.key)}">
+      ${!isDisabled ? (top ? `<div class="between">
         <span class="row" style="gap:6px">
           ${top.p2Id ? `${playerLink(playerById(top.id), top.color)} & ${playerLink(playerById(top.p2Id), top.color)}`
             : (top.id && playerById(top.id)
@@ -2447,7 +2484,9 @@ VIEWS.awards = () => {
                 : (top.id && app.state.teams.some(t2 => t2.id === top.id) ? teamLink(teamById(top.id), 20) : `<b style="color:var(--cyan)">${esc(top.label)}</b>`))}
         </span>
         <b class="mono" style="color:var(--gold)">${top.fmt ? top.fmt(top.value) : num(top.value)}</b>
-      </div>` : `<div class="muted small">No data yet</div>`) : `<div class="warnbox" style="padding:4px 8px;font-size:11px">Hidden by Admin</div>`}
+      </div>
+      <div class="tiny" style="margin-top:8px;color:var(--cyan);letter-spacing:1px">ALL ${a.rows.length} ▸</div>`
+      : `<div class="muted small">No data yet</div>`) : `<div class="warnbox" style="padding:4px 8px;font-size:11px">Hidden by Admin</div>`}
     </div>`;
   };
 
@@ -2705,6 +2744,714 @@ function reModal(body){
    --------------------------------------------------------------------------- */
 function parsePlayerLines(text){
   return String(text || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+}
+
+/* ---------------------------------------------------------------------------
+   17b. PASTE REPORT IMPORT
+   One pasted block becomes one or more matches, with optional legs.
+
+     Matchday 5
+     Neon FC vs Void United
+     1st leg 3 - 1
+     isthatzo 2G 1A
+     Kai Nova 1G
+     Rex Blaze 1G
+     2nd leg 2 - 2
+     Kai Nova 1G
+     isthatzo 1G
+     Rex Blaze 2G
+     MVP: Kai Nova
+     MOTM: Rex Blaze
+
+   A plain "TeamA 3 - 1 TeamB" line works too and is leg 1.
+   Any line before the first match becomes the matchday label.
+   Names are matched on their readable part, so "⟡isthatzo⟡" can be typed
+   as "isthatzo". Learned spellings are stored on the player as aliases.
+   --------------------------------------------------------------------------- */
+const RP_SCORE  = /^(.+?)\s+(\d+)\s*[-–—:]\s*(\d+)\s+(.+)$/;
+const RP_VS     = /^(.+?)\s+(?:vs\.?|versus|v)\s+(.+)$/i;
+const RP_LEG_A  = /^(?:leg|round)\s*(\d+)\s*[:.]?\s*(?:(\d+)\s*[-–—:]\s*(\d+))?$/i;
+const RP_LEG_B  = /^(\d+)(?:st|nd|rd|th)?\s*leg\s*[:.]?\s*(?:(\d+)\s*[-–—:]\s*(\d+))?$/i;
+const RP_TOKENS = /^(.+?)\s+((?:\d+\s*[gast]\s*)+)$/i;
+const RP_BARE   = /^(.+?)\s+(\d+)\s+(\d+)(?:\s+(\d+))?(?:\s+(\d+))?$/;
+const RP_AWARD  = /^(mvp|motm)\s*:?\s*(.+)$/i;
+
+/* lower case, strip emoji/symbols/punctuation, collapse spaces */
+function rpNorm(s){
+  let out = String(s || '');
+  if (out.normalize) out = out.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+  return out
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0400-\u04FF]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function rpDistance(a, b){
+  if (a === b) return 0;
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  let prev = [];
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++){
+    const cur = [i];
+    for (let j = 1; j <= n; j++){
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+
+/* how well a typed name matches one stored spelling, -1 means no */
+function rpScore(query, candidate){
+  if (!query || !candidate) return -1;
+  if (query === candidate) return 100;
+  if (candidate.indexOf(query) === 0 || query.indexOf(candidate) === 0) return 80 - Math.abs(candidate.length - query.length);
+  if (query.length >= 3 && candidate.indexOf(query) > -1) return 60;
+  const d = rpDistance(query, candidate);
+  const max = Math.max(1, Math.floor(Math.max(query.length, candidate.length) / 4));
+  return d <= max ? 50 - d : -1;
+}
+
+/* best match among players of the two teams, using name plus learned aliases */
+function rpMatchPlayer(players, typed){
+  const q = rpNorm(typed);
+  if (!q) return null;
+  let best = null, bestScore = -1, tie = false;
+  players.forEach(p => {
+    const keys = [rpNorm(p.name)].concat((p.aliases || []).map(rpNorm));
+    keys.forEach(k => {
+      const sc = rpScore(q, k);
+      if (sc > bestScore){ bestScore = sc; best = p; tie = false; }
+      else if (sc === bestScore && sc > 0 && p !== best){ tie = true; }
+    });
+  });
+  return (best && bestScore > 0 && !tie) ? best : null;
+}
+
+function rpMatchTeam(name){
+  const q = rpNorm(name);
+  if (!q) return null;
+  let best = null, bestScore = -1;
+  app.state.teams.forEach(t => {
+    const keys = [rpNorm(t.name)].concat((t.aliases || []).map(rpNorm));
+    keys.forEach(k => {
+      const sc = rpScore(q, k);
+      if (sc > bestScore){ bestScore = sc; best = t; }
+    });
+  });
+  return bestScore > 0 ? best : null;
+}
+
+function rpFindTeam(name){ return rpMatchTeam(name); }
+
+function rpFindPlayer(teamIds, name){
+  const pool = app.state.players.filter(p => teamIds.indexOf(p.teamId) > -1);
+  return rpMatchPlayer(pool, name) || rpMatchPlayer(app.state.players, name);
+}
+
+function rpNewMatch(round, aName, bName){
+  return {
+    round,
+    teamAName: aName,
+    teamBName: bName,
+    legs: [],
+    curLeg: 0,
+    mvpName: '',
+    motmName: '',
+    warnings: []
+  };
+}
+
+function rpEnsureLeg(m, idx){
+  idx = Math.max(0, Math.min(3, idx));
+  while (m.legs.length <= idx) m.legs.push({ a: null, b: null, given: false, players: [] });
+  m.curLeg = idx;
+  return m.legs[idx];
+}
+
+/* score taken from the typed goals, used when no score was written */
+function rpDeriveLeg(m, leg){
+  let a = 0, b = 0;
+  leg.players.forEach(p => {
+    if (!p.player) return;
+    if (m.teamA && p.player.teamId === m.teamA.id) a += p.goals || 0;
+    else if (m.teamB && p.player.teamId === m.teamB.id) b += p.goals || 0;
+  });
+  leg.a = a;
+  leg.b = b;
+}
+
+function rpDeriveAgg(m){
+  m.aggA = m.legs.reduce((n, l) => n + (l.a || 0), 0);
+  m.aggB = m.legs.reduce((n, l) => n + (l.b || 0), 0);
+}
+
+function parseReportText(text){
+  const lines = String(text || '').split(/\r?\n/).map(l => l.replace(/[*_`]/g, '').trim());
+  const matches = [];
+  let round = '';
+  let cur = null;
+
+  for (const line of lines){
+    if (!line) continue;
+
+    const aw = line.match(RP_AWARD);
+    if (aw && cur){
+      if (aw[1].toLowerCase() === 'mvp') cur.mvpName = aw[2].trim();
+      else cur.motmName = aw[2].trim();
+      continue;
+    }
+
+    /* leg marker, optionally with its score */
+    const lg = line.match(RP_LEG_A) || line.match(RP_LEG_B);
+    if (lg && cur){
+      const leg = rpEnsureLeg(cur, Number(lg[1]) - 1);
+      if (lg[2] !== undefined && lg[2] !== null){
+        leg.a = Number(lg[2]);
+        leg.b = Number(lg[3]);
+        leg.given = true;
+      }
+      continue;
+    }
+
+    /* TeamA 3 - 1 TeamB */
+    const sc = line.match(RP_SCORE);
+    if (sc){
+      const aName = sc[1].trim(), bName = sc[4].trim();
+      const samePair = cur && cur.legs.length === 0 &&
+        rpNorm(cur.teamAName) === rpNorm(aName) && rpNorm(cur.teamBName) === rpNorm(bName);
+
+      if (!samePair){
+        cur = rpNewMatch(round, aName, bName);
+        matches.push(cur);
+      }
+      const leg = rpEnsureLeg(cur, 0);
+      leg.a = Number(sc[2]);
+      leg.b = Number(sc[3]);
+      leg.given = true;
+      continue;
+    }
+
+    /* TeamA vs TeamB */
+    const vs = line.match(RP_VS);
+    if (vs){
+      cur = rpNewMatch(round, vs[1].trim(), vs[2].trim());
+      matches.push(cur);
+      continue;
+    }
+
+    const tk = line.match(RP_TOKENS);
+    if (tk && cur){
+      const st = { name: tk[1].trim(), goals: 0, assists: 0, saves: 0, tackles: 0 };
+      const re = /(\d+)\s*([gast])/gi;
+      let hit;
+      while ((hit = re.exec(tk[2]))){
+        const v = Number(hit[1]);
+        const k = hit[2].toLowerCase();
+        if (k === 'g') st.goals += v;
+        else if (k === 'a') st.assists += v;
+        else if (k === 's') st.saves += v;
+        else st.tackles += v;
+      }
+      rpEnsureLeg(cur, cur.curLeg).players.push(st);
+      continue;
+    }
+
+    const br = line.match(RP_BARE);
+    if (br && cur){
+      rpEnsureLeg(cur, cur.curLeg).players.push({
+        name: br[1].trim(),
+        goals: Number(br[2]) || 0,
+        assists: Number(br[3]) || 0,
+        saves: Number(br[4]) || 0,
+        tackles: Number(br[5]) || 0
+      });
+      continue;
+    }
+
+    if (!cur){ round = line; continue; }
+    cur.warnings.push('Ignored: "' + line.slice(0, 50) + '"');
+  }
+
+  matches.forEach((m, mi) => {
+    m.index = mi;
+    m.teamA = rpFindTeam(m.teamAName);
+    m.teamB = rpFindTeam(m.teamBName);
+    if (!m.teamA) m.warnings.push('Unknown team: ' + m.teamAName);
+    if (!m.teamB) m.warnings.push('Unknown team: ' + m.teamBName);
+    m.teamIds = [m.teamA && m.teamA.id, m.teamB && m.teamB.id].filter(Boolean);
+
+    if (!m.legs.length) rpEnsureLeg(m, 0);
+
+    m.legs.forEach((leg, li) => {
+      leg.index = li;
+      leg.players.forEach((p, pi) => {
+        p.index = pi;
+        p.leg = li;
+        if (!p.manual) p.player = rpFindPlayer(m.teamIds, p.name);
+        if (!p.player) m.warnings.push('Unknown player: ' + p.name);
+      });
+
+      /* derive a missing score from the goals typed into that leg */
+      if (!leg.given) rpDeriveLeg(m, leg);
+    });
+
+    rpDeriveAgg(m);
+    m.players = [];
+    m.legs.forEach(l => l.players.forEach(p => m.players.push(p)));
+  });
+
+  return { matches };
+}
+
+function importReportMatches(parsed){
+  const created = [];
+
+  parsed.matches.forEach((pm, idx) => {
+    if (!pm.teamA || !pm.teamB || pm.teamA.id === pm.teamB.id) return;
+    if (!pm.legs.length) return;
+
+    /* reuse an unplayed fixture for this pair, otherwise make one */
+    let f = app.state.fixtures.find(x => !x.played && !x.tournamentId &&
+      ((x.teamAId === pm.teamA.id && x.teamBId === pm.teamB.id) ||
+       (x.teamAId === pm.teamB.id && x.teamBId === pm.teamA.id)));
+
+    if (!f){
+      f = {
+        id: uuid(), teamAId: pm.teamA.id, teamBId: pm.teamB.id,
+        competition: 'League', round: pm.round || 'Imported',
+        date: '', legs: pm.legs.length, played: false, stage: 'friendly', tournamentId: null, group: null
+      };
+      app.state.fixtures.push(f);
+    }
+    f.legs = pm.legs.length;
+
+    const blank = () => ({ played: false, goals: 0, assists: 0, saves: 0, tackles: 0 });
+    const stats = {};
+
+    pm.legs.forEach((leg, li) => {
+      leg.players.forEach(p => {
+        if (!p.player) return;
+        const id = p.player.id;
+        if (!stats[id]) stats[id] = pm.legs.map(blank);
+        const slot = stats[id][li];
+        slot.played = true;
+        slot.goals += p.goals || 0;
+        slot.assists += p.assists || 0;
+        slot.saves += p.saves || 0;
+        slot.tackles += p.tackles || 0;
+
+        /* remember how this name was written so next time it matches by itself */
+        const norm = rpNorm(p.name);
+        const known = [rpNorm(p.player.name)].concat((p.player.aliases || []).map(rpNorm));
+        if (norm && known.indexOf(norm) === -1){
+          p.player.aliases = (p.player.aliases || [])
+            .filter(a => rpNorm(a) !== norm)
+            .slice(-9)
+            .concat(p.name);
+        }
+      });
+    });
+
+    const contrib = pid => stats[pid].reduce((n, l) =>
+      n + l.goals * 5 + l.assists * 3 + l.saves + l.tackles * 0.5, 0);
+    const ranked = Object.keys(stats)
+      .map(pid => ({ pid, v: contrib(pid) }))
+      .sort((a, b) => b.v - a.v);
+
+    const byName = name => name ? rpFindPlayer([pm.teamA.id, pm.teamB.id], name) : null;
+    const mvpP = byName(pm.mvpName) || (ranked[0] && playerById(ranked[0].pid)) || null;
+    const motmP = byName(pm.motmName) || (ranked[1] && playerById(ranked[1].pid)) || mvpP;
+
+    const m = {
+      id: uuid(),
+      teamAId: pm.teamA.id, teamBId: pm.teamB.id,
+      fixtureId: f.id,
+      timestamp: Date.now() + idx,
+      mvpId: mvpP ? mvpP.id : null,
+      motmId: motmP ? motmP.id : null,
+      mvpSnapshot: mvpP ? { name: mvpP.name, teamId: mvpP.teamId } : null,
+      motmSnapshot: motmP ? { name: motmP.name, teamId: motmP.teamId } : null,
+      playerStats: stats
+    };
+
+    for (let i = 1; i <= 4; i++){
+      if (i <= pm.legs.length){
+        m['leg' + i + 'ScoreA'] = pm.legs[i - 1].a;
+        m['leg' + i + 'ScoreB'] = pm.legs[i - 1].b;
+      } else {
+        m['leg' + i + 'ScoreA'] = null;
+        m['leg' + i + 'ScoreB'] = null;
+      }
+    }
+
+    applyMatchToState(m, f);
+    created.push(m);
+  });
+
+  return created;
+}
+
+function renderReportPreview(parsed){
+  const box = $('#reportPreview');
+  if (!box) return;
+  const text = ($('#reportText') || {}).value || '';
+  if (!parsed || app._reportText !== text){
+    parsed = parseReportText(text);
+    app._reportText = text;
+  }
+  app._report = parsed;
+
+  if (!parsed.matches.length){
+    box.innerHTML = `<div class="empty" style="padding:14px">Nothing recognised yet.</div>`;
+    return;
+  }
+
+  let h = `<div class="tiny muted" style="margin-bottom:8px">${parsed.matches.length} match${parsed.matches.length === 1 ? '' : 'es'} recognised</div>`;
+
+  parsed.matches.forEach(m => {
+    const tA = m.teamA ? esc(m.teamA.name) : `<span style="color:var(--red)">${esc(m.teamAName)}?</span>`;
+    const tB = m.teamB ? esc(m.teamB.name) : `<span style="color:var(--red)">${esc(m.teamBName)}?</span>`;
+    const missing = m.players.filter(p => !p.player).length;
+    const pool = app.state.players.filter(x => m.teamIds.indexOf(x.teamId) > -1);
+
+    h += `<div class="rp-match">
+      <div class="between">
+        <b>${tA} <span style="color:var(--cyan)">${m.aggA} - ${m.aggB}</span> ${tB}</b>
+        <span class="pill ${missing || m.warnings.length ? 'mg' : 'li'}">${m.legs.length} leg${m.legs.length > 1 ? 's' : ''}</span>
+      </div>`;
+
+    m.legs.forEach(leg => {
+      const miss = leg.players.filter(p => !p.player);
+      h += `<div style="margin-top:8px">
+        <div class="tiny" style="color:var(--gold);letter-spacing:1.2px">LEG ${leg.index + 1} <span style="color:var(--cyan)">${leg.a} - ${leg.b}</span></div>
+        ${leg.players.filter(p => p.player).length ? `<div class="row" style="gap:5px;margin-top:5px">${leg.players.filter(p => p.player).map(p => {
+          const differs = rpNorm(p.player.name) !== rpNorm(p.name);
+          return `<span class="pill cy" title="${esc(p.player.name)}">${esc(p.name)}${differs ? ' → ' + esc(p.player.name) : ''} ${p.goals}G ${p.assists}A ${p.saves}S ${p.tackles}T</span>`;
+        }).join('')}</div>` : ''}
+        ${miss.length ? `<div style="margin-top:5px">${miss.map(p => `
+          <div class="row" style="gap:6px;margin-top:4px">
+            <span class="pill go">${esc(p.name)}</span>
+            <span class="tiny muted">not found, pick:</span>
+            <select data-rp-fix="${m.index}:${leg.index}:${p.index}" style="width:auto;flex:1;max-width:240px;padding:4px 6px;font-size:11px">
+              <option value="">skip this player</option>
+              ${pool.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}
+            </select>
+          </div>`).join('')}</div>` : ''}
+      </div>`;
+    });
+
+    h += `${m.warnings.length ? `<div class="tiny" style="color:var(--gold);margin-top:7px">${m.warnings.map(esc).join(' • ')}</div>` : ''}</div>`;
+  });
+
+  box.innerHTML = h;
+}
+
+function openReportImport(){
+  openModal('📋 Paste Report', `
+    <div class="hint" style="line-height:1.8">
+      One match block: <b>Neon FC vs Void United</b><br>
+      Then legs with their scores: <b>1st leg 3 - 1</b>, player lines under each, then <b>2nd leg 2 - 2</b>.<br>
+      A plain <b>Neon FC 3 - 1 Void United</b> line also works, it counts as leg 1.<br>
+      Symbols and emoji are ignored when matching, so <b>⟡isthatzo⟡</b> can be typed as <b>isthatzo</b>.<br>
+      If a name still does not land, pick the player from the dropdown and the app remembers it next time.
+    </div>
+    <label class="fl">Report</label>
+    <textarea id="reportText" rows="12" placeholder="Matchday 5&#10;Neon FC vs Void United&#10;1st leg 3 - 1&#10;isthatzo 2G 1A&#10;Kai Nova 1G&#10;Rex Blaze 1G&#10;2nd leg 2 - 2&#10;Kai Nova 1G&#10;isthatzo 1G&#10;Rex Blaze 2G&#10;MVP: Kai Nova"></textarea>
+    <div id="reportPreview" style="margin-top:12px"></div>
+  `, `<button class="btn lime" data-act="report:import">✅ Import</button>
+      <button class="btn" data-act="modal:close">Cancel</button>`);
+  renderReportPreview();
+}
+
+/* ---------------------------------------------------------------------------
+   17c. MATCH TRACKER
+   Tap players for goals, assists, saves and tackles. No names are typed.
+   --------------------------------------------------------------------------- */
+function trackStart(fixtureId){
+  const f = fixtureById(fixtureId);
+  if (!f) return;
+
+  const legs = Math.max(1, Math.min(4, Number(f.legs) || 1));
+  const st = {
+    fixtureId: f.id,
+    legs,
+    leg: 1,
+    scores: Array.from({ length: legs }, () => ({ a: 0, b: 0 })),
+    touched: Array.from({ length: legs }, () => false),
+    bench: {},
+    stats: {}
+  };
+
+  app.state.players
+    .filter(p => p.teamId === f.teamAId || p.teamId === f.teamBId)
+    .forEach(p => {
+      st.stats[p.id] = Array.from({ length: legs }, () => ({ g: 0, a: 0, s: 0, t: 0 }));
+    });
+
+  app._track = st;
+  app._trackUndo = [];
+
+  openModal('⚡ Match Tracker', trackBodyHTML(),
+    `<button class="btn" data-act="track:undo">↩️ Undo</button>
+     <button class="btn" data-act="track:reset">🧹 Reset leg</button>
+     <button class="btn" data-act="track:copy">📋 Copy</button>
+     <button class="btn lime" data-act="track:save">💾 Save match</button>`);
+
+  renderTrack();
+}
+
+function trackTotals(){
+  const st = app._track;
+  const out = { a: 0, b: 0 };
+  if (!st) return out;
+  st.scores.forEach(s => { out.a += s.a; out.b += s.b; });
+  return out;
+}
+
+function trackBodyHTML(){
+  const st = app._track;
+  if (!st) return '';
+  const f = fixtureById(st.fixtureId);
+  if (!f) return '<div class="empty">Fixture not found</div>';
+
+  const A = teamById(f.teamAId), B = teamById(f.teamBId);
+  const i = st.leg - 1;
+  const sc = st.scores[i];
+  const all = trackTotals();
+
+  const row = p => {
+    const s = st.stats[p.id] && st.stats[p.id][i] || { g:0, a:0, s:0, t:0 };
+    const benched = !!(st.bench && st.bench[p.id]);
+    const chip = (k, icon, label) =>
+      `<button class="trk-chip ${s[k] ? 'on' : ''} ${benched ? 'off' : ''}" data-act="track:inc" data-pid="${p.id}" data-k="${k}" title="${label}">${icon} ${s[k]}</button>`;
+    return `<div class="trk-row">
+      <span class="trk-name ${benched ? 'out' : ''}" data-act="track:bench" data-pid="${p.id}" title="${benched ? 'Tap to mark as playing' : 'Tap to mark as not playing'}">${esc(p.name)}</span>
+      ${chip('g', '⚽', 'Goal')}
+      ${chip('a', '🅰️', 'Assist')}
+      ${chip('s', '🧤', 'Save')}
+      ${chip('t', '🛡️', 'Tackle')}
+    </div>`;
+  };
+
+  const side = team => {
+    const roster = app.state.players.filter(p => p.teamId === team.id);
+    return `<div class="trk-team">
+      <div class="trk-team-head">${teamLogo(team, 24)}<b>${esc(team.name)}</b></div>
+      ${roster.length ? roster.map(row).join('') : '<div class="muted small">No players in this team</div>'}
+    </div>`;
+  };
+
+  return `<div class="trk-score">
+    <span class="trk-side">${teamLogo(A, 34)}<b>${esc(A.name)}</b></span>
+    <span class="trk-num">${sc.a} - ${sc.b}</span>
+    <span class="trk-side">${teamLogo(B, 34)}<b>${esc(B.name)}</b></span>
+  </div>
+  ${st.legs > 1 ? `<div class="center tiny muted" style="margin-bottom:8px">Aggregate ${all.a} - ${all.b}</div>
+  <div class="legtab" style="justify-content:center">${Array.from({ length: st.legs }, (_, n) =>
+    `<button class="${st.leg === n + 1 ? 'on' : ''}" data-act="track:leg" data-leg="${n + 1}">Leg ${n + 1}</button>`).join('')}</div>` : ''}
+  <div class="trk-cols">${side(A)}${side(B)}</div>
+  <div class="tiny muted" style="margin-top:10px;text-align:center">Tap a stat to add one. Tap a name to mark that player as not playing. Undo takes back the last tap.</div>`;
+}
+
+function renderTrack(){
+  const body = $('#modalBody');
+  if (!body) return;
+  const top = body.scrollTop;
+  body.innerHTML = trackBodyHTML();
+  body.scrollTop = top;
+}
+
+function trackIncrement(pid, k){
+  const st = app._track;
+  if (!st || !st.stats[pid]) return;
+  if (st.bench && st.bench[pid]) return;
+  const i = st.leg - 1;
+  st.touched[i] = true;
+  const l = st.stats[pid][i];
+  l[k] = (l[k] || 0) + 1;
+
+  const p = playerById(pid);
+  const f = fixtureById(st.fixtureId);
+  if (k === 'g' && p && f){
+    if (p.teamId === f.teamAId) st.scores[i].a++;
+    else if (p.teamId === f.teamBId) st.scores[i].b++;
+  }
+
+  app._trackUndo = (app._trackUndo || []).concat([{ pid, k, leg: st.leg }]);
+  renderTrack();
+}
+
+function trackUndo(){
+  const undo = app._trackUndo || [];
+  const last = undo.pop();
+  app._trackUndo = undo;
+  if (!last) return;
+
+  const st = app._track;
+  const l = st.stats[last.pid] && st.stats[last.pid][last.leg - 1];
+  if (!l) return;
+  l[last.k] = Math.max(0, (l[last.k] || 0) - 1);
+
+  const p = playerById(last.pid);
+  const f = fixtureById(st.fixtureId);
+  if (last.k === 'g' && p && f){
+    const i = last.leg - 1;
+    if (p.teamId === f.teamAId) st.scores[i].a = Math.max(0, st.scores[i].a - 1);
+    else st.scores[i].b = Math.max(0, st.scores[i].b - 1);
+  }
+  renderTrack();
+}
+
+function trackResetLeg(){
+  const st = app._track;
+  if (!st) return;
+  const i = st.leg - 1;
+  Object.keys(st.stats).forEach(pid => { st.stats[pid][i] = { g:0, a:0, s:0, t:0 }; });
+  st.scores[i] = { a: 0, b: 0 };
+  st.touched[i] = false;
+  app._trackUndo = (app._trackUndo || []).filter(u => u.leg !== st.leg);
+  renderTrack();
+}
+
+/* bench or restore a player; benching wipes his taps and rebuilds the score */
+function trackBench(pid){
+  const st = app._track;
+  if (!st) return;
+
+  st.bench = st.bench || {};
+  if (st.bench[pid]){
+    delete st.bench[pid];
+  } else {
+    st.bench[pid] = true;
+    if (st.stats[pid]) st.stats[pid] = st.stats[pid].map(() => ({ g:0, a:0, s:0, t:0 }));
+    app._trackUndo = (app._trackUndo || []).filter(u => u.pid !== pid);
+    trackRecomputeScores();
+  }
+  renderTrack();
+}
+
+function trackRecomputeScores(){
+  const st = app._track;
+  if (!st) return;
+  const f = fixtureById(st.fixtureId);
+  if (!f) return;
+
+  st.scores = st.scores.map(() => ({ a: 0, b: 0 }));
+  Object.keys(st.stats).forEach(pid => {
+    const p = playerById(pid);
+    if (!p) return;
+    st.stats[pid].forEach((l, li) => {
+      if (!st.scores[li]) return;
+      if (p.teamId === f.teamAId) st.scores[li].a += l.g || 0;
+      else if (p.teamId === f.teamBId) st.scores[li].b += l.g || 0;
+    });
+  });
+}
+
+function trackResultText(){
+  const st = app._track;
+  if (!st) return '';
+  const f = fixtureById(st.fixtureId);
+  const A = teamById(f.teamAId), B = teamById(f.teamBId);
+  const all = trackTotals();
+  const lines = [`${A.name} ${all.a} - ${all.b} ${B.name}`];
+
+  Object.keys(st.stats).forEach(pid => {
+    const p = playerById(pid);
+    if (!p) return;
+    if (st.bench && st.bench[pid]) return;
+    const t = st.stats[pid].reduce((n, l) => ({
+      g: n.g + l.g, a: n.a + l.a, s: n.s + l.s, k: n.k + l.t
+    }), { g:0, a:0, s:0, k:0 });
+    if (t.g || t.a || t.s || t.k) lines.push(`${p.name} ${t.g}G ${t.a}A ${t.s}S ${t.k}T`);
+  });
+  return lines.join('\n');
+}
+
+function trackCopy(){
+  const text = trackResultText();
+  if (!text) return;
+  const done = () => toast('📋 Result copied', 'ok');
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done, () => trackCopyFallback(text, done));
+  } else {
+    trackCopyFallback(text, done);
+  }
+}
+
+function trackCopyFallback(text, done){
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); done(); } catch(e){ toast('❌ Could not copy', 'err'); }
+  ta.remove();
+}
+
+async function trackSave(){
+  const st = app._track;
+  if (!st) return;
+  const f = fixtureById(st.fixtureId);
+  if (!f){ closeModal(); return; }
+
+  /* only save the legs that were actually touched, so a 2 leg fixture
+     where one game was played does not gain a phantom 0-0 leg */
+  const touched = st.touched || [];
+  let usedLegs = 1;
+  touched.forEach((t, i) => { if (t) usedLegs = Math.max(usedLegs, i + 1); });
+  usedLegs = Math.max(1, Math.min(st.legs, usedLegs));
+
+  const stats = {};
+  Object.keys(st.stats).forEach(pid => {
+    const benched = !!(st.bench && st.bench[pid]);
+    stats[pid] = st.stats[pid].slice(0, usedLegs).map(l => ({
+      played: !benched, goals: l.g || 0, assists: l.a || 0, saves: l.s || 0, tackles: l.t || 0
+    }));
+  });
+
+  const contrib = pid => stats[pid].reduce((n, l) =>
+    n + l.goals * 5 + l.assists * 3 + l.saves + l.tackles * 0.5, 0);
+  const ranked = Object.keys(stats)
+    .map(pid => ({ pid, v: contrib(pid) }))
+    .sort((a, b) => b.v - a.v);
+  const mvpId = ranked[0] && ranked[0].v > 0 ? ranked[0].pid : null;
+  const motmId = ranked[1] && ranked[1].v > 0 ? ranked[1].pid : mvpId;
+
+  const m = {
+    id: uuid(),
+    teamAId: f.teamAId, teamBId: f.teamBId,
+    fixtureId: f.id,
+    timestamp: Date.now(),
+    mvpId, motmId,
+    mvpSnapshot: mvpId ? (() => { const p = playerById(mvpId); return p ? { name: p.name, teamId: p.teamId } : null; })() : null,
+    motmSnapshot: motmId ? (() => { const p = playerById(motmId); return p ? { name: p.name, teamId: p.teamId } : null; })() : null,
+    playerStats: stats
+  };
+
+  for (let i = 1; i <= 4; i++){
+    if (i <= usedLegs){
+      m['leg' + i + 'ScoreA'] = st.scores[i - 1].a;
+      m['leg' + i + 'ScoreB'] = st.scores[i - 1].b;
+    } else {
+      m['leg' + i + 'ScoreA'] = null;
+      m['leg' + i + 'ScoreB'] = null;
+    }
+  }
+
+  f.legs = usedLegs;
+
+  applyMatchToState(m, f);
+  app._track = null;
+  app._trackUndo = [];
+  await logAdmin('Tracked a match result');
+  await saveState(); closeModal(); render();
+  toast('✅ Match saved', 'ok');
 }
 
 function teamOptions(selected){
@@ -3258,6 +4005,67 @@ document.addEventListener('click', async e => {
   }
 
   /* ---------------- FIXTURES ---------------- */
+  if (act === 'report:open'){
+    if (!app.isAdmin) return;
+    if (app.state.teams.length < 2) return toast('⚠️ Need at least 2 teams', 'err');
+    openReportImport();
+    return;
+  }
+  if (act === 'report:import'){
+    if (!app.isAdmin) return;
+    const box = $('#reportText');
+    const parsed = (app._report && app._reportText === box.value) ? app._report : parseReportText(box.value);
+    const usable = parsed.matches.filter(m => m.teamA && m.teamB && m.teamA.id !== m.teamB.id);
+    if (!usable.length) return toast('⚠️ No match could be read, check the team names', 'err');
+    const created = importReportMatches(parsed);
+    if (!created.length) return toast('⚠️ Nothing imported', 'err');
+    await logAdmin('Imported ' + created.length + ' match(es) from a pasted report');
+    await saveState(); closeModal(); render();
+    toast('✅ Imported ' + created.length + ' match' + (created.length === 1 ? '' : 'es'), 'ok');
+    return;
+  }
+
+  /* ---------------- MATCH TRACKER ---------------- */
+  if (act === 'track:open'){
+    if (!app.isAdmin) return;
+    trackStart(id);
+    return;
+  }
+  if (act === 'track:inc'){
+    if (!app.isAdmin) return;
+    trackIncrement(el.dataset.pid, el.dataset.k);
+    return;
+  }
+  if (act === 'track:leg'){
+    if (!app.isAdmin || !app._track) return;
+    app._track.leg = Number(el.dataset.leg) || 1;
+    renderTrack();
+    return;
+  }
+  if (act === 'track:undo'){
+    if (!app.isAdmin) return;
+    trackUndo();
+    return;
+  }
+  if (act === 'track:reset'){
+    if (!app.isAdmin) return;
+    trackResetLeg();
+    return;
+  }
+  if (act === 'track:bench'){
+    if (!app.isAdmin) return;
+    trackBench(el.dataset.pid);
+    return;
+  }
+  if (act === 'track:copy'){
+    trackCopy();
+    return;
+  }
+  if (act === 'track:save'){
+    if (!app.isAdmin) return;
+    await trackSave();
+    return;
+  }
   if (act === 'fixture:autogen'){
     if (!app.isAdmin) return;
     const ids = app.state.teams.map(t => t.id);
@@ -3600,6 +4408,42 @@ document.addEventListener('input', e => {
       logo: ($('#f_teamLogo') ? $('#f_teamLogo').value : '')
     }, 42);
   }
+  if (idt === 'reportText') renderReportPreview();
+});
+
+/* picking the right player for a name the parser could not place */
+document.addEventListener('change', e => {
+  const sel = e.target.closest('[data-rp-fix]');
+  if (!sel) return;
+
+  const parts = String(sel.dataset.rpFix).split(':').map(Number);
+  const m = app._report && app._report.matches[parts[0]];
+  const leg = m && m.legs[parts[1]];
+  const p = leg && leg.players[parts[2]];
+  if (!p) return;
+
+  const pid = sel.value;
+  p.player = pid ? playerById(pid) : null;
+  p.manual = !!pid;
+
+  if (p.player){
+    const norm = rpNorm(p.name);
+    const known = [rpNorm(p.player.name)].concat((p.player.aliases || []).map(rpNorm));
+    if (norm && known.indexOf(norm) === -1){
+      p.player.aliases = (p.player.aliases || [])
+        .filter(a => rpNorm(a) !== norm)
+        .slice(-9)
+        .concat(p.name);
+    }
+    m.warnings = m.warnings.filter(w => w !== 'Unknown player: ' + p.name);
+  }
+
+  if (!leg.given){
+    rpDeriveLeg(m, leg);
+    rpDeriveAgg(m);
+  }
+
+  renderReportPreview(app._report);
 });
 
 /* search + sort for players view */
@@ -3963,13 +4807,14 @@ function openAwardRanking(key){
   const a = all.find(x => x.key === key);
   if (!a) return;
 
-  const rows = (a.rows || []).slice(0, 60);
+  const rows = (a.rows || []).slice(0, 400);
   const maxV = Math.max(...rows.map(r => Math.abs(r.value)), 1);
   const isPlayer = playerAwards.some(x => x.key === key);
 
   let html = `<div class="tiny muted" style="margin-bottom:12px">${esc(a.desc)}</div>`;
   if (!rows.length) html += `<div class="empty">No data yet</div>`;
   else {
+    html += `<div class="tiny muted" style="margin-bottom:8px">${rows.length} entr${rows.length === 1 ? 'y' : 'ies'}, zeros included</div>`;
     html += `<div class="tblwrap"><table>
       <thead><tr><th>#</th><th>Name</th><th class="num">Value</th><th style="width:130px">Chart</th></tr></thead>
       <tbody>${rows.map((r,i) => `<tr>
