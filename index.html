@@ -228,7 +228,7 @@ th{
 }
 td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.05);white-space:nowrap}
 tbody tr{transition:background .15s}
-tbody tr:hover{background:rgba(0,240,255,.07)}
+tbody tr:hover{background-color:rgba(0,240,255,.07)}
 tbody tr:last-child td{border-bottom:none}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 
@@ -452,6 +452,61 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   border-radius: 6px;
 }
 
+/* ---------- award animations ---------- */
+@keyframes awSweep{
+  0%{transform:rotate(18deg) translateX(-140%)}
+  55%,100%{transform:rotate(18deg) translateX(140%)}
+}
+@keyframes awGlow1{
+  0%,100%{box-shadow:0 0 18px rgba(255,213,61,.35)}
+  50%{box-shadow:0 0 34px rgba(255,213,61,.8)}
+}
+@keyframes awPulse2{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.03)}
+}
+@keyframes awBreath3{
+  0%,100%{opacity:1}
+  50%{opacity:.82}
+}
+.aw-card{position:relative;overflow:hidden}
+.aw-card::after{
+  content:'';position:absolute;top:-60%;left:-40%;width:45%;height:220%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.13),transparent);
+  transform:rotate(18deg) translateX(-140%);
+  animation:awSweep 5s ease-in-out infinite;
+  pointer-events:none;
+}
+.aw-card:hover::after{animation-duration:1.5s}
+.rk.rank1{animation:awGlow1 2.2s ease-in-out infinite}
+.rk.rank2{animation:awPulse2 2.4s ease-in-out infinite}
+.rk.rank3{animation:awBreath3 2.6s ease-in-out infinite}
+
+/* ---------- top three rows shine ---------- */
+@keyframes rowShine{
+  0%{background-position:-140% 0}
+  100%{background-position:240% 0}
+}
+tbody tr.top1, tbody tr.top2, tbody tr.top3{background-size:260% 100%}
+tbody tr.top1 td, tbody tr.top2 td, tbody tr.top3 td{color:#fff;font-weight:700;border-bottom-color:rgba(255,255,255,.12)}
+tbody tr.top1{
+  background-image:linear-gradient(100deg,rgba(255,213,61,.30) 0%,rgba(255,255,255,.22) 45%,rgba(255,213,61,.30) 70%);
+  animation:rowShine 7s linear infinite;
+  box-shadow:inset 0 0 22px rgba(255,213,61,.25);
+}
+tbody tr.top2{
+  background-image:linear-gradient(100deg,rgba(0,240,255,.26) 0%,rgba(255,255,255,.20) 45%,rgba(0,240,255,.26) 70%);
+  animation:rowShine 8s linear infinite;
+  box-shadow:inset 0 0 20px rgba(0,240,255,.22);
+}
+tbody tr.top3{
+  background-image:linear-gradient(100deg,rgba(139,255,60,.22) 0%,rgba(255,255,255,.18) 45%,rgba(139,255,60,.22) 70%);
+  animation:rowShine 9s linear infinite;
+  box-shadow:inset 0 0 18px rgba(139,255,60,.20);
+}
+
+/* ---------- inline icons ---------- */
+
 /* ---------- paste report preview ---------- */
 .rp-match{
   border:1px solid var(--line);border-radius:10px;
@@ -472,9 +527,16 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 @media (max-width:640px){ .trk-cols{grid-template-columns:1fr} }
 .trk-team-head{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--cyan);margin-bottom:6px}
 .trk-row{display:flex;align-items:center;gap:5px;padding:5px 0;border-bottom:1px dashed rgba(255,255,255,.07)}
-.trk-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;font-size:13px;cursor:pointer;transition:opacity .15s ease}
-.trk-name:hover{color:var(--cyan)}
-.trk-name.out{opacity:.4;text-decoration:line-through}
+.trk-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;font-size:13px;transition:opacity .15s ease}
+.trk-name.out{opacity:.7}
+.trk-play{display:flex;align-items:center;flex:0 0 auto;margin:0;cursor:pointer}
+.trk-play input{width:15px;height:15px;margin:0;transform:scale(1.1);cursor:pointer}
+.trk-mini{
+  margin-left:6px;cursor:pointer;font-family:inherit;
+  border:1px solid var(--line);background:rgba(0,240,255,.06);color:var(--dim);
+  border-radius:6px;padding:1px 6px;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;
+}
+.trk-mini:hover{color:var(--cyan);border-color:var(--cyan)}
 .trk-chip{
   cursor:pointer;flex:0 0 auto;min-width:46px;
   border:1px solid var(--line);background:rgba(0,240,255,.05);color:var(--txt);
@@ -517,6 +579,13 @@ tr.leg-total td{
   background:linear-gradient(90deg,var(--cyan),var(--gold),var(--magenta));
 }
 .tos-card:hover{transform:translateY(-3px);box-shadow:0 0 26px rgba(255,213,61,.28)}
+.tos-card::after{
+  content:'';position:absolute;top:-60%;left:-40%;width:45%;height:220%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);
+  transform:rotate(18deg) translateX(-140%);
+  animation:awSweep 6s ease-in-out infinite;
+  pointer-events:none;
+}
 .tos-top{display:flex;align-items:center;justify-content:center;gap:8px;font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:900}
 .tos-icon{font-size:18px;letter-spacing:0}
 .tos-name{margin-top:10px;font-size:16px;font-weight:900;color:#fff;line-height:1.25}
@@ -2003,8 +2072,7 @@ VIEWS.fixtures = () => {
                  <button class="btn sm" data-act="match:edit" data-id="${f.matchId}">✏️</button>
                  <button class="btn sm danger" data-act="match:del" data-id="${f.matchId}">🗑️</button>`
               : `<button class="btn sm lime" data-act="track:open" data-id="${f.id}">▶️</button>
-                 <button class="btn sm" data-act="match:record" data-id="${f.id}">📝</button>
-                 <button class="btn sm gold" data-act="fixture:auto" data-id="${f.id}">🎲</button>`
+                 <button class="btn sm" data-act="match:record" data-id="${f.id}">📝</button>`
           ) : (f.played ? `<button class="btn sm" data-act="match:view" data-id="${f.matchId}">📊</button>` : '')}
           ${app.isAdmin ? `<button class="btn sm danger" data-act="fixture:del" data-id="${f.id}">🗑️</button>` : ''}
         </div>
@@ -2097,7 +2165,7 @@ VIEWS.standings = () => {
     </tr></thead><tbody>
     ${table.map((t, i) => {
       const form = t.form.slice(-5);
-      return `<tr>
+      return `<tr class="${i < 3 ? 'top' + (i + 1) : ''}">
         <td><span class="rk ${i === 0 ? 'rank1' : i === 1 ? 'rank2' : i === 2 ? 'rank3' : 'rk-D'}">${i+1}</span></td>
         <td>${teamLink(teamById(t.id), 22)}</td>
         <td class="num">${t.mp}</td><td class="num">${t.w}</td><td class="num">${t.d}</td><td class="num">${t.l}</td>
@@ -2174,7 +2242,7 @@ VIEWS.players = () => {
   sorted.forEach((p, i) => {
     const s = st[p.id] || {};
     const tm = teamById(p.teamId);
-    html += `<tr>
+    html += `<tr class="${i < 3 ? 'top' + (i + 1) : ''}">
       <td><span class="rk ${i === 0 ? 'rank1' : i === 1 ? 'rank2' : i === 2 ? 'rank3' : 'rk-D'}">${i+1}</span></td>
       <td>${playerLink(p, 'var(--cyan)')}</td>
       <td>${teamLink(tm, 20)}</td>
@@ -2317,7 +2385,7 @@ VIEWS.tournament = () => {
     <div class="head-actions">${app.isAdmin ? `<button class="btn magenta" data-act="tournament:create"><span class="emoji">➕</span> Create</button>` : ''}</div>
   </div>`;
 
-  if (!s.tournaments.length) return html + `<div class="empty"><span class="big">🏟️</span>No tournaments yet.</div>`;
+  if (!s.tournaments.length) return html + `<div class="empty"><span class="big">🏆</span>No tournaments yet.</div>`;
 
   html += `<div class="grid g2">`;
   s.tournaments.forEach(t => {
@@ -2383,8 +2451,7 @@ function tournamentDetail(t){
         ${app.isAdmin ? (f.played
           ? `<button class="btn sm" data-act="match:view" data-id="${f.matchId}">📊</button>`
           : `<button class="btn sm lime" data-act="track:open" data-id="${f.id}">▶️</button>
-             <button class="btn sm" data-act="match:record" data-id="${f.id}">📝</button>
-             <button class="btn sm gold" data-act="fixture:auto" data-id="${f.id}">🎲</button>`) : ''}
+             <button class="btn sm" data-act="match:record" data-id="${f.id}">📝</button>`) : ''}
       </div>
     </div>`;
   });
@@ -2405,8 +2472,8 @@ function tournamentDetail(t){
           <div class="tm ${tie.winner === tie.a && tie.a ? 'win' : ''}"><span>${tie.a ? teamLink(teamById(tie.a), 20) : '<span class="muted">TBD</span>'}</span></div>
           <div class="tm ${tie.winner === tie.b && tie.b ? 'win' : ''}"><span>${tie.b ? teamLink(teamById(tie.b), 20) : '<span class="muted">TBD</span>'}</span></div>
           ${app.isAdmin && unplayed.length ? `<div class="row" style="margin-top:7px;gap:5px">
-            <button class="btn sm lime" data-act="match:record" data-id="${unplayed[0].id}">📝</button>
-            <button class="btn sm gold" data-act="fixture:auto" data-id="${unplayed[0].id}">🎲</button>
+            <button class="btn sm lime" data-act="track:open" data-id="${unplayed[0].id}">▶️</button>
+            <button class="btn sm" data-act="match:record" data-id="${unplayed[0].id}">📝</button>
           </div>` : ''}
         </div>`;
       });
@@ -2463,7 +2530,7 @@ VIEWS.awards = () => {
     if (isDisabled && !app.isAdmin) return '';
     
     const top = a.rows[0];
-    return `<div class="card anim clickable" ${isDisabled ? '' : `data-act="award:view" data-award="${esc(a.key)}" title="See all ${esc(a.title)}"`} style="${isDisabled ? 'opacity:0.5;border-color:var(--red)' : ''}">
+    return `<div class="card anim clickable aw-card" ${isDisabled ? '' : `data-act="award:view" data-award="${esc(a.key)}" title="See all ${esc(a.title)}"`} style="${isDisabled ? 'opacity:0.5;border-color:var(--red)' : ''}">
       <div class="between" style="margin-bottom:8px">
         <div class="row" style="gap:8px">
           <span class="emoji float" style="font-size:22px">${a.icon}</span>
@@ -3183,7 +3250,9 @@ function trackStart(fixtureId){
     leg: 1,
     scores: Array.from({ length: legs }, () => ({ a: 0, b: 0 })),
     touched: Array.from({ length: legs }, () => false),
-    bench: {},
+    sel: {},
+    mvpId: '',
+    motmId: '',
     stats: {}
   };
 
@@ -3226,11 +3295,12 @@ function trackBodyHTML(){
 
   const row = p => {
     const s = st.stats[p.id] && st.stats[p.id][i] || { g:0, a:0, s:0, t:0 };
-    const benched = !!(st.bench && st.bench[p.id]);
+    const picked = !!(st.sel && st.sel[p.id]);
     const chip = (k, icon, label) =>
-      `<button class="trk-chip ${s[k] ? 'on' : ''} ${benched ? 'off' : ''}" data-act="track:inc" data-pid="${p.id}" data-k="${k}" title="${label}">${icon} ${s[k]}</button>`;
+      `<button class="trk-chip ${s[k] ? 'on' : ''} ${picked ? '' : 'off'}" data-act="track:inc" data-pid="${p.id}" data-k="${k}" title="${label}">${icon} ${s[k]}</button>`;
     return `<div class="trk-row">
-      <span class="trk-name ${benched ? 'out' : ''}" data-act="track:bench" data-pid="${p.id}" title="${benched ? 'Tap to mark as playing' : 'Tap to mark as not playing'}">${esc(p.name)}</span>
+      <label class="trk-play" title="Tick him if he played"><input type="checkbox" data-trk-play="${p.id}" ${picked ? 'checked' : ''}></label>
+      <span class="trk-name ${picked ? '' : 'out'}">${esc(p.name)}</span>
       ${chip('g', '⚽', 'Goal')}
       ${chip('a', '🅰️', 'Assist')}
       ${chip('s', '🧤', 'Save')}
@@ -3241,10 +3311,18 @@ function trackBodyHTML(){
   const side = team => {
     const roster = app.state.players.filter(p => p.teamId === team.id);
     return `<div class="trk-team">
-      <div class="trk-team-head">${teamLogo(team, 24)}<b>${esc(team.name)}</b></div>
+      <div class="trk-team-head">
+        ${teamLogo(team, 24)}<b>${esc(team.name)}</b>
+        <button class="trk-mini" data-act="track:all" data-team="${team.id}" data-mode="all">all</button>
+        <button class="trk-mini" data-act="track:all" data-team="${team.id}" data-mode="none">none</button>
+      </div>
       ${roster.length ? roster.map(row).join('') : '<div class="muted small">No players in this team</div>'}
     </div>`;
   };
+
+  const pool = app.state.players.filter(p => (p.teamId === f.teamAId || p.teamId === f.teamBId) && st.sel[p.id]);
+  const awardOpts = sel => `<option value="">auto</option>` + pool.map(p =>
+    `<option value="${p.id}" ${sel === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 
   return `<div class="trk-score">
     <span class="trk-side">${teamLogo(A, 34)}<b>${esc(A.name)}</b></span>
@@ -3255,7 +3333,11 @@ function trackBodyHTML(){
   <div class="legtab" style="justify-content:center">${Array.from({ length: st.legs }, (_, n) =>
     `<button class="${st.leg === n + 1 ? 'on' : ''}" data-act="track:leg" data-leg="${n + 1}">Leg ${n + 1}</button>`).join('')}</div>` : ''}
   <div class="trk-cols">${side(A)}${side(B)}</div>
-  <div class="tiny muted" style="margin-top:10px;text-align:center">Tap a stat to add one. Tap a name to mark that player as not playing. Undo takes back the last tap.</div>`;
+  <div class="field-row" style="margin-top:12px">
+    <div><label class="fl">🏅 MVP</label><select data-trk-award="mvp" style="padding:6px 8px;font-size:12px">${awardOpts(st.mvpId)}</select></div>
+    <div><label class="fl">⭐ MOTM</label><select data-trk-award="motm" style="padding:6px 8px;font-size:12px">${awardOpts(st.motmId)}</select></div>
+  </div>
+  <div class="tiny muted" style="margin-top:10px;text-align:center">Tick the players who played, or just tap a stat and he ticks himself. Undo takes back the last tap.</div>`;
 }
 
 function renderTrack(){
@@ -3269,7 +3351,7 @@ function renderTrack(){
 function trackIncrement(pid, k){
   const st = app._track;
   if (!st || !st.stats[pid]) return;
-  if (st.bench && st.bench[pid]) return;
+  st.sel[pid] = true;
   const i = st.leg - 1;
   st.touched[i] = true;
   const l = st.stats[pid][i];
@@ -3318,18 +3400,40 @@ function trackResetLeg(){
   renderTrack();
 }
 
-/* bench or restore a player; benching wipes his taps and rebuilds the score */
-function trackBench(pid){
+/* tick / untick a player for this match; unticking wipes his taps and rebuilds the score */
+function trackSetSelected(pid, picked){
   const st = app._track;
   if (!st) return;
 
-  st.bench = st.bench || {};
-  if (st.bench[pid]){
-    delete st.bench[pid];
+  st.sel = st.sel || {};
+  if (picked){
+    st.sel[pid] = true;
   } else {
-    st.bench[pid] = true;
+    delete st.sel[pid];
     if (st.stats[pid]) st.stats[pid] = st.stats[pid].map(() => ({ g:0, a:0, s:0, t:0 }));
     app._trackUndo = (app._trackUndo || []).filter(u => u.pid !== pid);
+    if (st.mvpId === pid) st.mvpId = '';
+    if (st.motmId === pid) st.motmId = '';
+    trackRecomputeScores();
+  }
+  renderTrack();
+}
+
+/* tick or clear a whole team in one press */
+function trackSelectTeam(teamId, mode){
+  const st = app._track;
+  if (!st) return;
+  const roster = app.state.players.filter(p => p.teamId === teamId);
+  if (mode === 'all'){
+    roster.forEach(p => { st.sel[p.id] = true; });
+  } else {
+    roster.forEach(p => {
+      delete st.sel[p.id];
+      if (st.stats[p.id]) st.stats[p.id] = st.stats[p.id].map(() => ({ g:0, a:0, s:0, t:0 }));
+      if (st.mvpId === p.id) st.mvpId = '';
+      if (st.motmId === p.id) st.motmId = '';
+    });
+    app._trackUndo = (app._trackUndo || []).filter(u => !roster.some(p => p.id === u.pid));
     trackRecomputeScores();
   }
   renderTrack();
@@ -3364,7 +3468,7 @@ function trackResultText(){
   Object.keys(st.stats).forEach(pid => {
     const p = playerById(pid);
     if (!p) return;
-    if (st.bench && st.bench[pid]) return;
+    if (!st.sel || !st.sel[pid]) return;
     const t = st.stats[pid].reduce((n, l) => ({
       g: n.g + l.g, a: n.a + l.a, s: n.s + l.s, k: n.k + l.t
     }), { g:0, a:0, s:0, k:0 });
@@ -3407,11 +3511,15 @@ async function trackSave(){
   touched.forEach((t, i) => { if (t) usedLegs = Math.max(usedLegs, i + 1); });
   usedLegs = Math.max(1, Math.min(st.legs, usedLegs));
 
+  if (!Object.keys(st.sel || {}).length){
+    return toast('⚠️ Tick at least one player first', 'err');
+  }
+
   const stats = {};
   Object.keys(st.stats).forEach(pid => {
-    const benched = !!(st.bench && st.bench[pid]);
+    const picked = !!(st.sel && st.sel[pid]);
     stats[pid] = st.stats[pid].slice(0, usedLegs).map(l => ({
-      played: !benched, goals: l.g || 0, assists: l.a || 0, saves: l.s || 0, tackles: l.t || 0
+      played: picked, goals: l.g || 0, assists: l.a || 0, saves: l.s || 0, tackles: l.t || 0
     }));
   });
 
@@ -3420,8 +3528,10 @@ async function trackSave(){
   const ranked = Object.keys(stats)
     .map(pid => ({ pid, v: contrib(pid) }))
     .sort((a, b) => b.v - a.v);
-  const mvpId = ranked[0] && ranked[0].v > 0 ? ranked[0].pid : null;
-  const motmId = ranked[1] && ranked[1].v > 0 ? ranked[1].pid : mvpId;
+  const autoMvp = ranked[0] && ranked[0].v > 0 ? ranked[0].pid : null;
+  const autoMotm = ranked[1] && ranked[1].v > 0 ? ranked[1].pid : autoMvp;
+  const mvpId = st.mvpId || autoMvp;
+  const motmId = st.motmId || autoMotm;
 
   const m = {
     id: uuid(),
@@ -4052,9 +4162,9 @@ document.addEventListener('click', async e => {
     trackResetLeg();
     return;
   }
-  if (act === 'track:bench'){
+  if (act === 'track:all'){
     if (!app.isAdmin) return;
-    trackBench(el.dataset.pid);
+    trackSelectTeam(el.dataset.team, el.dataset.mode);
     return;
   }
   if (act === 'track:copy'){
@@ -4145,16 +4255,6 @@ document.addEventListener('click', async e => {
     await logAdmin('Deleted fixture');
     await saveState(); render();
     toast('🗑️ Fixture deleted', 'err');
-    return;
-  }
-  if (act === 'fixture:auto'){
-    if (!app.isAdmin) return;
-    const f = fixtureById(id);
-    if (!f || f.played) return;
-    simulateFixture(id);
-    await logAdmin('Auto-simulated fixture');
-    await saveState(); render();
-    toast('🎲 Match simulated', 'ok');
     return;
   }
 
@@ -4409,6 +4509,24 @@ document.addEventListener('input', e => {
     }, 42);
   }
   if (idt === 'reportText') renderReportPreview();
+});
+
+/* tracker: play checkbox and MVP / MOTM pickers */
+document.addEventListener('change', e => {
+  const play = e.target.closest('[data-trk-play]');
+  if (play){
+    if (!app.isAdmin || !app._track) return;
+    trackSetSelected(play.dataset.trkPlay, play.checked);
+    return;
+  }
+
+  const award = e.target.closest('[data-trk-award]');
+  if (award){
+    if (!app.isAdmin || !app._track) return;
+    if (award.dataset.trkAward === 'mvp') app._track.mvpId = award.value;
+    else app._track.motmId = award.value;
+    return;
+  }
 });
 
 /* picking the right player for a name the parser could not place */
@@ -4817,7 +4935,7 @@ function openAwardRanking(key){
     html += `<div class="tiny muted" style="margin-bottom:8px">${rows.length} entr${rows.length === 1 ? 'y' : 'ies'}, zeros included</div>`;
     html += `<div class="tblwrap"><table>
       <thead><tr><th>#</th><th>Name</th><th class="num">Value</th><th style="width:130px">Chart</th></tr></thead>
-      <tbody>${rows.map((r,i) => `<tr>
+      <tbody>${rows.map((r,i) => `<tr class="${i < 3 ? 'top' + (i + 1) : ''}">
         <td><span class="rk ${i===0?'rank1':i===1?'rank2':i===2?'rank3':'rk-D'}">${i+1}</span></td>
         <td>${r.p2Id ? `${playerLink(playerById(r.id), r.color)} & ${playerLink(playerById(r.p2Id), r.color)}` 
           : (isPlayer
