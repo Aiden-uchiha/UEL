@@ -328,11 +328,11 @@ function poisson(lambda){
 
 const ECON_DEFAULT = {
   win: 15000000, draw: 5000000, loss: -10000000,
-  goal: 2000000, assist: 1000000, save: 400000, tackle: 100000, foul: -500000,
+  goal: 2000000, assist: 1000000, save: 400000, tackle: 100000,
   mvp: 3000000, motm: 3000000,
   teamStart: 250000000, playerStart: 1000000, cap: 1000000000,
   loanPct: 10, loanLegs: 2,
-  enabled: { win:true, draw:true, loss:true, goal:true, assist:true, save:true, tackle:true, foul:true, mvp:true, motm:true }
+  enabled: { win:true, draw:true, loss:true, goal:true, assist:true, save:true, tackle:true, mvp:true, motm:true }
 };
 
 const GRADE_DEFAULT = {
@@ -536,11 +536,23 @@ function matchLegs(m){
   }
   return legs;
 }
+function matchFoulPenalty(m, teamId){
+  return (Array.isArray(m && m.fouls) ? m.fouls : []).reduce((sum, foul) => {
+    if (!foul || !String(foul.description || '').trim() || foul.teamId !== teamId) return sum;
+    const points = Number(foul.points);
+    return sum + (points === 2 ? 2 : points === 1 ? 1 : 0);
+  }, 0);
+}
 function matchAggregate(m){
   const legs = matchLegs(m);
-  let a = 0, b = 0;
-  legs.forEach(l => { a += l.a; b += l.b; });
-  return { legs, a, b, res: a > b ? 'A' : (b > a ? 'B' : 'D') };
+  let rawA = 0, rawB = 0;
+  legs.forEach(l => { rawA += l.a; rawB += l.b; });
+  const penaltyA = matchFoulPenalty(m, m.teamAId);
+  const penaltyB = matchFoulPenalty(m, m.teamBId);
+  /* Fouls reduce the offending team's aggregate score, never below zero. */
+  const a = Math.max(0, rawA - penaltyA);
+  const b = Math.max(0, rawB - penaltyB);
+  return { legs, rawA, rawB, penaltyA, penaltyB, a, b, res: a > b ? 'A' : (b > a ? 'B' : 'D') };
 }
 function legCount(m){
   for (let i = 4; i >= 1; i--){
@@ -561,7 +573,7 @@ function computePlayerStats(){
   const E = econ();
   const st = {};
   const get = id => st[id] || (st[id] = {
-    goals:0, assists:0, saves:0, tackles:0, fouls:0, legsPlayed:0, legs:0,
+    goals:0, assists:0, saves:0, tackles:0, legsPlayed:0, legs:0,
     mvp:0, motm:0, matches:0, growth:0, playerValue:0, marketValue:0,
     legLog: []
   });
@@ -585,9 +597,9 @@ function computePlayerStats(){
         if (i >= agg.legs.length) return;
         playedAny = true;
         s.legsPlayed++;
-        const g = +lg.goals || 0, a = +lg.assists || 0, sv = +lg.saves || 0, tk = +lg.tackles || 0, fl = +lg.fouls || 0;
-        s.goals += g; s.assists += a; s.saves += sv; s.tackles += tk; s.fouls += fl;
-        s.legLog.push({ matchId: m.id, leg: i + 1, g, a, s: sv, t: tk, f: fl });
+        const g = +lg.goals || 0, a = +lg.assists || 0, sv = +lg.saves || 0, tk = +lg.tackles || 0;
+        s.goals += g; s.assists += a; s.saves += sv; s.tackles += tk;
+        s.legLog.push({ matchId: m.id, leg: i + 1, g, a, s: sv, t: tk });
       });
       if (playedAny) playedSet.add(pid);
     });
@@ -605,7 +617,6 @@ function computePlayerStats(){
     if (en.assist) growth += s.assists * E.assist;
     if (en.save)   growth += s.saves   * E.save;
     if (en.tackle) growth += s.tackles * E.tackle;
-    if (en.foul)   growth += s.fouls   * E.foul;
     if (en.mvp)    growth += s.mvp     * E.mvp;
     if (en.motm)   growth += s.motm    * E.motm;
     s.growth = growth;
@@ -657,7 +668,7 @@ function playerAverages(st){
   return {
     goals: st.goals / n, assists: st.assists / n,
     saves: st.saves / n, tackles: st.tackles / n,
-    fouls: (st.fouls || 0) / n, games: st.legsPlayed
+    games: st.legsPlayed
   };
 }
 
@@ -1015,7 +1026,7 @@ function simulateTeamLeg(teamId, goals, conceded, legIndex){
   const w = p => (st[p.id] ? st[p.id].playerValue : 1e6);
 
   roster.forEach(p => {
-    out[p.id] = { played: true, goals:0, assists:0, saves:0, tackles:0, fouls:0 };
+    out[p.id] = { played: true, goals:0, assists:0, saves:0, tackles:0 };
   });
 
   for (let i = 0; i < goals; i++){
@@ -1068,13 +1079,13 @@ function simulateFixture(fixtureId){
 
     Object.keys(statsA).forEach(pid => {
       m.playerStats[pid] = m.playerStats[pid] || [];
-      while (m.playerStats[pid].length < i) m.playerStats[pid].push({ played:false, goals:0, assists:0, saves:0, tackles:0, fouls:0 });
+      while (m.playerStats[pid].length < i) m.playerStats[pid].push({ played:false, goals:0, assists:0, saves:0, tackles:0 });
       m.playerStats[pid][i-1] = statsA[pid];
       m.playerTeams[pid] = f.teamAId;
     });
     Object.keys(statsB).forEach(pid => {
       m.playerStats[pid] = m.playerStats[pid] || [];
-      while (m.playerStats[pid].length < i) m.playerStats[pid].push({ played:false, goals:0, assists:0, saves:0, tackles:0, fouls:0 });
+      while (m.playerStats[pid].length < i) m.playerStats[pid].push({ played:false, goals:0, assists:0, saves:0, tackles:0 });
       m.playerStats[pid][i-1] = statsB[pid];
       m.playerTeams[pid] = f.teamBId;
     });
@@ -1508,7 +1519,7 @@ VIEWS.matchcenter = () => {
       <tbody>
         ${row('Win','win','money')}${row('Draw','draw','money')}${row('Loss','loss','money')}
         ${row('Goal','goal','money')}${row('Assist','assist','money')}${row('Save','save','money')}
-        ${row('Tackle','tackle','money')}${row('Foul','foul','money')}${row('MVP','mvp','money')}${row('MOTM','motm','money')}
+        ${row('Tackle','tackle','money')}${row('MVP','mvp','money')}${row('MOTM','motm','money')}
       </tbody>
     </table></div>
     ${app.isAdmin ? `
@@ -1702,6 +1713,7 @@ VIEWS.results = () => {
         ${teamSide(B, 42, true)}
       </div>
       <div class="mc-legs">${legsTxt || '—'}</div>
+      ${(agg.penaltyA || agg.penaltyB) ? `<div class="tiny muted" style="margin-top:4px">🚫 Foul penalties: ${agg.penaltyA ? `${esc(A.name)} -${agg.penaltyA}` : ''}${agg.penaltyA && agg.penaltyB ? ' • ' : ''}${agg.penaltyB ? `${esc(B.name)} -${agg.penaltyB}` : ''} · final score adjusted above</div>` : ''}
       <div class="mc-footer">
         <div class="row" style="gap:6px">
           ${mvp ? `<span class="pill go tiny" title="MVP">🏅 ${playerLink(mvp)}</span>` : ''}
@@ -2349,7 +2361,7 @@ const RP_SCORE  = /^(.+?)\s+(\d+)\s*[-–—:]\s*(\d+)\s+(.+)$/;
 const RP_VS     = /^(.+?)\s+(?:vs\.?|versus|v)\s+(.+)$/i;
 const RP_LEG_A  = /^(?:leg|round)\s*(\d+)\s*[:.]?\s*(?:(\d+)\s*[-–—:]\s*(\d+))?$/i;
 const RP_LEG_B  = /^(\d+)(?:st|nd|rd|th)?\s*leg\s*[:.]?\s*(?:(\d+)\s*[-–—:]\s*(\d+))?$/i;
-const RP_TOKENS = /^(.+?)\s+((?:\d+\s*[gastf]\s*)+)$/i;
+const RP_TOKENS = /^(.+?)\s+((?:\d+\s*[gast]\s*)+)$/i;
 const RP_BARE   = /^(.+?)\s+(\d+)\s+(\d+)(?:\s+(\d+))?(?:\s+(\d+))?$/;
 const RP_AWARD  = /^(mvp|motm)\s*:?\s*(.+)$/i;
 
@@ -2484,14 +2496,13 @@ function parseReportText(text){
 
     const tk = line.match(RP_TOKENS);
     if (tk && cur){
-      const st = { name: tk[1].trim(), goals: 0, assists: 0, saves: 0, tackles: 0, fouls: 0 };
+      const st = { name: tk[1].trim(), goals: 0, assists: 0, saves: 0, tackles: 0 };
       const re = /(\d+)\s*([gastf])/gi;
       let hit;
       while ((hit = re.exec(tk[2]))){
         const v = Number(hit[1]); const k = hit[2].toLowerCase();
         if (k === 'g') st.goals += v; else if (k === 'a') st.assists += v;
-        else if (k === 's') st.saves += v; else if (k === 'f') st.fouls += v;
-        else st.tackles += v;
+        else if (k === 's') st.saves += v; else st.tackles += v;
       }
       rpEnsureLeg(cur, cur.curLeg).players.push(st);
       continue;
@@ -2555,7 +2566,7 @@ function importReportMatches(parsed){
     }
     f.legs = pm.legs.length;
 
-    const blank = () => ({ played: false, goals: 0, assists: 0, saves: 0, tackles: 0, fouls: 0 });
+    const blank = () => ({ played: false, goals: 0, assists: 0, saves: 0, tackles: 0 });
     const stats = {};
     pm.legs.forEach((leg, li) => {
       leg.players.forEach(p => {
@@ -2568,7 +2579,6 @@ function importReportMatches(parsed){
         slot.assists += p.assists || 0;
         slot.saves += p.saves || 0;
         slot.tackles += p.tackles || 0;
-        slot.fouls += p.fouls || 0;
 
         const norm = rpNorm(p.name);
         const known = [rpNorm(p.player.name)].concat((p.player.aliases || []).map(rpNorm));
@@ -2592,7 +2602,7 @@ function importReportMatches(parsed){
       mvpId: mvpP ? mvpP.id : null, motmId: motmP ? motmP.id : null,
       mvpSnapshot: mvpP ? { name: mvpP.name, teamId: mvpP.teamId } : null,
       motmSnapshot: motmP ? { name: motmP.name, teamId: motmP.teamId } : null,
-      playerStats: stats, playerTeams: {}
+      playerStats: stats, playerTeams: {}, fouls: []
     };
 
     Object.keys(stats).forEach(pid => {
@@ -2683,12 +2693,12 @@ function trackStart(fixtureId){
     fixtureId: f.id, legs, leg: 1,
     scores: Array.from({ length: legs }, () => ({ a: 0, b: 0 })),
     touched: Array.from({ length: legs }, () => false),
-    sel: {}, mvpId: '', motmId: '', stats: {}
+    sel: {}, mvpId: '', motmId: '', stats: {}, fouls: []
   };
   app.state.players
     .filter(p => (p.teamId === f.teamAId || p.teamId === f.teamBId) && isActivePlayer(p))
     .forEach(p => {
-      st.stats[p.id] = Array.from({ length: legs }, () => ({ g: 0, a: 0, s: 0, t: 0, f: 0 }));
+      st.stats[p.id] = Array.from({ length: legs }, () => ({ g: 0, a: 0, s: 0, t: 0 }));
     });
   app._track = st;
   app._trackUndo = [];
@@ -2717,16 +2727,20 @@ function trackBodyHTML(){
   const i = st.leg - 1;
   const sc = st.scores[i];
   const all = trackTotals();
+  const penaltyA = matchFoulPenalty({ fouls: st.fouls }, f.teamAId);
+  const penaltyB = matchFoulPenalty({ fouls: st.fouls }, f.teamBId);
+  const adjustedA = Math.max(0, all.a - penaltyA);
+  const adjustedB = Math.max(0, all.b - penaltyB);
 
   const row = p => {
-    const s = st.stats[p.id] && st.stats[p.id][i] || { g:0, a:0, s:0, t:0, f:0 };
+    const s = st.stats[p.id] && st.stats[p.id][i] || { g:0, a:0, s:0, t:0 };
     const picked = !!(st.sel && st.sel[p.id]);
     const chip = (k, icon, label) =>
       `<button class="trk-chip ${s[k] ? 'on' : ''} ${picked ? '' : 'off'}" data-act="track:inc" data-pid="${p.id}" data-k="${k}" title="${label}">${icon} ${s[k]}</button>`;
     return `<div class="trk-row">
       <label class="trk-play" title="Tick him if he played"><input type="checkbox" data-trk-play="${p.id}" ${picked ? 'checked' : ''}></label>
       <span class="trk-name ${picked ? '' : 'out'}">${esc(p.name)}</span>
-      ${chip('g', '⚽', 'Goal')}${chip('a', '🅰️', 'Assist')}${chip('s', '🧤', 'Save')}${chip('t', '🛡️', 'Tackle')}${chip('f', '🚫', 'Foul')}
+      ${chip('g', '⚽', 'Goal')}${chip('a', '🅰️', 'Assist')}${chip('s', '🧤', 'Save')}${chip('t', '🛡️', 'Tackle')}
     </div>`;
   };
 
@@ -2751,14 +2765,16 @@ function trackBodyHTML(){
     <span class="trk-num">${sc.a} - ${sc.b}</span>
     <span class="trk-side">${teamLogo(B, 34)}<b>${esc(B.name)}</b></span>
   </div>
-  ${st.legs > 1 ? `<div class="center tiny muted" style="margin-bottom:8px">Aggregate ${all.a} - ${all.b}</div>
+  ${st.legs > 1 ? `<div class="center tiny muted" style="margin-bottom:8px">Raw aggregate ${all.a} - ${all.b}</div>
   <div class="legtab" style="justify-content:center">${Array.from({ length: st.legs }, (_, n) =>
     `<button class="${st.leg === n + 1 ? 'on' : ''}" data-act="track:leg" data-leg="${n + 1}">Leg ${n + 1}</button>`).join('')}</div>` : ''}
+  ${(penaltyA || penaltyB) ? `<div class="center tiny" style="color:var(--red);margin:0 0 8px">Final score after foul penalties: <b>${adjustedA} - ${adjustedB}</b></div>` : ''}
   <div class="trk-cols">${side(A)}${side(B)}</div>
   <div class="field-row" style="margin-top:12px">
     <div><label class="fl">🏅 MVP</label><select data-trk-award="mvp" style="padding:6px 8px;font-size:12px">${awardOpts(st.mvpId)}</select></div>
     <div><label class="fl">⭐ MOTM</label><select data-trk-award="motm" style="padding:6px 8px;font-size:12px">${awardOpts(st.motmId)}</select></div>
   </div>
+  ${foulEditorHTML(st.fouls, f.teamAId, f.teamBId, 'track')}
   <div class="tiny muted" style="margin-top:10px;text-align:center">Tick players who played, or just tap a stat and he ticks himself. Undo takes back the last tap.</div>`;
 }
 
@@ -2811,7 +2827,7 @@ function trackResetLeg(){
   const st = app._track;
   if (!st) return;
   const i = st.leg - 1;
-  Object.keys(st.stats).forEach(pid => { st.stats[pid][i] = { g:0, a:0, s:0, t:0, f:0 }; });
+  Object.keys(st.stats).forEach(pid => { st.stats[pid][i] = { g:0, a:0, s:0, t:0 }; });
   st.scores[i] = { a: 0, b: 0 };
   st.touched[i] = false;
   app._trackUndo = (app._trackUndo || []).filter(u => u.leg !== st.leg);
@@ -2826,7 +2842,7 @@ function trackSetSelected(pid, picked){
     st.sel[pid] = true;
   } else {
     delete st.sel[pid];
-    if (st.stats[pid]) st.stats[pid] = st.stats[pid].map(() => ({ g:0, a:0, s:0, t:0, f:0 }));
+    if (st.stats[pid]) st.stats[pid] = st.stats[pid].map(() => ({ g:0, a:0, s:0, t:0 }));
     app._trackUndo = (app._trackUndo || []).filter(u => u.pid !== pid);
     if (st.mvpId === pid) st.mvpId = '';
     if (st.motmId === pid) st.motmId = '';
@@ -2844,7 +2860,7 @@ function trackSelectTeam(teamId, mode){
   } else {
     roster.forEach(p => {
       delete st.sel[p.id];
-      if (st.stats[p.id]) st.stats[p.id] = st.stats[p.id].map(() => ({ g:0, a:0, s:0, t:0, f:0 }));
+      if (st.stats[p.id]) st.stats[p.id] = st.stats[p.id].map(() => ({ g:0, a:0, s:0, t:0 }));
       if (st.mvpId === p.id) st.mvpId = '';
       if (st.motmId === p.id) st.motmId = '';
     });
@@ -2877,15 +2893,24 @@ function trackResultText(){
   const f = fixtureById(st.fixtureId);
   const A = teamById(f.teamAId), B = teamById(f.teamBId);
   const all = trackTotals();
-  const lines = [`${A.name} ${all.a} - ${all.b} ${B.name}`];
+  const fouls = normalizeMatchFouls(st.fouls, f.teamAId, f.teamBId);
+  const penaltyA = matchFoulPenalty({ fouls }, f.teamAId);
+  const penaltyB = matchFoulPenalty({ fouls }, f.teamBId);
+  const finalA = Math.max(0, all.a - penaltyA);
+  const finalB = Math.max(0, all.b - penaltyB);
+  const lines = [`${A.name} ${finalA} - ${finalB} ${B.name}`];
+  if (fouls.length){
+    lines.push(`Raw score before fouls: ${all.a} - ${all.b}`);
+    fouls.forEach(foul => lines.push(`FOUL — ${teamById(foul.teamId)?.name || 'Unknown team'}: ${foul.description} (-${foul.points})`));
+  }
   Object.keys(st.stats).forEach(pid => {
     const p = playerById(pid);
     if (!p) return;
     if (!st.sel || !st.sel[pid]) return;
     const t = st.stats[pid].reduce((n, l) => ({
-      g: n.g + l.g, a: n.a + l.a, s: n.s + l.s, k: n.k + l.t, f: n.f + (l.f || 0)
-    }), { g:0, a:0, s:0, k:0, f:0 });
-    if (t.g || t.a || t.s || t.k || t.f) lines.push(`${p.name} ${t.g}G ${t.a}A ${t.s}S ${t.k}T ${t.f}F`);
+      g: n.g + l.g, a: n.a + l.a, s: n.s + l.s, k: n.k + l.t
+    }), { g:0, a:0, s:0, k:0 });
+    if (t.g || t.a || t.s || t.k) lines.push(`${p.name} ${t.g}G ${t.a}A ${t.s}S ${t.k}T`);
   });
   return lines.join('\n');
 }
@@ -2928,7 +2953,7 @@ async function trackSave(){
   Object.keys(st.stats).forEach(pid => {
     const picked = !!(st.sel && st.sel[pid]);
     stats[pid] = st.stats[pid].slice(0, usedLegs).map(l => ({
-      played: picked, goals: l.g || 0, assists: l.a || 0, saves: l.s || 0, tackles: l.t || 0, fouls: l.f || 0
+      played: picked, goals: l.g || 0, assists: l.a || 0, saves: l.s || 0, tackles: l.t || 0
     }));
   });
 
@@ -2947,7 +2972,7 @@ async function trackSave(){
     mvpId, motmId,
     mvpSnapshot: mvpId ? (() => { const p = playerById(mvpId); return p ? { name: p.name, teamId: p.teamId } : null; })() : null,
     motmSnapshot: motmId ? (() => { const p = playerById(motmId); return p ? { name: p.name, teamId: p.teamId } : null; })() : null,
-    playerStats: stats, playerTeams: {}
+    playerStats: stats, playerTeams: {}, fouls: normalizeMatchFouls(st.fouls, f.teamAId, f.teamBId)
   };
 
   Object.keys(stats).forEach(pid => {
@@ -3021,6 +3046,39 @@ function playerFormHTML(p){
   `;
 }
 
+function normalizeMatchFouls(fouls, teamAId, teamBId){
+  return (Array.isArray(fouls) ? fouls : []).map(f => ({
+    id: f && f.id ? f.id : uuid(),
+    description: String(f && f.description || '').trim(),
+    teamId: f && f.teamId,
+    points: Number(f && f.points) === 2 ? 2 : 1
+  })).filter(f => f.description && (f.teamId === teamAId || f.teamId === teamBId));
+}
+
+function newMatchFoul(defaultTeamId){
+  return { id: uuid(), description: '', teamId: defaultTeamId, points: 1 };
+}
+
+function foulEditorHTML(fouls, teamAId, teamBId, scope){
+  const isTrack = scope === 'track';
+  const teamAttr = isTrack ? 'data-track-foul-field' : 'data-mfield';
+  const actionAdd = isTrack ? 'track:foul:add' : 'match:foul:add';
+  const actionRemove = isTrack ? 'track:foul:remove' : 'match:foul:remove';
+  const list = Array.isArray(fouls) ? fouls : [];
+  const options = selected => `<option value="${teamAId}" ${selected === teamAId ? 'selected' : ''}>${esc(teamById(teamAId)?.name || 'Team A')}</option><option value="${teamBId}" ${selected === teamBId ? 'selected' : ''}>${esc(teamById(teamBId)?.name || 'Team B')}</option>`;
+  return `<div class="section-title" style="margin-top:18px">🚫 Fouls for this match</div>
+    <div class="hint" style="margin-bottom:8px">Record each foul, choose the team that committed it, and deduct 1 or 2 points from that team's final score.</div>
+    ${list.length ? list.map((f, i) => `<div class="card" style="padding:10px;margin-bottom:8px">
+      <div class="field-row">
+        <div style="flex:2;min-width:180px"><label class="fl">What happened?</label><input type="text" ${teamAttr}="${isTrack ? 'description' : 'foul-desc'}" data-index="${i}" value="${esc(f.description || '')}" placeholder="Describe the foul"></div>
+        <div><label class="fl">Team responsible</label><select ${teamAttr}="${isTrack ? 'teamId' : 'foul-team'}" data-index="${i}">${options(f.teamId)}</select></div>
+        <div><label class="fl">Penalty</label><select ${teamAttr}="${isTrack ? 'points' : 'foul-points'}" data-index="${i}"><option value="1" ${Number(f.points) === 2 ? '' : 'selected'}>-1 point</option><option value="2" ${Number(f.points) === 2 ? 'selected' : ''}>-2 points</option></select></div>
+        <div style="align-self:end"><button class="btn sm danger" data-act="${actionRemove}" data-index="${i}" title="Remove foul">✕</button></div>
+      </div>
+    </div>`).join('') : '<div class="muted small" style="padding:8px 0">No fouls recorded for this match.</div>'}
+    <button class="btn sm" data-act="${actionAdd}">➕ Add foul</button>`;
+}
+
 function buildMatchDraft(fixture, existingMatch){
   let maxLeg = fixture.legs || 1;
   if (existingMatch) {
@@ -3037,7 +3095,7 @@ function buildMatchDraft(fixture, existingMatch){
   const currentPlayers = app.state.players.filter(p => (p.teamId === fixture.teamAId || p.teamId === fixture.teamBId) && !p.freeAgent);
   currentPlayers.forEach(p => {
     stats[p.id] = [];
-    for (let i = 0; i < 4; i++) stats[p.id].push({ played:false, goals:0, assists:0, saves:0, tackles:0, fouls:0 });
+    for (let i = 0; i < 4; i++) stats[p.id].push({ played:false, goals:0, assists:0, saves:0, tackles:0 });
   });
 
   /* Snapshot of who played for which team (preserved from old match if editing) */
@@ -3049,10 +3107,10 @@ function buildMatchDraft(fixture, existingMatch){
     Object.keys(existingMatch.playerStats).forEach(pid => {
       const p = playerById(pid);
       if (!p) return;
-      if (!stats[pid]) stats[pid] = [{played:false,goals:0,assists:0,saves:0,tackles:0,fouls:0},{played:false,goals:0,assists:0,saves:0,tackles:0,fouls:0},{played:false,goals:0,assists:0,saves:0,tackles:0,fouls:0},{played:false,goals:0,assists:0,saves:0,tackles:0,fouls:0}];
+      if (!stats[pid]) stats[pid] = [{played:false,goals:0,assists:0,saves:0,tackles:0},{played:false,goals:0,assists:0,saves:0,tackles:0},{played:false,goals:0,assists:0,saves:0,tackles:0},{played:false,goals:0,assists:0,saves:0,tackles:0}];
       const src = existingMatch.playerStats[pid] || [];
       for (let i = 0; i < 4; i++){
-        if (src[i]) stats[pid][i] = Object.assign({played:false,goals:0,assists:0,saves:0,tackles:0,fouls:0}, src[i]);
+        if (src[i]) stats[pid][i] = Object.assign({played:false,goals:0,assists:0,saves:0,tackles:0}, src[i]);
       }
       if (!playerTeams[pid] && p.teamId) playerTeams[pid] = p.teamId;
     });
@@ -3065,7 +3123,7 @@ function buildMatchDraft(fixture, existingMatch){
     scores: [],
     mvpId: existingMatch ? existingMatch.mvpId : '',
     motmId: existingMatch ? existingMatch.motmId : '',
-    stats, playerTeams
+    stats, playerTeams, fouls: normalizeMatchFouls(existingMatch && existingMatch.fouls, fixture.teamAId, fixture.teamBId)
   };
 
   for (let i = 0; i < 4; i++){
@@ -3113,9 +3171,9 @@ function matchFormBody(){
       .filter(p => p && (d.playerTeams[p.id] || p.teamId) === tid);
     if (!roster.length) return `<div class="empty">No players for ${esc(tm.name)}</div>`;
     return `<div class="scroll-x"><table style="min-width:520px">
-      <thead><tr><th>${teamTag(tm, 20)}</th><th class="center">Played</th><th class="num">G</th><th class="num">A</th><th class="num">S</th><th class="num">T</th><th class="num">F</th></tr></thead>
+      <thead><tr><th>${teamTag(tm, 20)}</th><th class="center">Played</th><th class="num">G</th><th class="num">A</th><th class="num">S</th><th class="num">T</th></tr></thead>
       <tbody>${roster.map(p => {
-        const s = d.stats[p.id] ? d.stats[p.id][leg-1] : {played:false,goals:0,assists:0,saves:0,tackles:0,fouls:0};
+        const s = d.stats[p.id] ? d.stats[p.id][leg-1] : {played:false,goals:0,assists:0,saves:0,tackles:0};
         const moved = p.teamId !== (d.playerTeams[p.id] || p.teamId) ? ' <span class="pill cy tiny" title="Player has since transferred">MOVED</span>' : '';
         return `<tr>
           <td>${esc(p.name)}${moved}</td>
@@ -3124,7 +3182,6 @@ function matchFormBody(){
           <td class="num"><input type="number" min="0" style="width:60px" data-mfield="stat" data-pid="${p.id}" data-leg="${leg-1}" data-k="assists" value="${s.assists}"></td>
           <td class="num"><input type="number" min="0" style="width:60px" data-mfield="stat" data-pid="${p.id}" data-leg="${leg-1}" data-k="saves" value="${s.saves}"></td>
           <td class="num"><input type="number" min="0" style="width:60px" data-mfield="stat" data-pid="${p.id}" data-leg="${leg-1}" data-k="tackles" value="${s.tackles}"></td>
-          <td class="num"><input type="number" min="0" style="width:60px" data-mfield="stat" data-pid="${p.id}" data-leg="${leg-1}" data-k="fouls" value="${s.fouls || 0}"></td>
         </tr>`;
       }).join('')}</tbody></table></div>`;
   };
@@ -3147,6 +3204,7 @@ function matchFormBody(){
     <div><label class="fl">🏅 MVP</label><select data-mfield="mvp"><option value="">— none —</option>${optsMvp}</select></div>
     <div><label class="fl">⭐ MOTM</label><select data-mfield="motm"><option value="">— none —</option>${optsMotm}</select></div>
   </div>`;
+  html += foulEditorHTML(d.fouls, f.teamAId, f.teamBId, 'draft');
   return html;
 }
 
@@ -3805,6 +3863,32 @@ document.addEventListener('click', async e => {
       `<button class="btn lime" data-act="match:save">💾 Update Match</button><button class="btn" data-act="modal:close">Cancel</button>`);
     return;
   }
+  if (act === 'match:foul:add'){
+    if (!app.isAdmin || !app._draft) return;
+    const f = fixtureById(app._draft.fixtureId);
+    app._draft.fouls.push(newMatchFoul(f && f.teamAId));
+    reModal(matchFormBody());
+    return;
+  }
+  if (act === 'match:foul:remove'){
+    if (!app.isAdmin || !app._draft) return;
+    app._draft.fouls.splice(Number(el.dataset.index), 1);
+    reModal(matchFormBody());
+    return;
+  }
+  if (act === 'track:foul:add'){
+    if (!app.isAdmin || !app._track) return;
+    const f = fixtureById(app._track.fixtureId);
+    app._track.fouls.push(newMatchFoul(f && f.teamAId));
+    renderTrack();
+    return;
+  }
+  if (act === 'track:foul:remove'){
+    if (!app.isAdmin || !app._track) return;
+    app._track.fouls.splice(Number(el.dataset.index), 1);
+    renderTrack();
+    return;
+  }
   if (act === 'match:save'){ await saveMatch(); return; }
   if (act === 'match:del'){
     if (!app.isAdmin) return;
@@ -3976,9 +4060,24 @@ function handleInput(e){
   else if (ds.mfield === 'stat') d.stats[ds.pid][Number(ds.leg)][ds.k] = Number(el.value) || 0;
   else if (ds.mfield === 'mvp') d.mvpId = el.value;
   else if (ds.mfield === 'motm') d.motmId = el.value;
+  else if (ds.mfield === 'foul-desc') d.fouls[Number(ds.index)].description = el.value;
+  else if (ds.mfield === 'foul-team') d.fouls[Number(ds.index)].teamId = el.value;
+  else if (ds.mfield === 'foul-points') d.fouls[Number(ds.index)].points = Number(el.value) === 2 ? 2 : 1;
 }
 document.addEventListener('input', handleInput);
 document.addEventListener('change', handleInput);
+function handleTrackFoulInput(e){
+  const el = e.target.closest('[data-track-foul-field]');
+  if (!el || !app._track) return;
+  const foul = app._track.fouls[Number(el.dataset.index)];
+  if (!foul) return;
+  const field = el.dataset.trackFoulField;
+  if (field === 'description') foul.description = el.value;
+  else if (field === 'teamId') foul.teamId = el.value;
+  else if (field === 'points') foul.points = Number(el.value) === 2 ? 2 : 1;
+}
+document.addEventListener('input', handleTrackFoulInput);
+document.addEventListener('change', handleTrackFoulInput);
 
 document.addEventListener('input', e => {
   const idt = e.target.id;
@@ -4072,7 +4171,10 @@ async function saveMatch(){
 
   const ps = {};
   Object.keys(d.stats).forEach(pid => {
-    const arr = d.stats[pid].slice(0, d.legs);
+    const arr = d.stats[pid].slice(0, d.legs).map(l => ({
+      played: !!l.played, goals: Number(l.goals) || 0, assists: Number(l.assists) || 0,
+      saves: Number(l.saves) || 0, tackles: Number(l.tackles) || 0
+    }));
     if (arr.some(l => l.played)) ps[pid] = arr;
   });
 
@@ -4083,7 +4185,7 @@ async function saveMatch(){
     mvpId: d.mvpId || null, motmId: d.motmId || null,
     mvpSnapshot: d.mvpId ? (() => { const p = playerById(d.mvpId); return p ? { name:p.name, teamId:p.teamId } : null; })() : null,
     motmSnapshot: d.motmId ? (() => { const p = playerById(d.motmId); return p ? { name:p.name, teamId:p.teamId } : null; })() : null,
-    playerStats: ps, playerTeams: {}
+    playerStats: ps, playerTeams: {}, fouls: normalizeMatchFouls(d.fouls, f.teamAId, f.teamBId)
   };
 
   /* Preserve the snapshot team from draft (for edits, keeps transferred players on their original team) */
@@ -4135,7 +4237,6 @@ function openPlayerProfile(pid){
     .sort((a,b) => (b.timestamp||0) - (a.timestamp||0));
 
   const legGrades = (s.legLog || []).map(l => legGrade(l)).reduce((acc,g) => { acc[g] = (acc[g]||0)+1; return acc; }, {});
-  const foulPenalty = (s.fouls || 0) * Math.abs(econ().foul || 0);
 
   let actionBtns = '';
   if (app.isAdmin){
@@ -4171,7 +4272,6 @@ function openPlayerProfile(pid){
       <div class="statbox"><div class="v">${s.assists||0}</div><div class="l">Assists</div></div>
       <div class="statbox"><div class="v">${s.saves||0}</div><div class="l">Saves</div></div>
       <div class="statbox"><div class="v">${s.tackles||0}</div><div class="l">Tackles</div></div>
-      <div class="statbox"><div class="v" style="color:var(--red)">${s.fouls||0}</div><div class="l">Fouls</div></div>
       <div class="statbox"><div class="v">${s.mvp||0}</div><div class="l">MVP</div></div>
       <div class="statbox"><div class="v">${s.motm||0}</div><div class="l">MOTM</div></div>
       <div class="statbox"><div class="v">${p.transferCount||0}</div><div class="l">Transfers</div></div>
@@ -4190,15 +4290,8 @@ function openPlayerProfile(pid){
             <td class="tiny muted">${gradingCfg().S.saves} / ${gradingCfg().A.saves} / ${gradingCfg().B.saves}</td></tr>
         <tr><td>Tackles</td><td class="num">${avg.tackles.toFixed(2)}</td><td class="num">${s.tackles||0}</td>
             <td class="tiny muted">${gradingCfg().S.tackles} / ${gradingCfg().A.tackles} / ${gradingCfg().B.tackles}</td></tr>
-        <tr><td>Fouls</td><td class="num">${(avg.fouls || 0).toFixed(2)}</td><td class="num" style="color:var(--red)">${s.fouls||0}</td>
-            <td class="tiny muted">-${money(Math.abs(econ().foul || 0))} each</td></tr>
       </tbody>
     </table></div>
-
-    <div class="warnbox" style="margin-top:10px">
-      🚫 <b>${s.fouls||0} fouls</b> × ${money(Math.abs(econ().foul || 0))} each =
-      <b style="color:var(--red)">-${money(foulPenalty)}</b> off player value
-    </div>
 
     <div class="row" style="margin-top:8px;gap:6px">
       ${Object.keys(legGrades).length ? Object.keys(legGrades).sort().map(g =>
@@ -4217,20 +4310,20 @@ function openPlayerProfile(pid){
 
     <div class="section-title" style="margin-top:16px">Match History (${myMatches.length})</div>
     <div class="tblwrap"><table>
-      <thead><tr><th>Date</th><th>Match</th><th class="num">G</th><th class="num">A</th><th class="num">S</th><th class="num">T</th><th class="num">F</th><th>Awards</th></tr></thead>
+      <thead><tr><th>Date</th><th>Match</th><th class="num">G</th><th class="num">A</th><th class="num">S</th><th class="num">T</th><th>Awards</th></tr></thead>
       <tbody>${myMatches.length ? myMatches.map(m => {
         const A = teamById(m.teamAId), B = teamById(m.teamBId);
         const agg = matchAggregate(m);
         const legs = m.playerStats[p.id] || [];
-        let g=0,a=0,sv=0,t=0,f=0;
-        legs.forEach(l => { if(l && l.played){ g+=+l.goals||0; a+=+l.assists||0; sv+=+l.saves||0; t+=+l.tackles||0; f+=+l.fouls||0; } });
+        let g=0,a=0,sv=0,t=0;
+        legs.forEach(l => { if(l && l.played){ g+=+l.goals||0; a+=+l.assists||0; sv+=+l.saves||0; t+=+l.tackles||0; } });
         return `<tr>
           <td class="tiny">${new Date(m.timestamp||0).toLocaleDateString()}</td>
           <td class="nowrap">${teamLink(A, 18)} ${agg.a}-${agg.b} ${teamLink(B, 18)}</td>
-          <td class="num">${g}</td><td class="num">${a}</td><td class="num">${sv}</td><td class="num">${t}</td><td class="num" style="color:var(--red)">${f}</td>
+          <td class="num">${g}</td><td class="num">${a}</td><td class="num">${sv}</td><td class="num">${t}</td>
           <td>${m.mvpId === p.id ? '🏅MVP ' : ''}${m.motmId === p.id ? '⭐MOTM' : ''}</td>
         </tr>`;
-      }).join('') : `<tr><td colspan="8" class="center muted" style="padding:16px">No matches</td></tr>`}</tbody>
+      }).join('') : `<tr><td colspan="7" class="center muted" style="padding:16px">No matches</td></tr>`}</tbody>
     </table></div>
 
     ${p.transferHistory && p.transferHistory.length ? `
@@ -4317,12 +4410,11 @@ function openMatchDetail(m){
     rows.sort((x,y) => score(y.l) - score(x.l));
     const tot = rows.reduce((t,r) => ({
       g: t.g + (+r.l.goals||0), a: t.a + (+r.l.assists||0),
-      s: t.s + (+r.l.saves||0), k: t.k + (+r.l.tackles||0), f: t.f + (+r.l.fouls||0)
-    }), { g:0, a:0, s:0, k:0, f:0 });
-    const foulMoney = tot.f * Math.abs(econ().foul || 0);
+      s: t.s + (+r.l.saves||0), k: t.k + (+r.l.tackles||0)
+    }), { g:0, a:0, s:0, k:0 });
 
-    return `<div class="tblwrap"><table style="min-width:460px">
-      <thead><tr><th>${teamTag(tm, 20)}</th><th class="num">G</th><th class="num">A</th><th class="num">S</th><th class="num">T</th><th class="num">F</th><th class="num">Grade</th></tr></thead>
+    return `<div class="tblwrap"><table style="min-width:420px">
+      <thead><tr><th>${teamTag(tm, 20)}</th><th class="num">G</th><th class="num">A</th><th class="num">S</th><th class="num">T</th><th class="num">Grade</th></tr></thead>
       <tbody>
         ${rows.map(r => `<tr>
           <td>${r.ghost ? `<span class="muted">${esc(r.p.name)}</span>` : playerLink(r.p)}</td>
@@ -4330,18 +4422,14 @@ function openMatchDetail(m){
           <td class="num">${+r.l.assists||0}</td>
           <td class="num">${+r.l.saves||0}</td>
           <td class="num">${+r.l.tackles||0}</td>
-          <td class="num" style="color:${(+r.l.fouls||0) > 0 ? 'var(--red)' : 'inherit'}">${+r.l.fouls||0}</td>
           <td class="num"><span class="rk rk-${legGrade(r.l)}">${legGrade(r.l)}</span></td>
         </tr>`).join('')}
         <tr class="leg-total">
           <td>Totals</td>
-          <td class="num">${tot.g}</td><td class="num">${tot.a}</td><td class="num">${tot.s}</td><td class="num">${tot.k}</td><td class="num">${tot.f}</td><td></td>
+          <td class="num">${tot.g}</td><td class="num">${tot.a}</td><td class="num">${tot.s}</td><td class="num">${tot.k}</td><td></td>
         </tr>
       </tbody>
-    </table></div>
-    <div class="tiny" style="color:var(--red);margin-top:6px;text-align:right">
-      🚫 ${tot.f} foul${tot.f === 1 ? '' : 's'} = -${money(foulMoney)} off player value
-    </div>`;
+    </table></div>`;
   };
 
   agg.legs.forEach(l => {
@@ -4349,7 +4437,7 @@ function openMatchDetail(m){
     html += `<div class="leg-block">
       <div class="leg-head">
         <span class="pill cy">LEG ${l.n}</span>
-        <b class="mono">${l.a} - ${l.b}</b>
+        <b class="mono">${l.a} - ${l.b}</b>${(agg.penaltyA || agg.penaltyB) ? '<span class="tiny muted">(before match penalties)</span>' : ''}
         <span class="tiny muted">${l.a > l.b ? esc(A.name) + ' won the leg' : l.b > l.a ? esc(B.name) + ' won the leg' : 'Drawn leg'}</span>
       </div>
       ${legTable(A.id, i)}
@@ -4357,6 +4445,16 @@ function openMatchDetail(m){
       ${legTable(B.id, i)}
     </div>`;
   });
+
+  const matchFouls = normalizeMatchFouls(m.fouls, m.teamAId, m.teamBId);
+  html += `<div class="section-title" style="margin-top:18px">🚫 Fouls for this match</div>`;
+  if (matchFouls.length){
+    html += `<div class="tblwrap"><table><thead><tr><th>Foul</th><th>Team</th><th class="num">Score penalty</th></tr></thead><tbody>${matchFouls.map(f => {
+      const offender = teamById(f.teamId);
+      return `<tr><td>${esc(f.description)}</td><td>${offender ? teamTag(offender, 20) : '<span class="muted">Unknown team</span>'}</td><td class="num" style="color:var(--red);font-weight:800">-${f.points}</td></tr>`;
+    }).join('')}</tbody></table></div>
+    <div class="hint" style="margin-top:6px">Raw aggregate: ${agg.rawA} - ${agg.rawB}. Applied penalties: ${agg.penaltyA ? `${esc(A.name)} -${agg.penaltyA}` : ''}${agg.penaltyA && agg.penaltyB ? ' • ' : ''}${agg.penaltyB ? `${esc(B.name)} -${agg.penaltyB}` : ''}. Final score: ${agg.a} - ${agg.b}.</div>`;
+  } else html += '<div class="muted small">No fouls recorded for this match.</div>';
 
   openModal('📊 Match Details', html, `<button class="btn" data-act="modal:close">Close</button>`);
 }
