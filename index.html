@@ -216,6 +216,21 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 .tos-stat{margin-top:11px;font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim)}
 .tos-stat b{display:block;font-size:20px;color:var(--lime);letter-spacing:0;text-shadow:0 0 14px rgba(139,255,60,.45)}
 .tos-card.empty{opacity:.5;border-color:rgba(255,255,255,.12)}
+.market-directory{max-height:300px;overflow-y:auto;display:grid;gap:6px;padding:5px;border:1px solid var(--line);border-radius:11px;background:rgba(0,0,0,.16)}
+.market-player-row{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;text-align:left;padding:9px 11px;border:1px solid rgba(255,255,255,.07);border-radius:9px;background:rgba(0,240,255,.035);color:var(--txt);cursor:pointer;font:inherit;transition:all .14s}
+.market-player-row:hover,.market-player-row.selected{border-color:var(--cyan);background:rgba(0,240,255,.11);box-shadow:0 0 13px rgba(0,240,255,.12)}
+.market-player-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.market-player-main b{font-size:13px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.market-player-main small{font-size:10.5px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.market-player-value{font-size:11px;font-weight:800;color:var(--gold);white-space:nowrap}
+.market-player-status{font-size:9px;font-weight:900;letter-spacing:1px;color:var(--cyan);white-space:nowrap}
+.market-player-status.loan{color:var(--gold)}
+.market-player-status.free{color:var(--lime)}
+.market-deal-card{border:1px solid var(--line);border-radius:12px;padding:13px;background:linear-gradient(180deg,rgba(0,240,255,.055),rgba(255,43,214,.025))}
+.discord-fab{position:fixed;right:18px;bottom:18px;z-index:150;display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid rgba(88,101,242,.7);border-radius:999px;background:linear-gradient(135deg,#5865F2,#404EED);color:#fff;text-decoration:none;font-size:11px;font-weight:900;letter-spacing:.7px;box-shadow:0 5px 22px rgba(88,101,242,.35);transition:transform .16s,box-shadow .16s}
+.discord-fab:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(88,101,242,.5)}
+.discord-fab .discord-icon{font-size:16px;line-height:1}
+@media (max-width:640px){.market-player-row{grid-template-columns:minmax(0,1fr) auto;gap:6px}.market-player-status{grid-column:1 / -1;text-align:left}.discord-fab{right:12px;bottom:12px;padding:9px 11px;font-size:10px}}
 @media (max-width:640px){body{font-size:14px}.brand{font-size:16px;letter-spacing:1.6px}.view-head h2{font-size:16px}.modal-body{padding:12px;max-height:calc(100vh - 130px)}.btn{padding:8px 12px;font-size:10.5px}table{font-size:12px;min-width:460px}th,td{padding:7px 8px}.grid.g3{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.grid.g4{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}
 </style>
 </head>
@@ -238,6 +253,9 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 
 <div id="modalRoot"></div>
 <div id="toastRoot"></div>
+<a class="discord-fab" href="https://discord.gg/GmDqVtmzRA" target="_blank" rel="noopener noreferrer" aria-label="Join the UEL Discord server">
+  <span class="discord-icon">💬</span><span>UEL Discord</span>
+</a>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -396,6 +414,25 @@ function migrate(){
       changed = true;
     }
     if (p.freeAgent === undefined){ p.freeAgent = false; changed = true; }
+
+    /* Older loans were charged up front. Preserve that payment, but track
+       future participation so they can now be ended early without losing stats. */
+    if (p.loanStatus && p.loanStatus.legsTotal === undefined){
+      const oldLoan = p.loanStatus;
+      const remaining = Math.max(1, Number(oldLoan.legsRemaining) || 1);
+      const history = p.transferHistory || [];
+      const latestLoan = history.slice().reverse().find(h => h.type === 'loan');
+      oldLoan.to = oldLoan.to || p.teamId;
+      oldLoan.legsTotal = remaining;
+      oldLoan.legsPlayed = 0;
+      oldLoan.legsRemaining = remaining;
+      oldLoan.feeTotal = Number(oldLoan.fee) || 0;
+      oldLoan.paid = Number(oldLoan.fee) || 0;
+      oldLoan.legacyPrepaid = true;
+      oldLoan.startedAt = oldLoan.startedAt || (latestLoan && latestLoan.ts) || Date.now();
+      oldLoan.processedMatchIds = Array.isArray(oldLoan.processedMatchIds) ? oldLoan.processedMatchIds : [];
+      changed = true;
+    }
   });
 
   /* backfill playerTeams on matches */
@@ -1113,6 +1150,132 @@ function simulateFixture(fixtureId){
   return m;
 }
 
+function cloneLoanStatus(status){
+  return status ? JSON.parse(JSON.stringify(status)) : null;
+}
+
+function returnPlayerFromLoan(p, reason, matchId){
+  if (!p || !p.loanStatus) return null;
+  const loan = p.loanStatus;
+  const borrowerTeamId = loan.to || p.teamId;
+  const ownerTeamId = loan.from;
+  const returnTeamExists = app.state.teams.some(t => t.id === ownerTeamId);
+  const paid = Number(loan.paid !== undefined ? loan.paid : loan.fee) || 0;
+  const legsPlayed = Number(loan.legsPlayed) || 0;
+
+  if (returnTeamExists) p.teamId = ownerTeamId;
+  p.loanStatus = null;
+  p.transferHistory = p.transferHistory || [];
+  p.transferHistory.push({
+    type: 'loan-return', from: borrowerTeamId, to: p.teamId,
+    value: paid, legsPlayed, reason: reason || 'manual',
+    matchId: matchId || null, ts: Date.now()
+  });
+  return { borrowerTeamId, ownerTeamId, paid, legsPlayed, returnedTo: p.teamId };
+}
+
+function applyLoanLegsForMatch(m){
+  const agg = matchAggregate(m);
+  if (!agg.legs.length) return;
+  const matchId = String(m.id || '');
+  if (!matchId) return;
+  m.loanSettlements = [];
+
+  app.state.players.forEach(p => {
+    const loan = p.loanStatus;
+    if (!loan) return;
+    const borrowerTeamId = loan.to || p.teamId;
+    if (borrowerTeamId !== m.teamAId && borrowerTeamId !== m.teamBId) return;
+    const snapshotTeam = (m.playerTeams && m.playerTeams[p.id]) || p.teamId;
+    if (snapshotTeam !== borrowerTeamId) return;
+    if (loan.startedAt && m.timestamp && Number(m.timestamp) < Number(loan.startedAt)) return;
+
+    loan.processedMatchIds = Array.isArray(loan.processedMatchIds) ? loan.processedMatchIds : [];
+    if (loan.processedMatchIds.includes(matchId)) return;
+
+    const loanBefore = cloneLoanStatus(loan);
+    const playedLegs = agg.legs.filter(l => {
+      const playerLeg = (m.playerStats && m.playerStats[p.id] || [])[l.n - 1];
+      return !!(playerLeg && playerLeg.played);
+    });
+    const totalLegs = Math.max(1, Number(loan.legsTotal) || Number(loan.legsRemaining) || 1);
+    const alreadyPlayed = Math.max(0, Number(loan.legsPlayed) || 0);
+    const ownerTeam = app.state.teams.find(t => t.id === loan.from);
+    const borrowerTeam = app.state.teams.find(t => t.id === borrowerTeamId);
+    let charged = 0;
+    let processedPlayed = 0;
+
+    playedLegs.forEach(() => {
+      if (alreadyPlayed + processedPlayed >= totalLegs) return;
+      processedPlayed++;
+      const nextPlayed = alreadyPlayed + processedPlayed;
+      if (!loan.legacyPrepaid){
+        const feeTotal = Math.max(0, Number(loan.feeTotal !== undefined ? loan.feeTotal : loan.fee) || 0);
+        const wasPaid = Math.max(0, Number(loan.paid) || 0);
+        const targetPaid = nextPlayed >= totalLegs ? feeTotal : Math.round(feeTotal * nextPlayed / totalLegs);
+        const legCharge = Math.max(0, targetPaid - wasPaid);
+        if (legCharge){
+          if (borrowerTeam) borrowerTeam.value -= legCharge;
+          if (ownerTeam) ownerTeam.value += legCharge;
+          charged += legCharge;
+        }
+        loan.paid = targetPaid;
+      }
+      loan.legsPlayed = nextPlayed;
+    });
+
+    loan.legsRemaining = Math.max(0, totalLegs - (Number(loan.legsPlayed) || 0));
+    loan.processedMatchIds.push(matchId);
+    const settlement = {
+      playerId: p.id, loanStartedAt: loan.startedAt || null, matchId,
+      ownerTeamId: loan.from, borrowerTeamId,
+      loanStatusBefore: loanBefore, playedLegs: processedPlayed,
+      charged, autoReturned: false
+    };
+    if ((Number(loan.legsPlayed) || 0) >= totalLegs){
+      returnPlayerFromLoan(p, 'completed', matchId);
+      settlement.autoReturned = true;
+    }
+    m.loanSettlements.push(settlement);
+  });
+}
+
+function revertLoanSettlements(m){
+  if (!m || !Array.isArray(m.loanSettlements) || !m.loanSettlements.length) return;
+  const matchId = String(m.id || '');
+  m.loanSettlements.forEach(settlement => {
+    const p = playerById(settlement.playerId);
+    let restoredFromAutoReturn = false;
+    if (p && settlement.autoReturned){
+      const history = p.transferHistory || [];
+      const returnIndex = history.findIndex(h => h.type === 'loan-return' && String(h.matchId || '') === matchId);
+      if (returnIndex >= 0){
+        history.splice(returnIndex, 1);
+        p.teamId = settlement.borrowerTeamId;
+        p.loanStatus = cloneLoanStatus(settlement.loanStatusBefore);
+        restoredFromAutoReturn = true;
+      }
+    }
+    if (p && !restoredFromAutoReturn && p.loanStatus){
+      const sameLoan = settlement.loanStartedAt
+        ? p.loanStatus.startedAt === settlement.loanStartedAt
+        : (p.loanStatus.from === settlement.ownerTeamId && (p.loanStatus.to || p.teamId) === settlement.borrowerTeamId);
+      if (sameLoan){
+        p.loanStatus.legsPlayed = Math.max(0, (Number(p.loanStatus.legsPlayed) || 0) - (Number(settlement.playedLegs) || 0));
+        const total = Math.max(1, Number(p.loanStatus.legsTotal) || 1);
+        p.loanStatus.legsRemaining = Math.max(0, total - p.loanStatus.legsPlayed);
+        p.loanStatus.paid = Math.max(0, (Number(p.loanStatus.paid) || 0) - (Number(settlement.charged) || 0));
+        p.loanStatus.processedMatchIds = (p.loanStatus.processedMatchIds || []).filter(x => String(x) !== matchId);
+      }
+    }
+    const borrower = app.state.teams.find(t => t.id === settlement.borrowerTeamId);
+    const owner = app.state.teams.find(t => t.id === settlement.ownerTeamId);
+    const charged = Number(settlement.charged) || 0;
+    if (charged){ if (borrower) borrower.value += charged; if (owner) owner.value -= charged; }
+  });
+  m.loanSettlements = [];
+}
+
 function applyMatchToState(m, fixture){
   if (!m.playerTeams){
     m.playerTeams = {};
@@ -1143,15 +1306,8 @@ function applyMatchToState(m, fixture){
 
   if (fixture){ fixture.played = true; fixture.matchId = m.id; }
 
-  app.state.players.forEach(p => {
-    if (p.loanStatus && p.loanStatus.legsRemaining > 0 && (p.teamId === m.teamAId || p.teamId === m.teamBId)){
-      p.loanStatus.legsRemaining -= agg.legs.length;
-      if (p.loanStatus.legsRemaining <= 0){
-        p.teamId = p.loanStatus.from;
-        p.loanStatus = null;
-      }
-    }
-  });
+  /* Loan duration and billing advance only for legs this loanee actually played. */
+  applyLoanLegsForMatch(m);
 
   if (fixture && fixture.tournamentId) progressTournament(fixture.tournamentId);
 }
@@ -1529,8 +1685,8 @@ VIEWS.matchcenter = () => {
         <div><label class="fl">Team start value</label><input type="number" data-econ="teamStart" value="${E.teamStart}"></div>
         <div><label class="fl">Player start value</label><input type="number" data-econ="playerStart" value="${E.playerStart}"></div>
         <div><label class="fl">Value cap</label><input type="number" data-econ="cap" value="${E.cap}"></div>
-        <div><label class="fl">Loan % of value</label><input type="number" data-econ="loanPct" value="${E.loanPct}"></div>
-        <div><label class="fl">Loan duration (legs)</label><input type="number" data-econ="loanLegs" value="${E.loanLegs}"></div>
+        <div><label class="fl">Loan % of value (full-term fee)</label><input type="number" data-econ="loanPct" value="${E.loanPct}"></div>
+        <div><label class="fl">Loan term (played legs)</label><input type="number" data-econ="loanLegs" value="${E.loanLegs}"></div>
       </div>
       <div class="row" style="margin-top:12px">
         <button class="btn lime" data-act="econ:save">💾 Save economy</button>
@@ -1543,6 +1699,7 @@ VIEWS.matchcenter = () => {
     <ul class="hint" style="padding-left:18px;line-height:1.9">
       <li>Fixtures support <b>1, 2 or 4 legs</b>. Every leg is scored separately and aggregated.</li>
       <li>A player can appear in any leg independently — stats are tracked per leg.</li>
+      <li>Loans are billed only for legs the player actually plays; admins can end a loan at any time without deleting match stats.</li>
       <li>Every leg is graded <b>S / A / B / C</b> from that leg's goals, assists, saves and tackles.</li>
       <li>Team treasuries update once per match: win <b>${money(E.win)}</b>, draw <b>${money(E.draw)}</b>, loss <b>${money(E.loss)}</b>.</li>
       <li>Player value = <b>starting value + growth</b>, capped at <b>${money(E.cap)}</b>.</li>
@@ -3425,6 +3582,8 @@ document.addEventListener('click', async e => {
     const teamField = $('#f_playerTeam');
     if (teamField && !p.freeAgent){
       const newTeamId = teamField.value;
+      if (p.loanStatus && newTeamId && newTeamId !== p.teamId)
+        return toast('⚠️ End the active loan before changing this player’s team', 'err');
       if (newTeamId && newTeamId !== p.teamId){
         const oldTeam = p.teamId;
         p.teamId = newTeamId;
@@ -3510,59 +3669,88 @@ document.addEventListener('click', async e => {
 
   if (act === 'market:open'){
     if (!app.isAdmin) return;
+    app._marketQuery = '';
+    app._marketSelectedPlayerId = null;
     openTransferMarket();
     return;
   }
+  if (act === 'market:select'){
+    if (!app.isAdmin) return;
+    app._marketSelectedPlayerId = id;
+    openTransferMarket();
+    return;
+  }
+  if (act === 'market:stoploan' || act === 'player:loanstop'){
+    if (!app.isAdmin) return;
+    const p = playerById(id || app._marketSelectedPlayerId);
+    if (!p || !p.loanStatus) return toast('⚠️ This player is not currently on loan', 'err');
+    const loan = p.loanStatus;
+    const played = Number(loan.legsPlayed) || 0;
+    const paid = Number(loan.paid !== undefined ? loan.paid : loan.fee) || 0;
+    const borrower = teamById(p.teamId).name;
+    const owner = teamById(loan.from).name;
+    if (!confirm(`End ${p.name}'s loan now?\n\n${p.name} will return from ${borrower} to ${owner}. The ${played} played leg(s) and all recorded stats will stay in the match history. The borrowing team has paid ${money(paid)}; unplayed legs cost nothing.\n\nContinue?`)) return;
+    if (!returnPlayerFromLoan(p, 'manual')) return;
+    await logAdmin('Ended loan: ' + p.name + ' returned to ' + owner + ' after ' + played + ' played leg(s)');
+    await saveState(); closeModal(); render();
+    toast('↩ ' + esc(p.name) + ' returned to ' + esc(owner) + '. Match stats were preserved.', 'ok');
+    return;
+  }
   if (act === 'market:do'){
-    const pid = $('#m_player').value;
-    const buyerId = $('#m_buyer').value;
-    const type = $('#m_type').value;
+    if (!app.isAdmin) return;
+    const pid = id || app._marketSelectedPlayerId;
+    const buyerId = $('#m_buyer') ? $('#m_buyer').value : '';
+    const type = $('#m_type') ? $('#m_type').value : 'transfer';
     const p = playerById(pid);
-    const buyer = teamById(buyerId);
-    const seller = teamById(p.teamId);
-    if (!p || !buyer) return;
-    if (p.teamId === buyerId) return toast('⚠️ Player already in that team', 'err');
-    if (type === 'loan' && p.loanStatus) return toast('❌ Player is already on loan', 'err');
-
+    const buyer = app.state.teams.find(t => t.id === buyerId);
+    if (!p || !buyer) return toast('⚠️ Select a player and destination team', 'err');
+    if (p.freeAgent || p.loanStatus) return toast("⚠️ Use the action shown for this player’s current status", 'err');
+    const seller = app.state.teams.find(t => t.id === p.teamId);
+    if (!seller) return toast("❌ The player’s current team no longer exists", 'err');
+    if (p.teamId === buyerId) return toast('⚠️ Player already belongs to that team', 'err');
     const st = computePlayerStats();
-    const val = st[p.id]?.playerValue || econ().playerStart;
+    const val = st[p.id]?.playerValue || p.startingValue || econ().playerStart;
+    p.transferHistory = p.transferHistory || [];
 
     if (type === 'transfer'){
       if (buyer.value < val) return toast('❌ Buyer cannot afford ' + money(val), 'err');
+      const before = buyer.value;
       buyer.value -= val;
       seller.value += val;
       p.teamId = buyerId;
       p.transferCount = (p.transferCount || 0) + 1;
-      p.transferHistory = p.transferHistory || [];
-      p.transferHistory.push({ type:'transfer', from: seller.id, to: buyer.id, value: val, ts: Date.now() });
-      await logAdmin('Transfer: ' + p.name + ' → ' + buyer.name, money(buyer.value + val), money(buyer.value));
+      p.transferHistory.push({ type:'transfer', from:seller.id, to:buyer.id, value:val, ts:Date.now() });
+      await logAdmin('Transfer: ' + p.name + ' → ' + buyer.name, money(before), money(buyer.value));
       toast('💱 ' + esc(p.name) + ' transferred to ' + esc(buyer.name), 'ok');
     } else {
-      const fee = Math.round(val * (econ().loanPct / 100));
-      if (buyer.value < fee) return toast('❌ Buyer cannot afford loan fee ' + money(fee), 'err');
-      buyer.value -= fee;
-      seller.value += fee;
+      const duration = Math.max(1, Math.floor(Number(econ().loanLegs) || 2));
+      const feeTotal = Math.max(0, Math.round(val * (Math.max(0, Number(econ().loanPct) || 0) / 100)));
+      const startedAt = Date.now();
       p.teamId = buyerId;
-      p.loanStatus = { from: seller.id, legsRemaining: econ().loanLegs, fee };
-      p.transferHistory = p.transferHistory || [];
-      p.transferHistory.push({ type:'loan', from: seller.id, to: buyer.id, value: fee, ts: Date.now() });
-      await logAdmin('Loan: ' + p.name + ' → ' + buyer.name + ' (' + money(fee) + ')');
-      toast('🤝 ' + esc(p.name) + ' loaned to ' + esc(buyer.name), 'ok');
+      p.loanStatus = {
+        from:seller.id, to:buyer.id, legsTotal:duration, legsPlayed:0, legsRemaining:duration,
+        feeTotal, paid:0, fee:feeTotal, legacyPrepaid:false, startedAt, processedMatchIds:[]
+      };
+      p.transferHistory.push({ type:'loan', from:seller.id, to:buyer.id, value:feeTotal, feeTotal, paid:0, legs:duration, ts:startedAt });
+      await logAdmin('Loan: ' + p.name + ' → ' + buyer.name + ' (pay per played leg; up to ' + money(feeTotal) + ')');
+      toast('🤝 ' + esc(p.name) + ' loaned to ' + esc(buyer.name) + '. No payment until he plays.', 'ok');
     }
     await saveState(); closeModal(); render();
     return;
   }
   if (act === 'market:signfa'){
-    const pid = $('#m_fa_player').value;
-    const tid = $('#m_fa_team').value;
+    if (!app.isAdmin) return;
+    const pid = id || app._marketSelectedPlayerId;
+    const tid = $('#m_buyer') ? $('#m_buyer').value : '';
     if (!pid) return toast('⚠️ Select a free agent', 'err');
     const p = playerById(pid);
     if (!p || !p.freeAgent) return;
-    const tm = teamById(tid);
+    const tm = app.state.teams.find(t => t.id === tid);
+    if (!tm) return toast('⚠️ Select a team', 'err');
     p.teamId = tid;
     p.freeAgent = false;
     p.transferHistory = p.transferHistory || [];
-    p.transferHistory.push({ type:'signing', from: null, to: tid, value: 0, ts: Date.now() });
+    p.transferHistory.push({ type:'signing', from:null, to:tid, value:0, ts:Date.now() });
     await logAdmin('Signed free agent "' + p.name + '" to ' + tm.name);
     await saveState(); closeModal(); render();
     toast('✍️ Signed to ' + tm.name, 'ok');
@@ -3827,7 +4015,7 @@ document.addEventListener('click', async e => {
     if (!confirm('Delete this fixture?')) return;
     if (f.matchId) {
       const m = matchById(f.matchId);
-      if (m) revertMatch(m);
+      if (m){ revertLoanSettlements(m); revertMatch(m); }
       app.state.matches = app.state.matches.filter(x => x.id !== f.matchId);
     }
     app.state.fixtures = app.state.fixtures.filter(x => x.id !== id);
@@ -3895,6 +4083,7 @@ document.addEventListener('click', async e => {
     const m = matchById(id);
     if (!m) return;
     if (!confirm('Delete this result? Team treasuries will be reverted.')) return;
+    revertLoanSettlements(m);
     revertMatch(m);
     app.state.matches = app.state.matches.filter(x => x.id !== id);
     const f = fixtureById(m.fixtureId);
@@ -4080,6 +4269,19 @@ document.addEventListener('input', handleTrackFoulInput);
 document.addEventListener('change', handleTrackFoulInput);
 
 document.addEventListener('input', e => {
+  if (e.target.id !== 'm_search') return;
+  app._marketQuery = e.target.value;
+  const directory = $('#marketDirectory');
+  if (directory) directory.innerHTML = marketDirectoryHTML(app._marketQuery, app._marketSelectedPlayerId);
+  const count = $('#marketCount');
+  if (count){
+    const total = app.state.players.length;
+    const shown = directory ? directory.querySelectorAll('.market-player-row').length : 0;
+    count.textContent = `${shown} of ${total} players shown`;
+  }
+});
+
+document.addEventListener('input', e => {
   const idt = e.target.id;
   if (idt === 'f_teamLogo' || idt === 'f_teamName' || idt === 'f_teamColor'){
     const prev = $('#f_teamLogoPreview');
@@ -4205,6 +4407,7 @@ async function saveMatch(){
   if (isEdit){
     const old = matchById(d.matchId);
     if (old){
+      revertLoanSettlements(old);
       revertMatch(old);
       app.state.matches = app.state.matches.filter(x => x.id !== old.id);
       m.timestamp = old.timestamp || Date.now();
@@ -4246,6 +4449,7 @@ function openPlayerProfile(pid){
         <button class="btn sm danger" data-act="player:purge" data-id="${p.id}">🗑️ Delete forever</button>`;
     } else {
       actionBtns = `<button class="btn sm" data-act="player:edit" data-id="${p.id}">✏️ Edit</button>
+        ${p.loanStatus ? `<button class="btn sm gold" data-act="player:loanstop" data-id="${p.id}">↩ End Loan</button>` : ''}
         <button class="btn sm lime" data-act="player:release" data-id="${p.id}">🟡 Release</button>`;
     }
   }
@@ -4259,7 +4463,7 @@ function openPlayerProfile(pid){
     </div>
     <div class="row" style="margin-bottom:10px">
       ${p.freeAgent ? `<span class="pill go">🟡 Free Agent</span>` : teamLink(tm, 26)}
-      ${p.loanStatus ? `<span class="pill go">LOAN • ${p.loanStatus.legsRemaining} legs left</span>` : ''}
+      ${p.loanStatus ? `<span class="pill go">LOAN • ${Number(p.loanStatus.legsPlayed)||0}/${Number(p.loanStatus.legsTotal)||Number(p.loanStatus.legsRemaining)||1} played</span>` : ''}
       <span class="pill cy">${s.matches||0} matches</span>
       <span class="pill mg">${s.legsPlayed||0} legs</span>
       <span class="pill go"><span class="rk rk-${avgGrade(avg)}">${avgGrade(avg)}</span> overall</span>
@@ -4459,58 +4663,92 @@ function openMatchDetail(m){
   openModal('📊 Match Details', html, `<button class="btn" data-act="modal:close">Close</button>`);
 }
 
+function marketDirectoryHTML(query, selectedId){
+  const st = computePlayerStats();
+  const q = String(query || '').trim().toLowerCase();
+  const players = app.state.players.slice().sort((a,b) => String(a.name).localeCompare(String(b.name)));
+  const filtered = players.filter(p => {
+    const club = p.freeAgent ? 'free agent' : teamById(p.teamId).name;
+    const loanFrom = p.loanStatus ? teamById(p.loanStatus.from).name : '';
+    return !q || [p.name, club, loanFrom, p.id].join(' ').toLowerCase().includes(q);
+  });
+  if (!filtered.length) return '<div class="empty" style="padding:20px">No players match that search.</div>';
+  return filtered.map(p => {
+    const club = p.freeAgent ? 'Free Agent' : teamById(p.teamId).name;
+    const value = st[p.id] ? st[p.id].playerValue : (p.startingValue || econ().playerStart);
+    const status = p.loanStatus ? 'ON LOAN' : (p.freeAgent ? 'FREE AGENT' : 'ROSTER');
+    const sub = p.loanStatus ? `Loaned from ${esc(teamById(p.loanStatus.from).name)}` : (p.freeAgent ? 'Available to sign' : 'Available for transfer or loan');
+    return `<button type="button" class="market-player-row ${selectedId === p.id ? 'selected' : ''}" data-act="market:select" data-id="${esc(p.id)}">
+      <span class="market-player-main"><b>${esc(p.name)}</b><small>${esc(club)} · ${sub}</small></span>
+      <span class="market-player-value">${money(value)}</span>
+      <span class="market-player-status ${p.loanStatus ? 'loan' : p.freeAgent ? 'free' : ''}">${status}</span>
+    </button>`;
+  }).join('');
+}
+
+function marketDealPanelHTML(p){
+  if (!p) return '<div class="empty" style="padding:22px">Choose a player from the directory above to see available actions.</div>';
+  if (p.loanStatus){
+    const loan = p.loanStatus;
+    const total = Math.max(1, Number(loan.legsTotal) || Number(loan.legsRemaining) || 1);
+    const played = Number(loan.legsPlayed) || 0;
+    const paid = Number(loan.paid !== undefined ? loan.paid : loan.fee) || 0;
+    return `<div class="market-deal-card">
+      <div class="section-title" style="margin-top:0">🤝 Active Loan</div>
+      <div class="kv"><span>Player</span><b>${esc(p.name)}</b></div>
+      <div class="kv"><span>Borrowing team</span><b>${esc(teamById(p.teamId).name)}</b></div>
+      <div class="kv"><span>Returning to</span><b>${esc(teamById(loan.from).name)}</b></div>
+      <div class="kv"><span>Legs played on loan</span><b>${played} / ${total}</b></div>
+      <div class="kv"><span>Loan fee paid</span><b>${money(paid)}</b></div>
+      <div class="hint" style="margin-top:8px">You can end the loan at any time. The player returns immediately; all match stats already recorded stay exactly where they are. The team pays only for legs the player actually played.</div>
+      <button class="btn gold" style="margin-top:12px" data-act="market:stoploan" data-id="${esc(p.id)}">↩ End Loan Now</button>
+    </div>`;
+  }
+  if (p.freeAgent){
+    return `<div class="market-deal-card">
+      <div class="section-title" style="margin-top:0">🟡 Sign Free Agent</div>
+      <div class="kv"><span>Player</span><b>${esc(p.name)}</b></div>
+      <label class="fl">Sign to team</label>
+      <select id="m_buyer">${teamOptions()}</select>
+      <div class="hint" style="margin-top:8px">Free agent signings are free. Existing match history and stats remain with the team recorded when they played.</div>
+      <button class="btn lime" style="margin-top:12px" data-act="market:signfa" data-id="${esc(p.id)}">✍️ Sign Player</button>
+    </div>`;
+  }
+  const value = computePlayerStats()[p.id]?.playerValue || p.startingValue || econ().playerStart;
+  const duration = Math.max(1, Number(econ().loanLegs) || 2);
+  const totalFee = Math.max(0, Math.round(value * (Math.max(0, Number(econ().loanPct) || 0) / 100)));
+  return `<div class="market-deal-card">
+    <div class="section-title" style="margin-top:0">💱 Deal for ${esc(p.name)}</div>
+    <div class="kv"><span>Current team</span><b>${esc(teamById(p.teamId).name)}</b></div>
+    <div class="kv"><span>Estimated player value</span><b>${money(value)}</b></div>
+    <label class="fl">Destination team</label>
+    <select id="m_buyer">${teamOptions((app.state.teams.find(t => t.id !== p.teamId) || {}).id)}</select>
+    <label class="fl">Deal type</label>
+    <select id="m_type">
+      <option value="transfer">Full transfer — ${money(value)}</option>
+      <option value="loan">Loan — up to ${money(totalFee)} across ${duration} played legs</option>
+    </select>
+    <div class="hint" style="margin-top:8px">Full transfers move the player's value immediately. Loans have no upfront charge: the borrowing team pays one share only when the player actually appears in a leg. Unplayed legs cost nothing, and the player automatically returns after ${duration} played legs unless you end the loan earlier.</div>
+    <button class="btn lime" style="margin-top:12px" data-act="market:do" data-id="${esc(p.id)}">Execute Transfer / Loan</button>
+  </div>`;
+}
+
 function openTransferMarket(){
   if (!app.state.players.length) return toast('⚠️ No players yet', 'err');
-  const st = computePlayerStats();
-  const activePlayers = app.state.players.filter(p => !p.freeAgent);
-  const freeAgents = app.state.players.filter(p => p.freeAgent);
-
-  if (!activePlayers.length && !freeAgents.length) return toast('⚠️ No players available', 'err');
-
-  let html = '';
-  if (activePlayers.length){
-    html += `
-      <div class="section-title" style="margin-top:0">💱 Transfer / Loan</div>
-      <label class="fl">Player</label>
-      <select id="m_player">
-        ${activePlayers.map(p => `<option value="${p.id}">${esc(p.name)} — ${esc(teamById(p.teamId).name)} (${money(st[p.id]?.playerValue||0)})</option>`).join('')}
-      </select>
-      <label class="fl">Buyer team</label>
-      <select id="m_buyer">${teamOptions()}</select>
-      <label class="fl">Deal type</label>
-      <select id="m_type">
-        <option value="transfer">Full transfer (100% of value)</option>
-        <option value="loan">Loan (${econ().loanPct}% for ${econ().loanLegs} legs)</option>
-      </select>
-      <div class="hint" style="margin-top:8px">Transfers move the full player value from buyer to seller. Loans cost ${econ().loanPct}% of value for ${econ().loanLegs} legs, then the player returns automatically.</div>
-    `;
-  } else {
-    html += `<div class="muted small">No active players available for transfer.</div>`;
-  }
-
-  html += `<div class="divider"></div>
-    <div class="section-title" style="margin-top:0">🟡 Sign Free Agent</div>`;
-
-  if (freeAgents.length){
-    html += `<div class="field-row">
-      <div><label class="fl">Free agent</label>
-        <select id="m_fa_player">
-          <option value="">— select —</option>
-          ${freeAgents.map(p => `<option value="${p.id}">${esc(p.name)}${p.teamId ? ' (last: ' + esc(teamById(p.teamId).name) + ')' : ''}</option>`).join('')}
-        </select>
-      </div>
-      <div><label class="fl">Sign to team</label>
-        <select id="m_fa_team">${teamOptions()}</select>
-      </div>
+  if (!app.state.players.some(p => p.id === app._marketSelectedPlayerId)) app._marketSelectedPlayerId = null;
+  app._marketQuery = app._marketQuery || '';
+  const selected = playerById(app._marketSelectedPlayerId);
+  const html = `
+    <div class="section-title" style="margin-top:0">🔎 Search the player directory</div>
+    <input id="m_search" type="search" value="${esc(app._marketQuery)}" placeholder="Search by player name, team, or ID…">
+    <div class="row" style="justify-content:space-between;margin:8px 0">
+      <span id="marketCount" class="hint">${app.state.players.length} players in the directory</span>
+      <span class="hint">Select any row to manage the player</span>
     </div>
-    <button class="btn lime" style="margin-top:8px" data-act="market:signfa">✍️ Sign free agent</button>`;
-  } else {
-    html += `<div class="muted small">No free agents available.</div>`;
-  }
-
-  openModal('💱 Transfer Market', html,
-    `${activePlayers.length ? '<button class="btn lime" data-act="market:do">Execute Transfer/Loan</button>' : ''}
-     <button class="btn" data-act="modal:close">Close</button>`);
+    <div id="marketDirectory" class="market-directory">${marketDirectoryHTML(app._marketQuery, app._marketSelectedPlayerId)}</div>
+    <div class="divider"></div>
+    <div id="marketDealPanel">${marketDealPanelHTML(selected)}</div>`;
+  openModal('💱 Transfer & Loan Center', html, '<button class="btn" data-act="modal:close">Close</button>');
 }
 
 function openTournamentCreator(){
