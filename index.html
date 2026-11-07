@@ -216,6 +216,37 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 .tos-stat{margin-top:11px;font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim)}
 .tos-stat b{display:block;font-size:20px;color:var(--lime);letter-spacing:0;text-shadow:0 0 14px rgba(139,255,60,.45)}
 .tos-card.empty{opacity:.5;border-color:rgba(255,255,255,.12)}
+.award-custom-icon{display:inline-block;width:25px;height:25px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 2px 5px rgba(255,213,61,.28))}
+.bd-live{margin:10px 0 22px;padding:17px;border:1px solid rgba(255,213,61,.28);background:radial-gradient(ellipse at 50% 0%,rgba(255,213,61,.13),transparent 60%),linear-gradient(135deg,rgba(24,24,34,.98),rgba(11,13,23,.98));overflow:hidden}
+.bd-live-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bd-live-top>div{display:flex;align-items:center;gap:10px;font-weight:950;letter-spacing:2.8px;color:var(--gold);font-size:13px}
+.bd-live-top .award-custom-icon{width:32px;height:32px}
+.bd-live-tag{border:1px solid rgba(255,213,61,.35);border-radius:30px;padding:5px 9px;color:var(--lime);font-size:9px;font-weight:900;letter-spacing:1.7px}
+.bd-live-sub{color:var(--dim);font-size:11px;margin:5px 0 16px}
+.bd-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end;padding:8px 2px 0}
+.bd-podium-card{position:relative;min-width:0;min-height:198px;padding:17px 10px 12px;text-align:center;border:1px solid rgba(255,255,255,.10);border-radius:13px 13px 5px 5px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(0,0,0,.17));display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;overflow:hidden}
+.bd-podium-card::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;background:rgba(255,255,255,.15)}
+.bd-rank-1{min-height:226px;border-color:rgba(255,213,61,.58);background:linear-gradient(180deg,rgba(255,213,61,.18),rgba(83,61,18,.12));transform:translateY(-12px);box-shadow:0 0 24px rgba(255,213,61,.11)}
+.bd-rank-1::before{background:linear-gradient(90deg,#8e6720,#ffe78a,#a87516)}
+.bd-rank-2{border-color:rgba(190,215,235,.3)}.bd-rank-2::before{background:linear-gradient(90deg,#657b91,#e1ebf3,#657b91)}
+.bd-rank-3{border-color:rgba(192,128,88,.32)}.bd-rank-3::before{background:linear-gradient(90deg,#855637,#e5a77a,#855637)}
+.bd-medal{font-size:22px;line-height:1}
+.bd-avatar{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;border:2px solid rgba(255,213,61,.55);background:radial-gradient(circle at 30% 20%,rgba(255,255,255,.2),rgba(255,213,61,.15));color:#fff;font-size:14px;font-weight:950;letter-spacing:1px}
+.bd-rank-1 .bd-avatar{width:54px;height:54px;font-size:17px;box-shadow:0 0 20px rgba(255,213,61,.18)}
+.bd-rank-label{font-size:8px;letter-spacing:2px;font-weight:950;color:var(--gold)}
+.bd-player-name{max-width:100%;font-size:13px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd-player-team{font-size:10px;max-width:100%;overflow:hidden}
+.bd-points{font-size:22px;font-weight:950;line-height:1.1;color:#ffe07a;font-variant-numeric:tabular-nums;text-shadow:0 0 15px rgba(255,213,61,.2)}
+.bd-points small{display:block;font-size:8px;letter-spacing:2px;color:var(--dim);margin-top:3px}
+.bd-breakdown{font-size:9px;color:var(--dim);white-space:nowrap}
+.bd-empty{color:var(--dim);font-size:10px;margin-top:20px}
+.bd-live-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:12px;margin-top:4px;border-top:1px solid rgba(255,255,255,.08);font-size:10px;color:var(--dim)}
+.hype-panel{margin:12px 0;padding:13px;border:1px solid rgba(255,95,65,.34);border-radius:13px;background:radial-gradient(circle at 100% 0%,rgba(255,75,42,.14),transparent 52%),linear-gradient(120deg,rgba(255,70,45,.07),rgba(255,213,61,.035));display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.hype-panel-copy{display:flex;flex-direction:column;gap:5px;flex:1;min-width:180px}.hype-panel-copy b{font-size:14px;color:#ff9a64}.hype-panel-copy span{font-size:10.5px;line-height:1.55;color:var(--dim)}
+.hype-panel-action{display:flex;align-items:center;gap:10px}.hype-total{text-align:center;min-width:52px}.hype-total b{display:block;font-size:22px;color:#ff795a;font-variant-numeric:tabular-nums}.hype-total small{font-size:8px;letter-spacing:1.7px;color:var(--dim)}
+.hype-fire{border-color:rgba(255,93,56,.55);background:linear-gradient(135deg,#f05a35,#c92b20);color:#fff;font-weight:900;box-shadow:0 4px 18px rgba(240,70,40,.19)}.hype-fire:hover:not(:disabled){filter:brightness(1.12);transform:translateY(-1px)}.hype-fire:disabled{opacity:.55;cursor:not-allowed}
+.hype-help{flex-basis:100%;font-size:9px;color:var(--dim);margin-top:-4px}
+@media (max-width:640px){.bd-podium{gap:6px}.bd-podium-card{min-height:175px;padding:12px 5px 9px}.bd-rank-1{min-height:199px;transform:translateY(-7px)}.bd-player-name{font-size:11px}.bd-points{font-size:18px}.bd-breakdown{font-size:8px}.bd-avatar{width:38px;height:38px}.bd-live-footer{align-items:flex-start;flex-direction:column}.hype-panel-action{width:100%;justify-content:space-between}}
 .market-directory{max-height:300px;overflow-y:auto;display:grid;gap:6px;padding:5px;border:1px solid var(--line);border-radius:11px;background:rgba(0,0,0,.16)}
 .market-player-row{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;text-align:left;padding:9px 11px;border:1px solid rgba(255,255,255,.07);border-radius:9px;background:rgba(0,240,255,.035);color:var(--txt);cursor:pointer;font:inherit;transition:all .14s}
 .market-player-row:hover,.market-player-row.selected{border-color:var(--cyan);background:rgba(0,240,255,.11);box-shadow:0 0 13px rgba(0,240,255,.12)}
@@ -359,29 +390,57 @@ const GRADE_DEFAULT = {
   B: { goals: 1.5, assists: 1, saves: 5,  tackles: 5 }
 };
 
+const HYPE_DEFAULT = { valuePerHype: 100000 };
+const BALLONDOR_DEFAULT = {
+  goals: 5, assists: 5, saves: 1, tackles: 0.2,
+  mvpMotm: 10,
+  teamRank1: 20, teamRank2: 10, teamRank3: 5,
+  topScorerBonus: 15, topPlaymakerBonus: 15,
+  topSavesBonus: 15, topTacklesBonus: 15,
+  oneManArmy: 15, hype: 1, _formulaVersion: 2
+};
+
+const AWARD_EMOJI_URLS = {
+  ballon: 'https://cdn.discordapp.com/emojis/1496862833542037646.png?format=webp&quality=lossless',
+  playmaker: 'https://cdn.discordapp.com/emojis/1439706722255241236.png?format=webp&quality=lossless',
+  'golden-boot': 'https://cdn.discordapp.com/emojis/1439706392599593113.png?format=webp&quality=lossless',
+  gloves: 'https://cdn.discordapp.com/emojis/1439706642760470620.png?format=webp&quality=lossless',
+  defender: 'https://cdn.discordapp.com/emojis/1510737621515763877.png?format=webp&quality=lossless',
+  oma: 'https://cdn.discordapp.com/emojis/1555406046175170642.png?format=webp&quality=lossless'
+};
+function awardEmoji(key, fallback){
+  const url = AWARD_EMOJI_URLS[key];
+  return url ? `<img class="award-custom-icon" src="${url}" alt="${esc(fallback || key)}" loading="lazy">` : (fallback || '🏅');
+}
+
 function defaultState(){
   return {
     leagueName: 'My League',
     seasonName: '2026 Season',
+    hypeCycleId: uuid(),
     teams: [], players: [], matches: [], fixtures: [], tournaments: [], archives: [], logs: [],
     guide: [{
       id: uuid(),
       title: 'Welcome to League Manager',
-      content: 'Use the Registry to create teams and players. Then create fixtures and record or auto-generate results. Everything updates live: standings, awards, values and the Ballon d\'Or race.\n\nAdmins: log in via the Admin button to unlock editing, the transfer market, tournaments and season control.',
+      content: 'Use the Registry to create teams and players. Then create fixtures and record or auto-generate results. Everything updates live: standings, awards, values and the Ballon d\'Or race. Fans can open a player profile and Hype each player once per season.\n\nAdmins: log in via the Admin button to unlock editing, the transfer market, tournaments and season control.',
       createdAt: Date.now(), updatedAt: Date.now(), by: 'system'
     }],
     settings: {
       isAdmin: false,
       disabledAwards: [],
       economy: JSON.parse(JSON.stringify(ECON_DEFAULT)),
-      grading: JSON.parse(JSON.stringify(GRADE_DEFAULT))
+      grading: JSON.parse(JSON.stringify(GRADE_DEFAULT)),
+      hype: JSON.parse(JSON.stringify(HYPE_DEFAULT)),
+      ballondor: JSON.parse(JSON.stringify(BALLONDOR_DEFAULT))
     }
   };
 }
 
 const app = {
   state: null, currentView: 'registry', user: null, isAdmin: false,
-  firebaseReady, db: null, auth: null, _draft: null, _suppress: false, _cloudLoaded: false
+  firebaseReady, db: null, auth: null, _draft: null, _suppress: false, _cloudLoaded: false,
+  _hypeReady: false, _hypeError: null, _hypeAuthRequested: false, _hypeAuthPromise: null,
+  _hypeDocs: {}, _hypeCounts: {}, _hypedPlayerIds: {}, _activePlayerProfileId: null
 };
 window.app = app;
 const econ = () => app.state.settings.economy;
@@ -396,6 +455,22 @@ function hydrate(raw){
   const rg = (raw && raw.settings && raw.settings.grading) || {};
   s.settings.grading = {};
   ['S','A','B'].forEach(k => s.settings.grading[k] = Object.assign({}, d.settings.grading[k], rg[k] || {}));
+  const rh = (raw && raw.settings && raw.settings.hype) || {};
+  s.settings.hype = Object.assign({}, d.settings.hype, rh);
+  const rb = (raw && raw.settings && raw.settings.ballondor) || {};
+  s.settings.ballondor = Object.assign({}, d.settings.ballondor, rb);
+  if ((Number(rb._formulaVersion) || 0) < 2){
+    /* The former formula used different team and One Man Army weights.
+       Install the user's new Ballon d'Or table once; admins can edit it afterwards. */
+    Object.assign(s.settings.ballondor, BALLONDOR_DEFAULT);
+    s._needsBallonFormulaPersist = true;
+  }
+  /* Keep old league saves on a stable Hype cycle until the next season reset. */
+  if (!s.hypeCycleId){
+    const seed = String(s.seasonName || 'current-season').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 48) || 'current-season';
+    s.hypeCycleId = 'legacy_' + seed;
+  }
+  if (raw && !raw.hypeCycleId) s._needsHypeCyclePersist = true;
   if (!Array.isArray(s.settings.disabledAwards)) s.settings.disabledAwards = [];
   ['teams','players','matches','fixtures','tournaments','archives','logs','guide'].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });
   return s;
@@ -404,6 +479,14 @@ function hydrate(raw){
 /* Migration: backfill playerTeams on matches, convert retired → freeAgent */
 function migrate(){
   let changed = false;
+  if (app.state._needsHypeCyclePersist){
+    delete app.state._needsHypeCyclePersist;
+    changed = true;
+  }
+  if (app.state._needsBallonFormulaPersist){
+    delete app.state._needsBallonFormulaPersist;
+    changed = true;
+  }
 
   /* retired → freeAgent */
   app.state.players.forEach(p => {
@@ -456,6 +539,118 @@ function migrate(){
   });
 
   return changed;
+}
+
+function currentHypeCycleId(){
+  return (app.state && app.state.hypeCycleId) || 'legacy_current-season';
+}
+function hypeCounterId(playerId, cycleId){
+  return String(cycleId || currentHypeCycleId()) + '_' + String(playerId);
+}
+function hypeVoteId(playerId, uid, cycleId){
+  return hypeCounterId(playerId, cycleId) + '_' + String(uid);
+}
+function rebuildHypeCountMap(){
+  const cycleId = currentHypeCycleId();
+  const counts = {};
+  Object.keys(app._hypeDocs || {}).forEach(docId => {
+    const d = app._hypeDocs[docId] || {};
+    if (d.cycleId === cycleId && d.playerId) counts[d.playerId] = Math.max(0, Number(d.count) || 0);
+  });
+  app._hypeCounts = counts;
+}
+function getHypeCount(playerId){
+  return Math.max(0, Number((app._hypeCounts || {})[playerId]) || 0);
+}
+function syncHypeButton(playerId, alreadyVoted){
+  if (app._activePlayerProfileId !== playerId) return;
+  const button = $('#playerHypeButton');
+  if (!button) return;
+  /* Visitors are silently assigned a Firebase anonymous identity behind the scenes. */
+  const enabled = !!(firebaseReady && app.db && app._hypeReady);
+  button.disabled = !!alreadyVoted || !enabled;
+  button.textContent = alreadyVoted ? '🔥 Already Hyped' : (enabled ? '🔥 Hype this player' : '🔥 Connecting…');
+  const count = $('#playerHypeCount');
+  if (count) count.textContent = num(getHypeCount(playerId));
+}
+async function ensureHypeFanIdentity(){
+  if (app.user && app.user.uid) return app.user;
+  if (!firebaseReady || !app.auth) throw new Error('Hype is temporarily unavailable.');
+  if (!app._hypeAuthPromise){
+    app._hypeAuthRequested = true;
+    app._hypeAuthPromise = app.auth.signInAnonymously().then(credential => {
+      app.user = credential.user;
+      app.isAdmin = false;
+      return credential.user;
+    }).finally(() => {
+      app._hypeAuthRequested = false;
+      app._hypeAuthPromise = null;
+    });
+  }
+  return app._hypeAuthPromise;
+}
+
+async function refreshPlayerHypeVoteStatus(playerId){
+  if (!firebaseReady || !app.db || !app.user || !app.user.uid) return;
+  const uid = app.user.uid;
+  const voteId = hypeVoteId(playerId, uid);
+  try {
+    const snap = await app.db.collection('hype_votes').doc(voteId).get();
+    app._hypedPlayerIds[playerId] = snap.exists;
+    syncHypeButton(playerId, snap.exists);
+  } catch(e){
+    console.warn('Could not read Hype vote status', e);
+  }
+}
+async function castPlayerHype(playerId){
+  if (!playerById(playerId)) return toast('⚠️ Player not found', 'err');
+  if (!firebaseReady || !app.db) return toast('🔥 Hype is temporarily unavailable. Please try again later.', 'err');
+  if (!app._hypeReady) return toast('⏳ Connecting to the fanbase… try again in a moment.', 'err');
+
+  let fan;
+  try { fan = await ensureHypeFanIdentity(); }
+  catch(e){
+    console.warn('Silent fan identity could not be created', e);
+    return toast('🔥 Hype is temporarily unavailable. Please try again later.', 'err');
+  }
+  const uid = fan.uid;
+  const cycleId = currentHypeCycleId();
+  const counterId = hypeCounterId(playerId, cycleId);
+  const counterRef = app.db.collection('hype_counts').doc(counterId);
+  const voteRef = app.db.collection('hype_votes').doc(hypeVoteId(playerId, uid, cycleId));
+
+  try {
+    const result = await app.db.runTransaction(async tx => {
+      const voteSnap = await tx.get(voteRef);
+      if (voteSnap.exists) return { already: true, count: getHypeCount(playerId) };
+      const countSnap = await tx.get(counterRef);
+      const nextCount = (countSnap.exists ? Math.max(0, Number(countSnap.data().count) || 0) : 0) + 1;
+      const serverTime = firebase.firestore.FieldValue.serverTimestamp();
+      tx.set(voteRef, { cycleId, playerId, uid, createdAt: serverTime });
+      tx.set(counterRef, { cycleId, playerId, count: nextCount, updatedAt: serverTime });
+      return { already: false, count: nextCount };
+    });
+
+    if (result.already){
+      app._hypedPlayerIds[playerId] = true;
+      syncHypeButton(playerId, true);
+      return toast('🔥 You have already hyped this player this season on this browser.', 'err');
+    }
+
+    app._hypedPlayerIds[playerId] = true;
+    app._hypeDocs[counterId] = { cycleId, playerId, count: result.count };
+    rebuildHypeCountMap();
+    if (app._activePlayerProfileId === playerId) openPlayerProfile(playerId);
+    else render();
+    const perHype = Math.max(0, Number((app.state.settings.hype || HYPE_DEFAULT).valuePerHype) || 0);
+    toast(`🔥 ${esc(playerById(playerId).name)} got a Hype! +${money(perHype)} value and +${Number((app.state.settings.ballondor || BALLONDOR_DEFAULT).hype) || 0} Ballon d'Or point.`, 'ok');
+  } catch(e){
+    console.error('Hype vote failed', e);
+    const reason = e.code === 'permission-denied'
+      ? 'The public voting service is not configured correctly. Please tell the site admin.'
+      : (e.message || e.code || 'Unknown error');
+    toast('❌ Hype could not be saved: ' + esc(reason), 'err');
+  }
 }
 
 function loadLocal(){
@@ -530,14 +725,43 @@ function initFirebase(){
       toast('☁️ Could not read the cloud save, editing is locked until reload: ' + (err.code || err.message), 'err');
     });
 
+    /* Public Hype totals live in their own collection, separate from the admin-only league document. */
+    app.db.collection('hype_counts').onSnapshot(snap => {
+      const docs = {};
+      snap.forEach(doc => docs[doc.id] = doc.data() || {});
+      app._hypeDocs = docs;
+      app._hypeReady = true;
+      app._hypeError = null;
+      rebuildHypeCountMap();
+      if (app._activePlayerProfileId && $('#modalRoot').classList.contains('open')) openPlayerProfile(app._activePlayerProfileId);
+      else render();
+    }, err => {
+      console.warn('Hype counter listener error', err);
+      app._hypeReady = false;
+      app._hypeError = err.code || err.message || 'Hype counters unavailable';
+      render();
+    });
+
     app.auth.onAuthStateChanged(async u => {
+      const previousUid = app.user && app.user.uid;
       app.user = u;
-      if (!u){ app.isAdmin = false; }
-      else {
+      if (previousUid !== (u && u.uid)) app._hypedPlayerIds = {};
+      if (!u){
+        app.isAdmin = false;
+        if (!app._hypeAuthRequested && !app._hypeAuthPromise){
+          ensureHypeFanIdentity().catch(err => {
+            console.warn('Silent public Hype identity is unavailable', err);
+            app._hypeError = err.code || err.message || 'Hype temporarily unavailable';
+            render();
+          });
+        }
+      } else {
+        app._hypeAuthRequested = false;
         let claim = false;
         try { const t = await u.getIdTokenResult(); claim = t.claims && t.claims.admin === true; } catch(e){}
         app.isAdmin = ADMIN_EMAILS.includes(u.email) || claim;
-        if (!app.isAdmin) toast('⚠️ Signed in, but this email is not in ADMIN_EMAILS', 'err');
+        if (!u.isAnonymous && !app.isAdmin) toast('⚠️ Signed in, but this email is not in ADMIN_EMAILS', 'err');
+        if (app._activePlayerProfileId) refreshPlayerHypeVoteStatus(app._activePlayerProfileId);
       }
       render();
     });
@@ -656,6 +880,12 @@ function computePlayerStats(){
     if (en.tackle) growth += s.tackles * E.tackle;
     if (en.mvp)    growth += s.mvp     * E.mvp;
     if (en.motm)   growth += s.motm    * E.motm;
+    const hypeCount = getHypeCount(p.id);
+    const hypeReward = Math.max(0, Number((app.state.settings.hype || HYPE_DEFAULT).valuePerHype) || 0);
+    const hypeGrowth = hypeCount * hypeReward;
+    growth += hypeGrowth;
+    s.hypeCount = hypeCount;
+    s.hypeValueBonus = hypeGrowth;
     s.growth = growth;
     const start = (p.startingValue === undefined || p.startingValue === null) ? E.playerStart : p.startingValue;
     s.startingValue = start;
@@ -877,35 +1107,55 @@ function teamGoalDistribution(){
 
 function ballonDor(){
   const st = computePlayerStats();
+  const R = Object.assign({}, BALLONDOR_DEFAULT, app.state.settings.ballondor || {});
   const table = standingsSorted();
   const rankOf = {};
   table.forEach((r, i) => rankOf[r.id] = i + 1);
-  const totalTeams = Math.max(1, app.state.teams.length);
 
-  const best = key => {
-    let b = null, bv = -1;
-    Object.keys(st).forEach(pid => {
-      if (!playerById(pid)) return;
-      if (st[pid][key] > bv){ bv = st[pid][key]; b = pid; }
-    });
-    return bv > 0 ? b : null;
+  /* If several players share a category lead, all tied leaders receive the bonus. */
+  const leaders = key => {
+    const entries = Object.keys(st).filter(pid => playerById(pid));
+    const maximum = entries.reduce((m, pid) => Math.max(m, Number(st[pid][key]) || 0), 0);
+    if (maximum <= 0) return new Set();
+    return new Set(entries.filter(pid => (Number(st[pid][key]) || 0) === maximum));
   };
-  const bootId = best('goals'), playId = best('assists'), gloveId = best('saves'), defId = best('tackles');
+  const bootIds = leaders('goals');
+  const playIds = leaders('assists');
+  const gloveIds = leaders('saves');
+  const defenderIds = leaders('tackles');
   const oma = oneManArmy();
+  const omaMaximum = Object.keys(oma).reduce((m, pid) => Math.max(m, Number(oma[pid]) || 0), 0);
+  const omaLeaders = new Set(omaMaximum > 0
+    ? Object.keys(oma).filter(pid => (Number(oma[pid]) || 0) === omaMaximum)
+    : []);
+
+  const teamBonusForRank = rank => {
+    if (rank === 1) return Number(R.teamRank1) || 0;
+    if (rank === 2) return Number(R.teamRank2) || 0;
+    if (rank === 3) return Number(R.teamRank3) || 0;
+    return 0;
+  };
 
   const rows = app.state.players.map(p => {
     const s = st[p.id] || {};
-    const rank = rankOf[p.teamId] || totalTeams;
-    const teamBonus = Math.max(0, 100 - (rank - 1) * 15);
+    const rank = rankOf[p.teamId] || (app.state.teams.length + 1);
+    const teamBonus = teamBonusForRank(rank);
     const pts =
-      (s.goals||0)*5 + (s.assists||0)*5 + (s.saves||0)*1 + (s.tackles||0)*0.2 +
-      ((s.mvp||0) + (s.motm||0)) * 10 + teamBonus +
-      (p.id === bootId  ? 50 : 0) + (p.id === playId  ? 50 : 0) +
-      (p.id === gloveId ? 50 : 0) + (p.id === defId   ? 50 : 0) +
-      ((oma[p.id]||0) * 8);
-    return { player: p, pts, s, rank, teamBonus };
+      (s.goals || 0) * Number(R.goals) +
+      (s.assists || 0) * Number(R.assists) +
+      (s.saves || 0) * Number(R.saves) +
+      (s.tackles || 0) * Number(R.tackles) +
+      ((s.mvp || 0) + (s.motm || 0)) * Number(R.mvpMotm) +
+      teamBonus +
+      (bootIds.has(p.id) ? Number(R.topScorerBonus) : 0) +
+      (playIds.has(p.id) ? Number(R.topPlaymakerBonus) : 0) +
+      (gloveIds.has(p.id) ? Number(R.topSavesBonus) : 0) +
+      (defenderIds.has(p.id) ? Number(R.topTacklesBonus) : 0) +
+      (omaLeaders.has(p.id) ? Number(R.oneManArmy) : 0) +
+      (getHypeCount(p.id) * Number(R.hype));
+    return { player: p, pts, s, rank, teamBonus, hypeCount: getHypeCount(p.id) };
   });
-  rows.sort((a,b) => b.pts - a.pts);
+  rows.sort((a,b) => b.pts - a.pts || a.player.name.localeCompare(b.player.name));
   return rows;
 }
 
@@ -913,6 +1163,14 @@ function buildAwards(){
   const st = computePlayerStats();
   const table = standingsSorted();
   const standMap = computeStandings();
+  const rawGoalsForByTeam = {};
+  app.state.teams.forEach(t => rawGoalsForByTeam[t.id] = 0);
+  app.state.matches.forEach(m => {
+    const agg = matchAggregate(m);
+    if (!agg.legs.length) return;
+    if (rawGoalsForByTeam[m.teamAId] !== undefined) rawGoalsForByTeam[m.teamAId] += agg.rawA;
+    if (rawGoalsForByTeam[m.teamBId] !== undefined) rawGoalsForByTeam[m.teamBId] += agg.rawB;
+  });
   const dist = teamGoalDistribution();
   const oma = oneManArmy();
   const duo = bestDuo();
@@ -960,8 +1218,8 @@ function buildAwards(){
 
   teamAwards.push({
     key:'goal-hunters', icon:'🎯', title:'Goal Hunters',
-    desc:'Best goal difference.',
-    rows: Object.values(standMap).map(r => ({ id:r.id, label:r.name, color:r.color, value:r.gd, fmt: v => (v>0?'+':'') + v }))
+    desc:'Most goals scored (Goals For).',
+    rows: app.state.teams.map(t => ({ id:t.id, label:t.name, color:t.color, value: rawGoalsForByTeam[t.id] || 0 }))
               .sort((a,b) => b.value - a.value)
   });
 
@@ -987,12 +1245,12 @@ function buildAwards(){
   })).sort((a,b) => b.value - a.value);
 
   const playerAwards = [
-    { key:'golden-boot', icon:'👟', title:'Golden Boot',  desc:'Most goals scored.',        rows: pRows('goals') },
-    { key:'playmaker',   icon:'🎩', title:'Playmaker',    desc:'Most assists provided.',    rows: pRows('assists') },
-    { key:'gloves',      icon:'🧤', title:'Golden Gloves',desc:'Most saves made.',          rows: pRows('saves') },
-    { key:'defender',    icon:'🛡️', title:'Best Defender',desc:'Most tackles made.',        rows: pRows('tackles') },
+    { key:'golden-boot', icon:awardEmoji('golden-boot','Golden Boot'), title:'Golden Boot',  desc:'Most goals scored.',        rows: pRows('goals') },
+    { key:'playmaker',   icon:awardEmoji('playmaker','Playmaker'), title:'Playmaker',    desc:'Most assists provided.',    rows: pRows('assists') },
+    { key:'gloves',      icon:awardEmoji('gloves','Golden Gloves'), title:'Golden Gloves',desc:'Most saves made.',          rows: pRows('saves') },
+    { key:'defender',    icon:awardEmoji('defender','Best Defender'), title:'Best Defender',desc:'Most tackles made.',        rows: pRows('tackles') },
     {
-      key:'oma', icon:'🦸', title:'One Man Army',
+      key:'oma', icon:awardEmoji('oma','One Man Army'), title:'One Man Army',
       desc:'Most matches as his team\'s top contributor.',
       rows: app.state.players.map(p => ({
         id: p.id,
@@ -1011,8 +1269,8 @@ function buildAwards(){
       }] : []
     },
     {
-      key:'ballon', icon:'🏅', title:'Ballon d\'Or',
-      desc:'Goals×5 + Assists×5 + Saves×1 + Tackles×0.2 + (MVP+MOTM)×10 + team rank bonus + leader bonuses.',
+      key:'ballon', icon:awardEmoji('ballon','Ballon d\'Or'), title:'Ballon d\'Or',
+      desc:'Live score from the admin-configured stats, team rank, award-leader, One Man Army and fan Hype weights.',
       rows: ballonDor().map(r => ({
         id: r.player.id,
         label:r.player.name, color: teamById(r.player.teamId).color,
@@ -1691,6 +1949,34 @@ VIEWS.matchcenter = () => {
       <div class="row" style="margin-top:12px">
         <button class="btn lime" data-act="econ:save">💾 Save economy</button>
         <button class="btn danger" data-act="econ:reset">↩️ Reset defaults</button>
+      </div>
+      <div class="divider"></div>
+      <div class="section-title" style="margin-top:0">🔥 Hype &amp; Ballon d'Or Settings</div>
+      <p class="hint">Each verified Hype vote adds the configured value to the player's value and the configured points to their Ballon d'Or score. Change every ranking weight here.</p>
+      <div class="section-title" style="margin-top:8px">Match performance</div>
+      <div class="field-row">
+        <div><label class="fl">Goal (per goal)</label><input type="number" min="0" step="0.1" data-ballon="goals" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).goals}"></div>
+        <div><label class="fl">Assist (per assist)</label><input type="number" min="0" step="0.1" data-ballon="assists" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).assists}"></div>
+        <div><label class="fl">Save (per save)</label><input type="number" min="0" step="0.1" data-ballon="saves" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).saves}"></div>
+        <div><label class="fl">Tackle (per tackle)</label><input type="number" min="0" step="0.1" data-ballon="tackles" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).tackles}"></div>
+        <div><label class="fl">MVP + MOTM (each)</label><input type="number" min="0" step="0.1" data-ballon="mvpMotm" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).mvpMotm}"></div>
+      </div>
+      <div class="section-title" style="margin-top:12px">Season and award bonuses</div>
+      <div class="field-row">
+        <div><label class="fl">Team finishes 1st</label><input type="number" min="0" step="1" data-ballon="teamRank1" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).teamRank1}"></div>
+        <div><label class="fl">Team finishes 2nd</label><input type="number" min="0" step="1" data-ballon="teamRank2" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).teamRank2}"></div>
+        <div><label class="fl">Team finishes 3rd</label><input type="number" min="0" step="1" data-ballon="teamRank3" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).teamRank3}"></div>
+        <div><label class="fl">Top scorer</label><input type="number" min="0" step="1" data-ballon="topScorerBonus" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).topScorerBonus}"></div>
+        <div><label class="fl">Top playmaker</label><input type="number" min="0" step="1" data-ballon="topPlaymakerBonus" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).topPlaymakerBonus}"></div>
+        <div><label class="fl">Top saves (Golden Gloves)</label><input type="number" min="0" step="1" data-ballon="topSavesBonus" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).topSavesBonus}"></div>
+        <div><label class="fl">Top tackles (Best Defender)</label><input type="number" min="0" step="1" data-ballon="topTacklesBonus" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).topTacklesBonus}"></div>
+        <div><label class="fl">One Man Army leader</label><input type="number" min="0" step="1" data-ballon="oneManArmy" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).oneManArmy}"></div>
+        <div><label class="fl">Points per Hype</label><input type="number" min="0" step="0.1" data-ballon="hype" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).hype}"></div>
+        <div><label class="fl">Player value per Hype ($)</label><input type="number" min="0" step="1000" data-hype="valuePerHype" value="${(app.state.settings.hype || HYPE_DEFAULT).valuePerHype}"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn lime" data-act="ballon:save">💾 Save Ballon d'Or settings</button>
+        <button class="btn danger" data-act="ballon:reset">↩️ Reset ranking defaults</button>
       </div>` : ''}
   </div>
 
@@ -2268,6 +2554,27 @@ VIEWS.awards = () => {
   const { teamAwards, playerAwards } = buildAwards();
   const disabled = app.state.settings.disabledAwards || [];
   const tos = teamOfTheSeason();
+  const ballonRanks = ballonDor();
+  const podiumCard = (entry, rank) => {
+    if (!entry) return `<div class="bd-podium-card bd-rank-${rank} empty"><div class="bd-medal">${rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}</div><div class="bd-empty">Waiting for a contender</div></div>`;
+    const p = entry.player;
+    const initials = String(p.name || '?').trim().split(/\s+/).slice(0,2).map(x => x.charAt(0)).join('').toUpperCase();
+    return `<div class="bd-podium-card bd-rank-${rank}">
+      <div class="bd-medal">${rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}</div>
+      <div class="bd-avatar">${esc(initials || '?')}</div>
+      <div class="bd-rank-label">${rank === 1 ? 'WINNER' : rank === 2 ? 'RUNNER-UP' : 'THIRD PLACE'}</div>
+      <div class="bd-player-name">${playerLink(p)}</div>
+      <div class="bd-player-team">${teamTag(teamById(p.teamId), 18)}</div>
+      <div class="bd-points">${Number(entry.pts).toFixed(1)} <small>POINTS</small></div>
+      <div class="bd-breakdown">${entry.s.goals||0}G · ${entry.s.assists||0}A · ${entry.s.saves||0}S · 🔥 ${getHypeCount(p.id)}</div>
+    </div>`;
+  };
+  const ballonPodium = `<div class="bd-live card anim">
+    <div class="bd-live-top"><div>${awardEmoji('ballon',"Ballon d\'Or")} <span>THE BALLON D'OR</span></div><span class="bd-live-tag">LIVE RANKING</span></div>
+    <p class="bd-live-sub">The race for the most prestigious individual trophy in the league.</p>
+    ${ballonRanks.length ? `<div class="bd-podium">${podiumCard(ballonRanks[1],2)}${podiumCard(ballonRanks[0],1)}${podiumCard(ballonRanks[2],3)}</div>
+    <div class="bd-live-footer"><span>${ballonRanks.length} contenders · fan Hype counts toward the race</span><button class="btn sm gold" data-act="award:view" data-award="ballon">Full ranking ↗</button></div>` : `<div class="empty">Add players to start the Ballon d'Or race.</div>`}
+  </div>`;
 
   const card = a => {
     const isDisabled = disabled.includes(a.key);
@@ -2313,6 +2620,7 @@ VIEWS.awards = () => {
   };
 
   return `<div class="view-head"><h2><span class="emoji wig">🎖️</span> Awards</h2></div>
+  ${ballonPodium}
   <div class="section-title">Team of the Season</div>
   <div class="tos-grid">${tos.map(tosCard).join('')}</div>
   <div class="section-title">Team Awards</div>
@@ -2468,11 +2776,13 @@ function renderNav(){
   const chip = $('#userChip');
   if (app.user){
     chip.style.display = '';
-    chip.textContent = '👤 ' + (app.user.email || 'admin') + (app.isAdmin ? ' • ADMIN' : '');
+    const who = app.user.isAnonymous ? 'Fan' : (app.user.email || 'User');
+    chip.textContent = '👤 ' + who + (app.isAdmin ? ' • ADMIN' : '');
   } else chip.style.display = 'none';
 }
 
 function render(){
+  rebuildHypeCountMap();
   renderNav();
   const fn = VIEWS[app.currentView] || VIEWS.registry;
   let out;
@@ -2499,6 +2809,7 @@ function go(view){
 }
 
 function openModal(title, body, footer){
+  app._activePlayerProfileId = null;
   $('#modalRoot').innerHTML = `
     <div class="modal-back">
       <div class="modal">
@@ -2509,10 +2820,20 @@ function openModal(title, body, footer){
     </div>`;
   $('#modalRoot').classList.add('open');
 }
-function closeModal(){ $('#modalRoot').innerHTML = ''; $('#modalRoot').classList.remove('open'); app._draft = null; }
+function closeModal(){ $('#modalRoot').innerHTML = ''; $('#modalRoot').classList.remove('open'); app._draft = null; app._activePlayerProfileId = null; }
 function reModal(body){ const b = $('#modalBody'); if (b) b.innerHTML = body; }
 
 function parsePlayerLines(text){ return String(text || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean); }
+function playerNameKey(name){
+  let value = String(name || '').trim();
+  if (value.normalize) value = value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+  return value.toLowerCase().replace(/\s+/g, ' ');
+}
+function findDuplicatePlayers(name){
+  const key = playerNameKey(name);
+  if (!key) return [];
+  return app.state.players.filter(p => playerNameKey(p.name) === key);
+}
 
 const RP_SCORE  = /^(.+?)\s+(\d+)\s*[-–—:]\s*(\d+)\s+(.+)$/;
 const RP_VS     = /^(.+?)\s+(?:vs\.?|versus|v)\s+(.+)$/i;
@@ -3522,6 +3843,11 @@ document.addEventListener('click', async e => {
   if (act === 'player:save'){
     const name = $('#f_playerName').value.trim();
     if (!name) return toast('⚠️ Name required', 'err');
+    const duplicates = findDuplicatePlayers(name);
+    if (duplicates.length){
+      const found = duplicates.map(p => '• ' + p.name + ' — ' + (p.freeAgent ? 'Free Agent' : teamById(p.teamId).name)).join('\n');
+      if (!confirm('⚠️ A player with this name already exists:\n\n' + found + '\n\nAre you sure you want to add another player named "' + name + '"?')) return;
+    }
     app.state.players.push({
       id: uuid(), name,
       teamId: $('#f_playerTeam').value,
@@ -3555,6 +3881,14 @@ document.addEventListener('click', async e => {
     const start = Number($('#b_start').value) || econ().playerStart;
     const names = parsePlayerLines($('#b_names').value);
     if (!names.length) return toast('⚠️ Type at least one name', 'err');
+    const seen = new Set(app.state.players.map(p => playerNameKey(p.name)));
+    const duplicateNames = [];
+    names.forEach(name => {
+      const key = playerNameKey(name);
+      if (seen.has(key)) duplicateNames.push(name);
+      seen.add(key);
+    });
+    if (duplicateNames.length && !confirm('⚠️ These names already exist or appear more than once in this list:\n\n' + duplicateNames.map(n => '• ' + n).join('\n') + '\n\nAdd them anyway?')) return;
     names.forEach(name => {
       app.state.players.push({
         id: uuid(), name, teamId: tid, startingValue: start,
@@ -3664,6 +3998,10 @@ document.addEventListener('click', async e => {
   }
   if (act === 'player:view'){
     openPlayerProfile(id);
+    return;
+  }
+  if (act === 'player:hype'){
+    await castPlayerHype(id);
     return;
   }
 
@@ -3787,6 +4125,7 @@ document.addEventListener('click', async e => {
     app.state.tournaments = [];
     app.state.teams.forEach(t => t.value = E.teamStart);
     app.state.players.forEach(p => { p.startingValue = E.playerStart; p.loanStatus = null; p.transferHistory = []; });
+    app.state.hypeCycleId = uuid();
     await logAdmin('Reset season');
     await saveState(); closeModal(); render();
     toast('♻️ Season reset', 'err');
@@ -3812,6 +4151,35 @@ document.addEventListener('click', async e => {
     await logAdmin('Reset economy to defaults');
     await saveState(); render();
     toast('↩️ Economy reset', 'ok');
+    return;
+  }
+
+  if (act === 'ballon:save'){
+    if (!app.isAdmin) return;
+    const H = app.state.settings.hype || (app.state.settings.hype = JSON.parse(JSON.stringify(HYPE_DEFAULT)));
+    const R = app.state.settings.ballondor || (app.state.settings.ballondor = JSON.parse(JSON.stringify(BALLONDOR_DEFAULT)));
+    $$('[data-hype]').forEach(inp => {
+      const value = Number(inp.value);
+      H[inp.dataset.hype] = isFinite(value) ? Math.max(0, value) : HYPE_DEFAULT[inp.dataset.hype];
+    });
+    $$('[data-ballon]').forEach(inp => {
+      const value = Number(inp.value);
+      R[inp.dataset.ballon] = isFinite(value) ? Math.max(0, value) : BALLONDOR_DEFAULT[inp.dataset.ballon];
+    });
+    R._formulaVersion = 2;
+    await logAdmin("Updated Hype rewards and Ballon d'Or ranking weights");
+    await saveState(); render();
+    toast("✅ Hype rewards and Ballon d'Or settings saved", 'ok');
+    return;
+  }
+  if (act === 'ballon:reset'){
+    if (!app.isAdmin) return;
+    if (!confirm("Reset Hype rewards and Ballon d'Or ranking weights to defaults?")) return;
+    app.state.settings.hype = JSON.parse(JSON.stringify(HYPE_DEFAULT));
+    app.state.settings.ballondor = JSON.parse(JSON.stringify(BALLONDOR_DEFAULT));
+    await logAdmin("Reset Hype and Ballon d'Or settings");
+    await saveState(); render();
+    toast("↩️ Hype and Ballon d'Or settings reset", 'ok');
     return;
   }
 
@@ -4440,6 +4808,11 @@ function openPlayerProfile(pid){
     .sort((a,b) => (b.timestamp||0) - (a.timestamp||0));
 
   const legGrades = (s.legLog || []).map(l => legGrade(l)).reduce((acc,g) => { acc[g] = (acc[g]||0)+1; return acc; }, {});
+  const hypeCount = getHypeCount(p.id);
+  const alreadyHyped = app._hypedPlayerIds[p.id] === true;
+  const canHype = !!(firebaseReady && app.db && app._hypeReady);
+  const hypeReward = Math.max(0, Number((app.state.settings.hype || HYPE_DEFAULT).valuePerHype) || 0);
+  const hypePoints = Math.max(0, Number((app.state.settings.ballondor || BALLONDOR_DEFAULT).hype) || 0);
 
   let actionBtns = '';
   if (app.isAdmin){
@@ -4470,6 +4843,14 @@ function openPlayerProfile(pid){
     </div>
     <div class="row" style="margin-bottom:10px;gap:8px">${actionBtns}</div>
 
+    <div class="hype-panel">
+      <div class="hype-panel-copy"><b>🔥 Fanbase Hype</b><span>Anyone visiting this site can Hype this player once per season. No sign-up, login screen, or admin access needed. Every Hype adds ${money(hypeReward)} to player value and ${hypePoints} Ballon d'Or point${hypePoints === 1 ? '' : 's'}.</span></div>
+      <div class="hype-panel-action"><div class="hype-total"><b id="playerHypeCount">${num(hypeCount)}</b><small>HYPES</small></div>
+        <button id="playerHypeButton" class="btn hype-fire" data-act="player:hype" data-id="${esc(p.id)}" ${alreadyHyped || !canHype ? 'disabled' : ''}>${alreadyHyped ? '🔥 Already Hyped' : canHype ? '🔥 Hype this player' : '🔥 Connecting…'}</button>
+      </div>
+      ${!canHype ? `<div class="hype-help">${app._hypeError ? 'Hype is temporarily unavailable. Please try again shortly.' : 'Connecting to the fanbase…'}</div>` : alreadyHyped ? `<div class="hype-help">You have already used your Hype for this player this season on this browser.</div>` : '<div class="hype-help">One Hype per player each season. Just tap the button — your vote is saved automatically.</div>'}
+    </div>
+
     <div class="section-title" style="margin-top:14px">Stats</div>
     <div class="grid g4">
       <div class="statbox"><div class="v">${s.goals||0}</div><div class="l">Goals</div></div>
@@ -4479,6 +4860,7 @@ function openPlayerProfile(pid){
       <div class="statbox"><div class="v">${s.mvp||0}</div><div class="l">MVP</div></div>
       <div class="statbox"><div class="v">${s.motm||0}</div><div class="l">MOTM</div></div>
       <div class="statbox"><div class="v">${p.transferCount||0}</div><div class="l">Transfers</div></div>
+      <div class="statbox"><div class="v">🔥 ${num(hypeCount)}</div><div class="l">Hype</div></div>
       <div class="statbox"><div class="v"><span class="rk rk-${avgGrade(avg)}">${avgGrade(avg)}</span></div><div class="l">EGOIST Rank</div></div>
     </div>
 
@@ -4545,6 +4927,8 @@ function openPlayerProfile(pid){
   `;
 
   openModal('🌟 ' + esc(p.name), html, `<button class="btn" data-act="modal:close">Close</button>`);
+  app._activePlayerProfileId = p.id;
+  if (firebaseReady && app.db && app.user && app.user.uid) refreshPlayerHypeVoteStatus(p.id);
 }
 
 document.addEventListener('click', e => {
@@ -4837,6 +5221,7 @@ async function archiveSeason(){
   app.state.tournaments = [];
   app.state.teams.forEach(t => t.value = E.teamStart);
   app.state.players.forEach(p => { p.startingValue = E.playerStart; p.loanStatus = null; p.transferHistory = []; });
+  app.state.hypeCycleId = uuid();
 
   await logAdmin('Archived season "' + archive.seasonName + '"');
   await saveState(); render();
