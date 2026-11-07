@@ -4844,11 +4844,11 @@ function openPlayerProfile(pid){
     <div class="row" style="margin-bottom:10px;gap:8px">${actionBtns}</div>
 
     <div class="hype-panel">
-      <div class="hype-panel-copy"><b>🔥 Fanbase Hype</b><span>Anyone visiting this site can Hype this player once per season. No sign-up, login screen, or admin access needed. Every Hype adds ${money(hypeReward)} to player value and ${hypePoints} Ballon d'Or point${hypePoints === 1 ? '' : 's'}.</span></div>
+      <div class="hype-panel-copy"><b>🔥 Fanbase Hype</b><span>Give this player a boost in the Ballon d’Or race.</span></div>
       <div class="hype-panel-action"><div class="hype-total"><b id="playerHypeCount">${num(hypeCount)}</b><small>HYPES</small></div>
         <button id="playerHypeButton" class="btn hype-fire" data-act="player:hype" data-id="${esc(p.id)}" ${alreadyHyped || !canHype ? 'disabled' : ''}>${alreadyHyped ? '🔥 Already Hyped' : canHype ? '🔥 Hype this player' : '🔥 Connecting…'}</button>
       </div>
-      ${!canHype ? `<div class="hype-help">${app._hypeError ? 'Hype is temporarily unavailable. Please try again shortly.' : 'Connecting to the fanbase…'}</div>` : alreadyHyped ? `<div class="hype-help">You have already used your Hype for this player this season on this browser.</div>` : '<div class="hype-help">One Hype per player each season. Just tap the button — your vote is saved automatically.</div>'}
+      ${!canHype ? `<div class="hype-help">${app._hypeError ? 'Hype is temporarily unavailable. Please try again shortly.' : 'Connecting to the fanbase…'}</div>` : alreadyHyped ? `<div class="hype-help">You’ve already hyped this player this season.</div>` : ''}
     </div>
 
     <div class="section-title" style="margin-top:14px">Stats</div>
