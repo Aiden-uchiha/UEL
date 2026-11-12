@@ -258,10 +258,43 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 .market-player-status.loan{color:var(--gold)}
 .market-player-status.free{color:var(--lime)}
 .market-deal-card{border:1px solid var(--line);border-radius:12px;padding:13px;background:linear-gradient(180deg,rgba(0,240,255,.055),rgba(255,43,214,.025))}
-.discord-fab{position:fixed;right:18px;bottom:18px;z-index:150;display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid rgba(88,101,242,.7);border-radius:999px;background:linear-gradient(135deg,#5865F2,#404EED);color:#fff;text-decoration:none;font-size:11px;font-weight:900;letter-spacing:.7px;box-shadow:0 5px 22px rgba(88,101,242,.35);transition:transform .16s,box-shadow .16s}
-.discord-fab:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(88,101,242,.5)}
-.discord-fab .discord-icon{font-size:16px;line-height:1}
-@media (max-width:640px){.market-player-row{grid-template-columns:minmax(0,1fr) auto;gap:6px}.market-player-status{grid-column:1 / -1;text-align:left}.discord-fab{right:12px;bottom:12px;padding:9px 11px;font-size:10px}}
+.discord-header-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:0 0 auto;margin-left:8px;padding:7px 11px;border:1px solid rgba(88,101,242,.8);border-radius:9px;background:linear-gradient(135deg,#5865F2,#404EED);color:#fff;text-decoration:none;font-size:10.5px;font-weight:900;letter-spacing:.6px;box-shadow:0 3px 14px rgba(88,101,242,.24);transition:transform .16s,box-shadow .16s}
+.discord-header-btn:hover{transform:translateY(-1px);box-shadow:0 5px 19px rgba(88,101,242,.4)}
+@media (max-width:640px){.market-player-row{grid-template-columns:minmax(0,1fr) auto;gap:6px}.market-player-status{grid-column:1 / -1;text-align:left}.discord-header-btn{margin-left:0;padding:7px 9px;font-size:9.5px}}
+.md-page{max-width:1180px;margin:0 auto}
+.md-hero{padding:18px 20px;margin-bottom:12px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(135deg,rgba(0,240,255,.10),rgba(255,43,214,.08),rgba(21,25,43,.92));box-shadow:0 8px 30px rgba(0,0,0,.18);overflow:hidden}
+.md-hero-meta,.md-hero-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--dim);font-size:9px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase}
+.md-hero-teams{display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,.8fr) minmax(0,1fr);align-items:center;gap:12px;padding:24px 0}
+.md-club{display:flex;align-items:center;justify-content:center;gap:12px;min-width:0;font-size:15px;font-weight:900;text-align:center}.md-club b{overflow-wrap:anywhere}
+.md-result{text-align:center;min-width:0}.md-score{display:flex;align-items:center;justify-content:center;gap:12px;font-size:34px;font-weight:1000;letter-spacing:1px;color:#fff;text-shadow:0 0 18px rgba(0,240,255,.35);font-variant-numeric:tabular-nums}
+.md-score i{font-style:normal;color:var(--magenta)}.md-vs{font-size:27px;color:var(--gold)}.md-result small{display:block;margin-top:4px;color:var(--dim);font-size:9px;font-weight:900;letter-spacing:1.2px}
+.md-hero-foot{padding-top:11px;border-top:1px solid rgba(255,255,255,.08)}
+.md-breadcrumb{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 2px 12px;color:var(--dim);font-size:11px}
+.md-breadcrumb button{border:0;background:none;color:var(--cyan);font:inherit;font-weight:800;cursor:pointer;padding:5px 0}
+.md-tabs{display:flex;gap:5px;margin:0 0 14px;border-bottom:1px solid var(--line);overflow-x:auto}
+.md-tabs button{position:relative;flex:1 0 auto;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--dim);padding:12px 14px;font:inherit;font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;cursor:pointer}
+.md-tabs button.active{color:var(--cyan);border-bottom-color:var(--cyan);text-shadow:0 0 10px rgba(0,240,255,.28)}
+.md-overview-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(230px,.85fr);gap:14px;align-items:start}
+.md-main-column,.md-side-column{display:flex;flex-direction:column;gap:14px;min-width:0}
+.md-panel{min-width:0;padding:14px;border:1px solid var(--line);border-radius:13px;background:var(--panel);box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.md-panel-heading{margin-bottom:11px}.md-panel-heading span,.md-leaders-head span{display:block;color:var(--cyan);font-size:9px;font-weight:900;letter-spacing:1.5px}
+.md-panel-heading h3,.md-leaders-head h3{margin-top:3px;color:#fff;font-size:14px;letter-spacing:1px}.md-leaders-head{margin-bottom:10px}
+.md-leader-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.md-leader-card{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;padding:11px;border:1px solid rgba(0,240,255,.14);border-radius:10px;background:rgba(0,240,255,.035)}
+.md-leader-icon{font-size:18px}.md-leader-label{color:var(--dim);font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase}
+.md-leader-value{color:#fff;font-size:24px;line-height:1.1;font-weight:1000}.md-leader-player{max-width:100%;font-size:11px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.md-leader-team{font-size:10px;color:var(--dim)}
+.md-leg-list{display:flex;flex-direction:column;gap:7px}.md-leg-row{display:flex;align-items:center;gap:10px;padding:10px;border-radius:9px;background:rgba(0,240,255,.045)}
+.md-leg-row>span{font-size:9px;color:var(--dim);font-weight:900;letter-spacing:1px}.md-leg-row>b{font-size:17px;color:#fff;font-variant-numeric:tabular-nums}.md-leg-row>b i{padding:0 6px;color:var(--magenta);font-style:normal}.md-leg-row>em{margin-left:auto;color:var(--dim);font-size:10px;font-style:normal;text-align:right}
+.md-honours-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.md-honours-grid>div{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:9px;background:rgba(255,43,214,.045);min-width:0}
+.md-honours-grid span{color:var(--dim);font-size:9px;font-weight:900;letter-spacing:1px}.md-honours-grid b{font-size:12px;overflow-wrap:anywhere}
+.md-lineups-intro{margin-bottom:12px;padding:12px 14px;border-left:3px solid var(--magenta);border-radius:9px;background:rgba(255,43,214,.05)}
+.md-lineups-intro b{color:var(--magenta);font-size:9px;letter-spacing:1.4px}.md-lineups-intro p{margin:5px 0 0;color:var(--dim);font-size:11px;line-height:1.6}
+.md-lineup-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;align-items:start}.md-lineup-team{padding:0;overflow:hidden}
+.md-lineup-head{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid var(--line);background:rgba(0,240,255,.04)}
+.md-lineup-head>div{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0}.md-lineup-head>div>b{font-size:13px;color:#fff}.md-lineup-head>div>span{font-size:8px;color:var(--dim);font-weight:900;letter-spacing:.8px}.md-lineup-head>strong{color:var(--cyan);font-size:17px}
+.md-lineup-table{min-width:430px;font-size:11px}.md-lineup-table th{position:static}.md-lineup-table td{font-size:11px}
+@media(max-width:760px){.md-overview-grid{grid-template-columns:1fr}.md-lineup-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.md-hero{padding:14px 10px}.md-hero-teams{grid-template-columns:minmax(0,1fr) 88px minmax(0,1fr);gap:5px;padding:18px 0}.md-club{flex-direction:column;gap:6px;font-size:11px}.md-club .tlogo{width:44px!important;height:44px!important}.md-score{gap:5px;font-size:26px}.md-vs{font-size:20px}.md-tabs button{padding:11px 8px;font-size:9px}.md-panel{padding:11px}.md-breadcrumb{font-size:10px}}
 @media (max-width:640px){body{font-size:14px}.brand{font-size:16px;letter-spacing:1.6px}.view-head h2{font-size:16px}.modal-body{padding:12px;max-height:calc(100vh - 130px)}.btn{padding:8px 12px;font-size:10.5px}table{font-size:12px;min-width:460px}th,td{padding:7px 8px}.grid.g3{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.grid.g4{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}
 </style>
 </head>
@@ -273,6 +306,7 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
       <div class="brand" data-act="goto" data-view="registry"><span class="ball">⚽</span> <span id="brandName">My League</span></div>
       <span class="season-chip" id="seasonChip">2026 Season</span>
       <div class="spacer"></div>
+      <a class="discord-header-btn" href="https://discord.gg/VwdyeGh97c" target="_blank" rel="noopener noreferrer" aria-label="Join the UEL Discord server">💬 Discord</a>
       <span class="cloud-badge" id="cloudBadge">LOCAL</span>
       <span class="pill cy" id="userChip" style="display:none"></span>
     </div>
@@ -284,9 +318,6 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 
 <div id="modalRoot"></div>
 <div id="toastRoot"></div>
-<a class="discord-fab" href="https://discord.gg/GmDqVtmzRA" target="_blank" rel="noopener noreferrer" aria-label="Join the UEL Discord server">
-  <span class="discord-icon">💬</span><span>UEL Discord</span>
-</a>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -2175,6 +2206,134 @@ VIEWS.results = () => {
   return html;
 };
 
+
+function matchDetailDate(fixture, match){
+  const value=fixture&&fixture.date;
+  if(value){
+    const raw=String(value),isDateOnly=raw.length===10&&raw.charAt(4)==='-'&&raw.charAt(7)==='-';
+    const date=isDateOnly?new Date(raw+'T00:00:00'):new Date(raw);
+    if(!Number.isNaN(date.getTime()))return date.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'});
+    return raw;
+  }
+  if(match&&match.timestamp)return new Date(match.timestamp).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'});
+  return 'Date TBC';
+}
+function matchPageContext(){
+  const id=app._matchViewId,match=matchById(id)||null;
+  const fixture=(match&&fixtureById(match.fixtureId))||(match&&app.state.fixtures.find(item=>item.matchId===match.id))||fixtureById(id)||null;
+  const teamAId=match?match.teamAId:(fixture&&fixture.teamAId),teamBId=match?match.teamBId:(fixture&&fixture.teamBId);
+  if(!teamAId||!teamBId)return null;
+  const fallback={id:id,teamAId:teamAId,teamBId:teamBId,competition:'League',round:'',legs:match?(legCount(match)||1):1,date:'',played:!!match};
+  return {match:match,fixture:fixture||fallback,A:teamById(teamAId),B:teamById(teamBId)};
+}
+function matchPagePlayerStats(match,teamAId,teamBId){
+  if(!match)return [];
+  const aggregate=matchAggregate(match),rows=[];
+  Object.keys(match.playerStats||{}).forEach(pid=>{
+    const teamId=teamForMatch(match,pid);
+    if(teamId!==teamAId&&teamId!==teamBId)return;
+    const legs=match.playerStats[pid];if(!Array.isArray(legs))return;
+    const row={id:pid,player:playerById(pid),teamId:teamId,goals:0,assists:0,saves:0,tackles:0,legsPlayed:0};
+    legs.forEach((leg,index)=>{
+      if(!leg||!leg.played||!aggregate.legs.some(item=>item.n===index+1))return;
+      row.legsPlayed++;
+      row.goals+=Number(leg.goals!==undefined?leg.goals:leg.g)||0;
+      row.assists+=Number(leg.assists!==undefined?leg.assists:leg.a)||0;
+      row.saves+=Number(leg.saves!==undefined?leg.saves:leg.s)||0;
+      row.tackles+=Number(leg.tackles!==undefined?leg.tackles:leg.t)||0;
+    });
+    if(row.legsPlayed)rows.push(row);
+  });
+  return rows;
+}
+function matchPageSeasonPlayers(teamAId,teamBId){
+  const stats=computePlayerStats();
+  return app.state.players.filter(player=>!player.freeAgent&&(player.teamId===teamAId||player.teamId===teamBId)).map(player=>{
+    const row=stats[player.id]||{};
+    return {id:player.id,player:player,teamId:player.teamId,goals:Number(row.goals)||0,assists:Number(row.assists)||0,saves:Number(row.saves)||0,tackles:Number(row.tackles)||0,legsPlayed:Number(row.legsPlayed)||0};
+  });
+}
+function matchLeaderCards(rows,scopeLabel){
+  const metrics=[{key:'goals',label:'Top scorer',icon:'⚽'},{key:'assists',label:'Top assister',icon:'🅰️'},{key:'tackles',label:'Top tackler',icon:'🛡️'},{key:'saves',label:'Top saver',icon:'🧤'}];
+  let html='<div class="md-leaders-head"><div><span>PLAYER LEADERS</span><h3>'+esc(scopeLabel)+'</h3></div></div><div class="md-leader-grid">';
+  metrics.forEach(metric=>{
+    const sorted=rows.filter(row=>row.player&&row[metric.key]>0).slice().sort((a,b)=>b[metric.key]-a[metric.key]||a.player.name.localeCompare(b.player.name)),best=sorted[0];
+    html+='<article class="md-leader-card"><span class="md-leader-icon">'+metric.icon+'</span><span class="md-leader-label">'+metric.label+'</span>';
+    if(best)html+='<b class="md-leader-value">'+best[metric.key]+'</b><span class="md-leader-player">'+playerLink(best.player)+'</span><span class="md-leader-team">'+esc(teamById(best.teamId).name)+'</span>';
+    else html+='<b class="md-leader-value">—</b><span class="md-leader-player">No stats recorded</span><span class="md-leader-team">'+metric.label.toUpperCase()+'</span>';
+    html+='</article>';
+  });
+  return html+'</div>';
+}
+function matchLineupTeamHTML(team,rows,seasonMode){
+  const teamRows=rows.filter(row=>row.teamId===team.id).slice().sort((a,b)=>(b.goals*5+b.assists*3+b.saves+b.tackles*.5)-(a.goals*5+a.assists*3+a.saves+a.tackles*.5)||String(a.player?a.player.name:'').localeCompare(String(b.player?b.player.name:'')));
+  const descriptor=seasonMode?'REGISTERED SQUAD · SEASON STATS':'PLAYERS TRACKED IN THIS MATCH';
+  let html='<section class="md-panel md-lineup-team"><div class="md-lineup-head">'+teamLogo(team,36)+'<div><b>'+esc(team.name)+'</b><span>'+descriptor+'</span></div><strong>'+teamRows.length+'</strong></div>';
+  if(!teamRows.length)return html+'<div class="empty" style="padding:18px">'+(seasonMode?'No registered players for this team yet.':'No player appearances recorded for this team.')+'</div></section>';
+  html+='<div class="tblwrap"><table class="md-lineup-table"><thead><tr><th>Player</th><th class="num">GP</th><th class="num">G</th><th class="num">A</th><th class="num">SV</th><th class="num">TK</th></tr></thead><tbody>';
+  teamRows.forEach(row=>{html+='<tr><td>'+(row.player?playerLink(row.player):'<span class="muted">Deleted player</span>')+'</td><td class="num">'+row.legsPlayed+'</td><td class="num">'+row.goals+'</td><td class="num">'+row.assists+'</td><td class="num">'+row.saves+'</td><td class="num">'+row.tackles+'</td></tr>';});
+  return html+'</tbody></table></div></section>';
+}
+function matchOverviewHTML(context,matchRows,seasonRows){
+  const match=context.match,fixture=context.fixture,A=context.A,B=context.B,aggregate=match?matchAggregate(match):null;
+  const hasMatchStats=matchRows.length>0,leaders=hasMatchStats?matchRows:seasonRows;
+  const mvp=match&&match.mvpId?playerById(match.mvpId):null,motm=match&&match.motmId?playerById(match.motmId):null;
+  let html='<div class="md-overview-grid"><div class="md-main-column">';
+  html+='<section class="md-panel">'+matchLeaderCards(leaders,hasMatchStats?'This match':'Season leaders · both clubs')+'</section>';
+  if(aggregate&&aggregate.legs.length){
+    html+='<section class="md-panel"><div class="md-panel-heading"><span>MATCH BREAKDOWN</span><h3>Leg-by-leg score</h3></div><div class="md-leg-list">';
+    aggregate.legs.forEach(leg=>{
+      const result=leg.a>leg.b?esc(A.name)+' won':leg.b>leg.a?esc(B.name)+' won':'Draw';
+      html+='<div class="md-leg-row"><span>LEG '+leg.n+'</span><b>'+leg.a+'<i>-</i>'+leg.b+'</b><em>'+result+'</em></div>';
+    });
+    html+='</div></section>';
+  }
+  if(mvp||motm||(match&&(match.mvpSnapshot||match.motmSnapshot))){
+    html+='<section class="md-panel"><div class="md-panel-heading"><span>MATCH HONOURS</span><h3>Player of the match</h3></div><div class="md-honours-grid"><div><span>🏅 MVP</span><b>'+(mvp?playerLink(mvp):esc(match.mvpSnapshot?match.mvpSnapshot.name:'—'))+'</b></div><div><span>⭐ MOTM</span><b>'+(motm?playerLink(motm):esc(match.motmSnapshot?match.motmSnapshot.name:'—'))+'</b></div></div></section>';
+  }
+  html+='</div><aside class="md-side-column"><section class="md-panel"><div class="md-panel-heading"><span>MATCH INFORMATION</span><h3>Match details</h3></div>'+
+    '<div class="kv"><span>Competition</span><b>'+esc(fixture.competition||'League')+'</b></div>'+
+    '<div class="kv"><span>Matchday</span><b>'+esc(fixture.round||'—')+'</b></div>'+
+    '<div class="kv"><span>Date</span><b>'+esc(matchDetailDate(fixture,match))+'</b></div>'+
+    '<div class="kv"><span>Format</span><b>'+(Number(fixture.legs)||1)+' leg'+(Number(fixture.legs)===1?'':'s')+'</b></div>'+
+    '<div class="kv"><span>Status</span><b>'+(match?'Full time':'Upcoming')+'</b></div></section>';
+  if(aggregate&&(aggregate.penaltyA||aggregate.penaltyB)){
+    html+='<section class="md-panel"><div class="md-panel-heading"><span>RESULT ADJUSTMENT</span><h3>Disciplinary penalties</h3></div><p class="hint">Raw score '+aggregate.rawA+' - '+aggregate.rawB+'. Applied penalty: '+esc(A.name)+' -'+aggregate.penaltyA+' · '+esc(B.name)+' -'+aggregate.penaltyB+'. Final score '+aggregate.a+' - '+aggregate.b+'.</p></section>';
+  }
+  if(!hasMatchStats)html+='<section class="md-panel"><div class="md-panel-heading"><span>PLAYER DATA</span><h3>Season stats preview</h3></div><p class="hint">No player appearances have been recorded for this match yet. The leader cards use season totals from these two clubs until match stats are entered.</p></section>';
+  html+='</aside></div>';
+  const fouls=match?normalizeMatchFouls(match.fouls,match.teamAId,match.teamBId):[];
+  if(fouls.length){
+    html+='<section class="md-panel" style="margin-top:14px"><div class="md-panel-heading"><span>DISCIPLINE</span><h3>Recorded fouls</h3></div><div class="tblwrap"><table><thead><tr><th>Foul</th><th>Team</th><th class="num">Penalty</th></tr></thead><tbody>';
+    fouls.forEach(foul=>{html+='<tr><td>'+esc(foul.description)+'</td><td>'+esc(teamById(foul.teamId).name)+'</td><td class="num" style="color:var(--red)">-'+(Number(foul.points)||0)+'</td></tr>';});
+    html+='</tbody></table></div></section>';
+  }
+  return html;
+}
+function renderMatchDetailPage(){
+  const context=matchPageContext();
+  if(!context)return '<div class="empty"><span class="big">🔎</span>Match not found. <button class="btn" data-act="match:back">Back to fixtures</button></div>';
+  const match=context.match,fixture=context.fixture,A=context.A,B=context.B,aggregate=match?matchAggregate(match):null;
+  const matchRows=matchPagePlayerStats(match,A.id,B.id),seasonRows=matchPageSeasonPlayers(A.id,B.id),useSeason=matchRows.length===0;
+  const activeTab=app._matchTab==='lineups'?'lineups':'overview';
+  const score=aggregate&&aggregate.legs.length?'<b>'+aggregate.a+'</b><i>-</i><b>'+aggregate.b+'</b>':'<b class="md-vs">VS</b>';
+  const status=match?(aggregate&&aggregate.legs.length?'FULL TIME':'RESULT RECORDED'):'UPCOMING';
+  let content='';
+  if(activeTab==='lineups'){
+    content='<div class="md-lineups-intro"><b>TEAM SHEETS</b><p>'+(useSeason
+      ?'No match line-up has been recorded yet. These panels show registered squad members and their season totals.'
+      :'Players shown here are those recorded as having played at least one leg. UEL records per-leg participation and stats, not tactical formations or shirt numbers.')+
+      '</p></div><div class="md-lineup-grid">'+matchLineupTeamHTML(A,useSeason?seasonRows:matchRows,useSeason)+matchLineupTeamHTML(B,useSeason?seasonRows:matchRows,useSeason)+'</div>';
+  }else content=matchOverviewHTML(context,matchRows,seasonRows);
+  return '<div class="md-page"><div class="md-breadcrumb"><button type="button" data-act="match:back">← Fixtures &amp; Results</button><span>'+esc(fixture.competition||'League')+' / '+esc(fixture.round||'Match')+'</span></div>'+
+    '<section class="md-hero"><div class="md-hero-meta"><span>'+esc(fixture.competition||'LEAGUE')+'</span><span>'+esc(fixture.round||'MATCH')+'</span><span>'+esc(matchDetailDate(fixture,match))+'</span></div>'+
+    '<div class="md-hero-teams"><div class="md-club">'+teamLogo(A,58)+'<b>'+esc(A.name)+'</b></div><div class="md-result"><span class="pill '+(match?'li':'cy')+'">'+status+'</span><div class="md-score">'+score+'</div><small>'+
+    (match?(aggregate?aggregate.legs.length:0)+' LEGS RECORDED':(Number(fixture.legs)||1)+' LEGS · KICK-OFF TBC')+'</small></div><div class="md-club">'+teamLogo(B,58)+'<b>'+esc(B.name)+'</b></div></div>'+
+    '<div class="md-hero-foot"><span>'+esc(app.state.leagueName||'UEL')+'</span><span>'+(match?'MATCH REPORT':'FIXTURE PREVIEW')+'</span></div></section>'+
+    '<nav class="md-tabs" data-active="'+activeTab+'" aria-label="Match details"><button type="button" class="'+(activeTab==='overview'?'active':'')+'" data-act="match:tab" data-tab="overview">Overview</button>'+
+    '<button type="button" class="'+(activeTab==='lineups'?'active':'')+'" data-act="match:tab" data-tab="lineups">Line-ups &amp; Player Stats</button></nav><section class="md-tab-content">'+content+'</section></div>';
+}
+VIEWS.matchdetail=()=>renderMatchDetailPage();
 VIEWS.standings = () => {
   const table = standingsSorted();
   if (!table.length) return `<div class="view-head"><h2><span class="emoji float">🏆</span> Standings</h2></div><div class="empty"><span class="big">📉</span>No standings yet.</div>`;
@@ -2831,6 +2990,7 @@ function routeForCurrentView(view){
   if(view==='playerprofile'){const p=playerById(app._playerViewId);return 'players/'+(p?routeSlug(p.name):encodeURIComponent(app._playerViewId||''));}
   if(view==='ballonDor')return 'awards/ballon-dor';
   if(view==='archive'&&app._archiveViewId)return 'archive/'+encodeURIComponent(app._archiveViewId);
+  if(view==='matchdetail'&&app._matchViewId)return 'matchdetail/'+encodeURIComponent(app._matchViewId)+(app._matchTab==='lineups'?'/lineups':'');
   return ROUTE_PATHS[view]||'registry';
 }
 function resolveBySlug(items,slug){
@@ -2842,12 +3002,22 @@ function applyHashRoute(){
   const raw=currentHash.startsWith('#/')?currentHash.slice(2):currentHash.replace(/^#/,'');
   const parts=raw.split('/').filter(Boolean), first=parts[0]||'registry';
   app._teamViewId=null;app._playerViewId=null;app._archiveViewId=null;
+  app._matchViewId=null;app._matchTab='overview';
   if(first==='teams'&&parts[1]){
     const t=resolveBySlug(app.state.teams,parts.slice(1).join('/'));app.currentView=t?'teamprofile':'teams';app._teamViewId=t?t.id:null;
   }else if(first==='players'&&parts[1]){
     const p=resolveBySlug(app.state.players,parts.slice(1).join('/'));app.currentView=p?'playerprofile':'players';app._playerViewId=p?p.id:null;
   }else if(first==='awards'&&parts[1]==='ballon-dor')app.currentView='ballonDor';
   else if(first==='archive'&&parts[1]){app.currentView='archive';app._archiveViewId=decodeURIComponent(parts[1]);}
+  else if(first==='matchdetail'&&parts[1]){
+    const matchId=decodeURIComponent(parts[1]);
+    const validMatch=app.state.matches.some(match=>match.id===matchId);
+    const validFixture=app.state.fixtures.some(fixture=>fixture.id===matchId);
+    if(validMatch||validFixture){
+      app.currentView='matchdetail';app._matchViewId=matchId;
+      app._matchTab=parts[2]==='lineups'?'lineups':'overview';
+    }else app.currentView='fixtures';
+  }
   else{const aliases={'match-center':'matchcenter'},view=aliases[first]||first;app.currentView=Object.prototype.hasOwnProperty.call(ROUTE_PATHS,view)?view:'registry';}
   render();window.scrollTo({top:0,behavior:'auto'});
 }
@@ -2857,10 +3027,10 @@ function navigateToRoute(path){
   if(location.hash===next)applyHashRoute();else location.hash=next;
 }
 function go(view){
-  if(view==='teamprofile'||view==='playerprofile'||view==='ballonDor'){navigateToRoute(routeForCurrentView(view));return;}
+  if(view==='teamprofile'||view==='playerprofile'||view==='ballonDor'||view==='matchdetail'){navigateToRoute(routeForCurrentView(view));return;}
   if(view!=='tournament')app._tourViewId=null;
   if(view!=='archive')app._archiveViewId=null;
-  app._teamViewId=null;app._playerViewId=null;
+  app._teamViewId=null;app._playerViewId=null;app._matchViewId=null;app._matchTab='overview';
   navigateToRoute(routeForCurrentView(view));
 }
 window.addEventListener('hashchange',()=>{if(app.state)applyHashRoute();});
@@ -4521,11 +4691,19 @@ document.addEventListener('click', async e => {
     return;
   }
   if (act === 'match:view'){
-    const m = matchById(id);
-    if (!m) return;
-    openMatchDetail(m);
+    const item = matchById(id) || fixtureById(id);
+    if (!item) return;
+    openMatchDetail(item);
     return;
   }
+  if (act === 'match:tab'){
+    if (!app._matchViewId) return;
+    const tab = el.dataset.tab === 'lineups' ? 'lineups' : 'overview';
+    app._matchTab = tab;
+    navigateToRoute('matchdetail/' + encodeURIComponent(app._matchViewId) + (tab === 'lineups' ? '/lineups' : ''));
+    return;
+  }
+  if (act === 'match:back'){ go('fixtures'); return; }
 
   if (act === 'tournament:create'){
     if (!app.isAdmin) return;
@@ -5018,93 +5196,16 @@ document.addEventListener('click', e => {
     </tbody></table></div>`;
 });
 
-function openMatchDetail(m){
-  const A = teamById(m.teamAId), B = teamById(m.teamBId);
-  const agg = matchAggregate(m);
-  const mvp = m.mvpId ? playerById(m.mvpId) : null;
-  const motm = m.motmId ? playerById(m.motmId) : null;
-  const ps = m.playerStats || {};
-
-  let html = `<div class="row" style="justify-content:center;gap:14px;margin-bottom:10px">
-    ${teamLink(A, 40)}
-    <b style="font-size:26px;color:var(--cyan);text-shadow:0 0 18px rgba(0,240,255,.7)">${agg.a} - ${agg.b}</b>
-    ${teamLink(B, 40)}
-  </div>
-  <div class="center muted small" style="margin-bottom:10px">
-    ${new Date(m.timestamp||0).toLocaleString()} &nbsp;|&nbsp; ${agg.legs.length} leg${agg.legs.length > 1 ? 's' : ''}
-  </div>
-  <div class="row" style="justify-content:center;gap:8px;margin-bottom:6px">
-    ${mvp ? `<span class="pill go">🏅 MVP: ${playerLink(mvp)}</span>` : (m.mvpSnapshot ? `<span class="pill go">🏅 MVP: <span class="muted">${esc(m.mvpSnapshot.name)} (deleted)</span></span>` : '')}
-    ${motm ? `<span class="pill mg">⭐ MOTM: ${playerLink(motm)}</span>` : (m.motmSnapshot ? `<span class="pill mg">⭐ MOTM: <span class="muted">${esc(m.motmSnapshot.name)} (deleted)</span></span>` : '')}
-  </div>`;
-
-  const legTable = (tid, legIndex) => {
-    const tm = teamById(tid);
-    const rows = [];
-    /* Use snapshot team so transferred players still show under the team they played for */
-    Object.keys(ps).forEach(pid => {
-      const p = playerById(pid);
-      const snapTeam = teamForMatch(m, pid);
-      if (snapTeam !== tid) return;
-      const arr = ps[pid];
-      const l = arr && arr[legIndex];
-      if (!l || !l.played) return;
-      if (p) rows.push({ p, l });
-      else rows.push({ p: { id: pid, name: '(deleted player)' }, l, ghost: true });
-    });
-    if (!rows.length) return `<div class="empty" style="padding:14px">No ${esc(tm.name)} players tracked</div>`;
-
-    const score = l => (+l.goals||0)*5 + (+l.assists||0)*3 + (+l.saves||0) + (+l.tackles||0)*0.5;
-    rows.sort((x,y) => score(y.l) - score(x.l));
-    const tot = rows.reduce((t,r) => ({
-      g: t.g + (+r.l.goals||0), a: t.a + (+r.l.assists||0),
-      s: t.s + (+r.l.saves||0), k: t.k + (+r.l.tackles||0)
-    }), { g:0, a:0, s:0, k:0 });
-
-    return `<div class="tblwrap"><table style="min-width:420px">
-      <thead><tr><th>${teamTag(tm, 20)}</th><th class="num">G</th><th class="num">A</th><th class="num">S</th><th class="num">T</th><th class="num">Grade</th></tr></thead>
-      <tbody>
-        ${rows.map(r => `<tr>
-          <td>${r.ghost ? `<span class="muted">${esc(r.p.name)}</span>` : playerLink(r.p)}</td>
-          <td class="num">${+r.l.goals||0}</td>
-          <td class="num">${+r.l.assists||0}</td>
-          <td class="num">${+r.l.saves||0}</td>
-          <td class="num">${+r.l.tackles||0}</td>
-          <td class="num"><span class="rk rk-${legGrade(r.l)}">${legGrade(r.l)}</span></td>
-        </tr>`).join('')}
-        <tr class="leg-total">
-          <td>Totals</td>
-          <td class="num">${tot.g}</td><td class="num">${tot.a}</td><td class="num">${tot.s}</td><td class="num">${tot.k}</td><td></td>
-        </tr>
-      </tbody>
-    </table></div>`;
-  };
-
-  agg.legs.forEach(l => {
-    const i = l.n - 1;
-    html += `<div class="leg-block">
-      <div class="leg-head">
-        <span class="pill cy">LEG ${l.n}</span>
-        <b class="mono">${l.a} - ${l.b}</b>${(agg.penaltyA || agg.penaltyB) ? '<span class="tiny muted">(before match penalties)</span>' : ''}
-        <span class="tiny muted">${l.a > l.b ? esc(A.name) + ' won the leg' : l.b > l.a ? esc(B.name) + ' won the leg' : 'Drawn leg'}</span>
-      </div>
-      ${legTable(A.id, i)}
-      <div style="height:10px"></div>
-      ${legTable(B.id, i)}
-    </div>`;
-  });
-
-  const matchFouls = normalizeMatchFouls(m.fouls, m.teamAId, m.teamBId);
-  html += `<div class="section-title" style="margin-top:18px">🚫 Fouls for this match</div>`;
-  if (matchFouls.length){
-    html += `<div class="tblwrap"><table><thead><tr><th>Foul</th><th>Team</th><th class="num">Score penalty</th></tr></thead><tbody>${matchFouls.map(f => {
-      const offender = teamById(f.teamId);
-      return `<tr><td>${esc(f.description)}</td><td>${offender ? teamTag(offender, 20) : '<span class="muted">Unknown team</span>'}</td><td class="num" style="color:var(--red);font-weight:800">-${f.points}</td></tr>`;
-    }).join('')}</tbody></table></div>
-    <div class="hint" style="margin-top:6px">Raw aggregate: ${agg.rawA} - ${agg.rawB}. Applied penalties: ${agg.penaltyA ? `${esc(A.name)} -${agg.penaltyA}` : ''}${agg.penaltyA && agg.penaltyB ? ' • ' : ''}${agg.penaltyB ? `${esc(B.name)} -${agg.penaltyB}` : ''}. Final score: ${agg.a} - ${agg.b}.</div>`;
-  } else html += '<div class="muted small">No fouls recorded for this match.</div>';
-
-  openModal('📊 Match Details', html, `<button class="btn" data-act="modal:close">Close</button>`);
+function openMatchDetail(item){
+  if (!item) return;
+  const match = matchById(item.id);
+  const fixture = fixtureById(item.id) || (match && fixtureById(match.fixtureId)) ||
+    (match && app.state.fixtures.find(f => f.matchId === match.id));
+  const targetId = match ? match.id : (fixture ? fixture.id : '');
+  if (!targetId) return toast('⚠️ Match or fixture not found', 'err');
+  app._matchViewId = targetId;
+  app._matchTab = 'overview';
+  navigateToRoute('matchdetail/' + encodeURIComponent(targetId));
 }
 
 function marketDirectoryHTML(query, selectedId){
