@@ -2120,8 +2120,9 @@ VIEWS.fixtures = () => {
                  <button class="btn sm" data-act="match:edit" data-id="${f.matchId}">✏️</button>
                  <button class="btn sm danger" data-act="match:del" data-id="${f.matchId}">🗑️</button>`
               : `<button class="btn sm lime" data-act="track:open" data-id="${f.id}">▶️</button>
-                 <button class="btn sm" data-act="match:record" data-id="${f.id}">📝</button>`
-          ) : (f.played ? `<button class="btn sm" data-act="match:view" data-id="${f.matchId}">📊</button>` : '')}
+                 <button class="btn sm" data-act="match:record" data-id="${f.id}">📝</button>
+                 <button class="btn sm" data-act="match:view" data-id="${f.id}" title="Fixture preview">ℹ️</button>`
+          ) : (f.played ? `<button class="btn sm" data-act="match:view" data-id="${f.matchId}">📊</button>` : `<button class="btn sm" data-act="match:view" data-id="${f.id}" title="Fixture preview">ℹ️</button>`)}
           ${app.isAdmin && !isTournament ? `<button class="btn sm danger" data-act="fixture:del" data-id="${f.id}">🗑️</button>` : ''}
         </div>
       </div>
@@ -2940,8 +2941,12 @@ const NAV_ITEMS = [
 
 function renderNav(){
   const nav = $('#nav');
+  const activeView = app.currentView === 'matchdetail' ? (matchById(app._matchViewId) ? 'results' : 'fixtures')
+    : app.currentView === 'teamprofile' ? 'teams'
+    : app.currentView === 'playerprofile' ? 'players'
+    : app.currentView === 'ballonDor' ? 'awards' : app.currentView;
   let html = NAV_ITEMS.map(([v, ic, label]) =>
-    `<button class="navbtn ${app.currentView === v ? 'active' : ''}" data-act="goto" data-view="${v}">
+    `<button class="navbtn ${activeView === v ? 'active' : ''}" data-act="goto" data-view="${v}">
       <span class="emoji">${ic}</span>${label}</button>`).join('');
 
   if (app.isAdmin){
