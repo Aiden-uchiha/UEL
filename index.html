@@ -746,8 +746,12 @@ function initFirebase(){
     app.db.doc(DOC_PATH).onSnapshot(snap => {
       const firstCloudSnapshot = !app._cloudLoaded;
       app._cloudLoaded = true;
-      if (!snap.exists) return;
       if (snap.metadata && snap.metadata.hasPendingWrites) return;
+      if (!snap.exists){
+        app.state = hydrate(null);
+        render();
+        return;
+      }
       if (app._suppress) return;
       app.state = hydrate(snap.data());
       if (migrate()) saveState({ silent:true, force:true });
