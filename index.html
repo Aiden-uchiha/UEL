@@ -755,7 +755,10 @@ function initFirebase(){
       else render();
     }, err => {
       console.warn('snapshot error', err);
-      toast('☁️ Could not read the cloud save, editing is locked until reload: ' + (err.code || err.message), 'err');
+      app._cloudError = err.code || err.message || 'Cloud database unavailable';
+      app._cloudLoaded = true;
+      render();
+      toast('☁️ Could not read the cloud save: ' + app._cloudError, 'err');
     });
 
     /* Public Hype totals live in their own collection, separate from the admin-only league document. */
@@ -806,6 +809,7 @@ function initFirebase(){
     app.db = null;
     app.auth = null;
     app._cloudLoaded = true;
+    app._cloudError = null;
     $('#cloudBadge').textContent = 'LOCAL';
     $('#cloudBadge').className = 'cloud-badge off';
   }
@@ -2970,6 +2974,14 @@ function renderNav(){
 }
 
 function render(){
+  if (firebaseReady && !app._cloudLoaded){
+    $('#view').innerHTML = `<div class="empty" style="margin-top:36px"><span class="big">⚽</span><h2>Loading your league…</h2><p class="muted">Connecting to the UEL cloud database. Your league data will appear in a moment.</p></div>`;
+    return;
+  }
+  if (app._cloudError){
+    $('#view').innerHTML = `<div class="empty" style="margin-top:36px"><span class="big">☁️</span><h2>League data unavailable</h2><p class="muted">The cloud database could not be reached. Please check your connection and reload the page.</p><p class="tiny muted">${esc(app._cloudError)}</p></div>`;
+    return;
+  }
   rebuildHypeCountMap();
   renderNav();
   const fn = VIEWS[app.currentView] || VIEWS.registry;
