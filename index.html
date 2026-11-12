@@ -2220,8 +2220,9 @@ function matchDetailDate(fixture, match){
   return 'Date TBC';
 }
 function matchPageContext(){
-  const id=app._matchViewId,match=matchById(id)||null;
-  const fixture=(match&&fixtureById(match.fixtureId))||(match&&app.state.fixtures.find(item=>item.matchId===match.id))||fixtureById(id)||null;
+  const id=app._matchViewId,requestedFixture=fixtureById(id);
+  const match=matchById(id)||(requestedFixture&&requestedFixture.matchId?matchById(requestedFixture.matchId):null)||null;
+  const fixture=(match&&fixtureById(match.fixtureId))||(match&&app.state.fixtures.find(item=>item.matchId===match.id))||requestedFixture||null;
   const teamAId=match?match.teamAId:(fixture&&fixture.teamAId),teamBId=match?match.teamBId:(fixture&&fixture.teamBId);
   if(!teamAId||!teamBId)return null;
   const fallback={id:id,teamAId:teamAId,teamBId:teamBId,competition:'League',round:'',legs:match?(legCount(match)||1):1,date:'',played:!!match};
@@ -5203,8 +5204,9 @@ document.addEventListener('click', e => {
 
 function openMatchDetail(item){
   if (!item) return;
-  const match = matchById(item.id);
-  const fixture = fixtureById(item.id) || (match && fixtureById(match.fixtureId)) ||
+  const requestedFixture = fixtureById(item.id);
+  const match = matchById(item.id) || (requestedFixture && requestedFixture.matchId ? matchById(requestedFixture.matchId) : null);
+  const fixture = requestedFixture || (match && fixtureById(match.fixtureId)) ||
     (match && app.state.fixtures.find(f => f.matchId === match.id));
   const targetId = match ? match.id : (fixture ? fixture.id : '');
   if (!targetId) return toast('⚠️ Match or fixture not found', 'err');
