@@ -5074,6 +5074,13 @@ function playerProfileHTML(pid){
   }
 
   let html = `
+    <div class="view-head player-profile-heading">
+      <div>
+        <h2>${esc(p.name || 'Unknown Player')}</h2>
+        <div class="muted small">${p.freeAgent ? '🟡 Free Agent' : esc(tm && tm.name ? tm.name : 'No team assigned')}</div>
+      </div>
+      <div class="head-actions"><button class="btn sm" data-act="goto" data-view="players">← Players</button></div>
+    </div>
     <div class="grid g4" style="margin-bottom:10px">
       <div class="statbox"><div class="v" style="color:var(--gold)">${money(s.playerValue)}</div><div class="l">Player Value</div></div>
       <div class="statbox"><div class="v" style="color:var(--lime)">${money(s.marketValue)}</div><div class="l">Market Value</div></div>
