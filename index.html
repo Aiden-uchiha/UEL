@@ -2309,6 +2309,28 @@ VIEWS.teams = () => {
   return html;
 };
 
+VIEWS.playerprofile = () => {
+  const p = playerById(app._playerViewId);
+  if (!p) return `<div class="view-head"><h2>Player not found</h2><div class="head-actions"><button class="btn sm" data-act="goto" data-view="players">← Players</button></div></div>`;
+  const html = playerProfileHTML(p.id);
+  if (firebaseReady && app.db && app.user && app.user.uid) refreshPlayerHypeVoteStatus(p.id);
+  return html;
+};
+VIEWS.ballonDor = () => {
+  const ranking = ballonDor();
+  let html = `<div class="view-head"><h2>${awardEmoji('ballon',"Ballon d'Or")} Ballon d'Or</h2><div class="head-actions"><button class="btn sm" data-act="goto" data-view="awards">← Awards</button></div></div>
+  <div class="card anim" style="margin-bottom:12px"><div class="section-title" style="margin-top:0">The Ballon d'Or race</div><div class="muted small">Live ranking calculated from league performance and fan Hype.</div></div>`;
+  if (!ranking.length) return html + `<div class="empty"><span class="big">🏆</span>No contenders yet. Add players and record match performances.</div>`;
+  html += `<div class="tblwrap"><table><thead><tr><th>#</th><th>Player</th><th>Team</th><th class="num">Points</th><th class="num">G</th><th class="num">A</th><th class="num">S</th><th class="num">T</th><th class="num">Hype</th></tr></thead><tbody>`;
+  ranking.forEach((r,i) => {
+    const p=r.player, st=r.s||{};
+    html += `<tr><td><span class="rk ${i===0?'rank1':i===1?'rank2':i===2?'rank3':'rk-D'}">${i+1}</span></td>
+    <td>${playerLink(p,'var(--cyan)')}</td><td>${teamLink(teamById(p.teamId),20)}</td>
+    <td class="num" style="color:var(--gold);font-weight:900">${Number(r.pts||0).toFixed(1)}</td>
+    <td class="num">${st.goals||0}</td><td class="num">${st.assists||0}</td><td class="num">${st.saves||0}</td><td class="num">${st.tackles||0}</td><td class="num">${getHypeCount(p.id)}</td></tr>`;
+  });
+  html += `</tbody></table></div>`; return html;
+};
 VIEWS.teamprofile = () => {
   const t = teamById(app._teamViewId);
   if (!t || !app.state.teams.find(x => x.id === t.id))
@@ -2799,14 +2821,46 @@ function render(){
   }
 }
 
-function go(view){
-  app.currentView = view;
-  if (view !== 'teamprofile') app._teamViewId = null;
-  if (view !== 'tournament') app._tourViewId = null;
-  if (view !== 'archive') app._archiveViewId = null;
-  render();
-  window.scrollTo({ top:0, behavior:'smooth' });
+const ROUTE_PATHS = {registry:'registry',teams:'teams',players:'players',standings:'standings',fixtures:'fixtures',awards:'awards',archive:'archive',matchcenter:'matchcenter',results:'results',tournament:'tournament',guide:'guide',logs:'logs'};
+function routeSlug(value){
+  return String(value||'').normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 }
+function routeForCurrentView(view){
+  if(view==='teamprofile'){const t=teamById(app._teamViewId);return 'teams/'+(t?routeSlug(t.name):encodeURIComponent(app._teamViewId||''));}
+  if(view==='playerprofile'){const p=playerById(app._playerViewId);return 'players/'+(p?routeSlug(p.name):encodeURIComponent(app._playerViewId||''));}
+  if(view==='ballonDor')return 'awards/ballon-dor';
+  if(view==='archive'&&app._archiveViewId)return 'archive/'+encodeURIComponent(app._archiveViewId);
+  return ROUTE_PATHS[view]||'registry';
+}
+function resolveBySlug(items,slug){
+  const decoded=decodeURIComponent(slug||'');
+  return items.find(x=>x.id===decoded)||items.find(x=>routeSlug(x.name)===decoded.toLowerCase())||null;
+}
+function applyHashRoute(){
+  const raw=(location.hash||'#/registry').replace(/^#\\/?/,'');
+  const parts=raw.split('/').filter(Boolean), first=parts[0]||'registry';
+  app._teamViewId=null;app._playerViewId=null;app._archiveViewId=null;
+  if(first==='teams'&&parts[1]){
+    const t=resolveBySlug(app.state.teams,parts.slice(1).join('/'));app.currentView=t?'teamprofile':'teams';app._teamViewId=t?t.id:null;
+  }else if(first==='players'&&parts[1]){
+    const p=resolveBySlug(app.state.players,parts.slice(1).join('/'));app.currentView=p?'playerprofile':'players';app._playerViewId=p?p.id:null;
+  }else if(first==='awards'&&parts[1]==='ballon-dor')app.currentView='ballonDor';
+  else if(first==='archive'&&parts[1]){app.currentView='archive';app._archiveViewId=decodeURIComponent(parts[1]);}
+  else{const aliases={'match-center':'matchcenter'},view=aliases[first]||first;app.currentView=Object.prototype.hasOwnProperty.call(ROUTE_PATHS,view)?view:'registry';}
+  render();window.scrollTo({top:0,behavior:'auto'});
+}
+function navigateToRoute(path){
+  const next='#/'+path.replace(/^\\//,'');
+  if(location.hash===next)applyHashRoute();else location.hash=next;
+}
+function go(view){
+  if(view==='teamprofile'||view==='playerprofile'||view==='ballonDor'){navigateToRoute(routeForCurrentView(view));return;}
+  if(view!=='tournament')app._tourViewId=null;
+  if(view!=='archive')app._archiveViewId=null;
+  app._teamViewId=null;app._playerViewId=null;
+  navigateToRoute(routeForCurrentView(view));
+}
+window.addEventListener('hashchange',()=>{if(app.state)applyHashRoute();});
 
 function openModal(title, body, footer){
   app._activePlayerProfileId = null;
@@ -3827,8 +3881,7 @@ document.addEventListener('click', async e => {
   if (act === 'team:view'){
     if ($('#modalRoot').classList.contains('open')) closeModal();
     app._teamViewId = id;
-    app.currentView = 'teamprofile';
-    render(); window.scrollTo({top:0,behavior:'smooth'});
+    navigateToRoute(routeForCurrentView('teamprofile'));
     return;
   }
 
@@ -3997,7 +4050,9 @@ document.addEventListener('click', async e => {
     return;
   }
   if (act === 'player:view'){
-    openPlayerProfile(id);
+    if ($('#modalRoot').classList.contains('open')) closeModal();
+    app._playerViewId = id;
+    navigateToRoute(routeForCurrentView('playerprofile'));
     return;
   }
   if (act === 'player:hype'){
@@ -4516,7 +4571,11 @@ document.addEventListener('click', async e => {
     return;
   }
 
-  if (act === 'award:view'){ openAwardRanking(el.dataset.award); return; }
+  if (act === 'award:view'){
+    if(el.dataset.award==='ballon')navigateToRoute('awards/ballon-dor');
+    else openAwardRanking(el.dataset.award);
+    return;
+  }
   if (act === 'award:toggle'){
     if (!app.isAdmin) return;
     const key = el.dataset.key;
@@ -4534,8 +4593,8 @@ document.addEventListener('click', async e => {
     await archiveSeason();
     return;
   }
-  if (act === 'archive:view'){ app._archiveViewId = id; render(); window.scrollTo({top:0,behavior:'smooth'}); return; }
-  if (act === 'archive:back'){ app._archiveViewId = null; render(); return; }
+  if (act === 'archive:view'){ app._archiveViewId = id; navigateToRoute(routeForCurrentView('archive')); return; }
+  if (act === 'archive:back'){ app._archiveViewId = null; navigateToRoute('archive'); return; }
   if (act === 'archive:del'){
     if (!app.isAdmin) return;
     if (!confirm('Delete this archived season?')) return;
@@ -4796,7 +4855,7 @@ async function saveMatch(){
   toast(isEdit ? '✅ Match updated' : '✅ Match recorded', 'ok');
 }
 
-function openPlayerProfile(pid){
+function playerProfileHTML(pid){
   const p = playerById(pid);
   if (!p) return;
   const st = computePlayerStats();
@@ -4926,9 +4985,7 @@ function openPlayerProfile(pid){
     </table></div>` : ''}
   `;
 
-  openModal('🌟 ' + esc(p.name), html, `<button class="btn" data-act="modal:close">Close</button>`);
-  app._activePlayerProfileId = p.id;
-  if (firebaseReady && app.db && app.user && app.user.uid) refreshPlayerHypeVoteStatus(p.id);
+  return html;
 }
 
 document.addEventListener('click', e => {
@@ -5230,6 +5287,7 @@ async function archiveSeason(){
 
 (function boot(){
   loadLocal();
+  if (location.hash) applyHashRoute();
   if (firebaseReady) initFirebase();
   else {
     $('#cloudBadge').textContent = 'LOCAL';
