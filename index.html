@@ -2824,7 +2824,7 @@ function render(){
 
 const ROUTE_PATHS = {registry:'registry',teams:'teams',players:'players',standings:'standings',fixtures:'fixtures',awards:'awards',archive:'archive',matchcenter:'matchcenter',results:'results',tournament:'tournament',guide:'guide',logs:'logs'};
 function routeSlug(value){
-  return String(value||'').normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  return String(value||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 }
 function routeForCurrentView(view){
   if(view==='teamprofile'){const t=teamById(app._teamViewId);return 'teams/'+(t?routeSlug(t.name):encodeURIComponent(app._teamViewId||''));}
@@ -2838,7 +2838,8 @@ function resolveBySlug(items,slug){
   return items.find(x=>x.id===decoded)||items.find(x=>routeSlug(x.name)===decoded.toLowerCase())||null;
 }
 function applyHashRoute(){
-  const raw=(location.hash||'#/registry').replace(/^#\\/?/,'');
+  const currentHash=location.hash||'#/registry';
+  const raw=currentHash.startsWith('#/')?currentHash.slice(2):currentHash.replace(/^#/,'');
   const parts=raw.split('/').filter(Boolean), first=parts[0]||'registry';
   app._teamViewId=null;app._playerViewId=null;app._archiveViewId=null;
   if(first==='teams'&&parts[1]){
@@ -2851,7 +2852,8 @@ function applyHashRoute(){
   render();window.scrollTo({top:0,behavior:'auto'});
 }
 function navigateToRoute(path){
-  const next='#/'+path.replace(/^\\//,'');
+  const cleanPath=String(path||'').charAt(0)==='/'?String(path).slice(1):String(path);
+  const next='#/'+cleanPath;
   if(location.hash===next)applyHashRoute();else location.hash=next;
 }
 function go(view){
