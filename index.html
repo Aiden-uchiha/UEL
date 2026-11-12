@@ -713,13 +713,15 @@ function initFirebase(){
     $('#cloudBadge').className = 'cloud-badge on';
 
     app.db.doc(DOC_PATH).onSnapshot(snap => {
+      const firstCloudSnapshot = !app._cloudLoaded;
       app._cloudLoaded = true;
       if (!snap.exists) return;
       if (snap.metadata && snap.metadata.hasPendingWrites) return;
       if (app._suppress) return;
       app.state = hydrate(snap.data());
       if (migrate()) saveState({ silent:true, force:true });
-      render();
+      if (firstCloudSnapshot && location.hash) applyHashRoute();
+      else render();
     }, err => {
       console.warn('snapshot error', err);
       toast('☁️ Could not read the cloud save, editing is locked until reload: ' + (err.code || err.message), 'err');
@@ -733,8 +735,7 @@ function initFirebase(){
       app._hypeReady = true;
       app._hypeError = null;
       rebuildHypeCountMap();
-      if (app._activePlayerProfileId && $('#modalRoot').classList.contains('open')) openPlayerProfile(app._activePlayerProfileId);
-      else render();
+      render();
     }, err => {
       console.warn('Hype counter listener error', err);
       app._hypeReady = false;
