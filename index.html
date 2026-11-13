@@ -2243,14 +2243,23 @@ function matchPagePlayerStats(match,teamAId,teamBId){
     const teamId=teamForMatch(match,pid);
     if(teamId!==teamAId&&teamId!==teamBId)return;
     const legs=match.playerStats[pid];if(!Array.isArray(legs))return;
-    const row={id:pid,player:playerById(pid),teamId:teamId,goals:0,assists:0,saves:0,tackles:0,legsPlayed:0};
+    const row={id:pid,player:playerById(pid),teamId:teamId,goals:0,assists:0,saves:0,tackles:0,legsPlayed:0,legStats:{}};
     legs.forEach((leg,index)=>{
-      if(!leg||!leg.played||!aggregate.legs.some(item=>item.n===index+1))return;
+      const legNumber=index+1;
+      if(!leg||!leg.played||!aggregate.legs.some(item=>item.n===legNumber))return;
+      const stats={
+        played:true,
+        goals:Number(leg.goals!==undefined?leg.goals:leg.g)||0,
+        assists:Number(leg.assists!==undefined?leg.assists:leg.a)||0,
+        saves:Number(leg.saves!==undefined?leg.saves:leg.s)||0,
+        tackles:Number(leg.tackles!==undefined?leg.tackles:leg.t)||0
+      };
+      row.legStats[legNumber]=stats;
       row.legsPlayed++;
-      row.goals+=Number(leg.goals!==undefined?leg.goals:leg.g)||0;
-      row.assists+=Number(leg.assists!==undefined?leg.assists:leg.a)||0;
-      row.saves+=Number(leg.saves!==undefined?leg.saves:leg.s)||0;
-      row.tackles+=Number(leg.tackles!==undefined?leg.tackles:leg.t)||0;
+      row.goals+=stats.goals;
+      row.assists+=stats.assists;
+      row.saves+=stats.saves;
+      row.tackles+=stats.tackles;
     });
     if(row.legsPlayed)rows.push(row);
   });
@@ -2275,13 +2284,24 @@ function matchLeaderCards(rows,scopeLabel){
   });
   return html+'</div>';
 }
-function matchLineupTeamHTML(team,rows,seasonMode){
-  const teamRows=rows.filter(row=>row.teamId===team.id).slice().sort((a,b)=>(b.goals*5+b.assists*3+b.saves+b.tackles*.5)-(a.goals*5+a.assists*3+a.saves+a.tackles*.5)||String(a.player?a.player.name:'').localeCompare(String(b.player?b.player.name:'')));
-  const descriptor=seasonMode?'REGISTERED SQUAD · SEASON STATS':'PLAYERS TRACKED IN THIS MATCH';
+function matchLineupTeamHTML(team,rows,seasonMode,legNumber){
+  const teamRows=rows.filter(row=>row.teamId===team.id&&(seasonMode||!!(row.legStats&&row.legStats[legNumber]))).slice().sort((a,b)=>{
+    const statsA=seasonMode?a:(a.legStats||{})[legNumber]||{},statsB=seasonMode?b:(b.legStats||{})[legNumber]||{};
+    const gradeA=seasonMode?avgGrade({goals:(Number(a.goals)||0)/Math.max(1,Number(a.legsPlayed)||0),assists:(Number(a.assists)||0)/Math.max(1,Number(a.legsPlayed)||0),saves:(Number(a.saves)||0)/Math.max(1,Number(a.legsPlayed)||0),tackles:(Number(a.tackles)||0)/Math.max(1,Number(a.legsPlayed)||0)}):legGrade(statsA);
+    const gradeB=seasonMode?avgGrade({goals:(Number(b.goals)||0)/Math.max(1,Number(b.legsPlayed)||0),assists:(Number(b.assists)||0)/Math.max(1,Number(b.legsPlayed)||0),saves:(Number(b.saves)||0)/Math.max(1,Number(b.legsPlayed)||0),tackles:(Number(b.tackles)||0)/Math.max(1,Number(b.legsPlayed)||0)}):legGrade(statsB);
+    const rank={S:4,A:3,B:2,C:1};
+    const score=x=>(Number(x.goals)||0)*5+(Number(x.assists)||0)*3+(Number(x.saves)||0)+(Number(x.tackles)||0)*.5;
+    return (rank[gradeB]||0)-(rank[gradeA]||0)||score(statsB)-score(statsA)||String(a.player?a.player.name:'').localeCompare(String(b.player?b.player.name:''));
+  });
+  const descriptor=seasonMode?'REGISTERED SQUAD · SEASON STATS':'LEG '+legNumber+' · PLAYER STATS';
   let html='<section class="md-panel md-lineup-team"><div class="md-lineup-head">'+teamLogo(team,36)+'<div><b>'+esc(team.name)+'</b><span>'+descriptor+'</span></div><strong>'+teamRows.length+'</strong></div>';
-  if(!teamRows.length)return html+'<div class="empty" style="padding:18px">'+(seasonMode?'No registered players for this team yet.':'No player appearances recorded for this team.')+'</div></section>';
-  html+='<div class="tblwrap"><table class="md-lineup-table"><thead><tr><th>Player</th><th class="num">GP</th><th class="num">G</th><th class="num">A</th><th class="num">SV</th><th class="num">TK</th></tr></thead><tbody>';
-  teamRows.forEach(row=>{html+='<tr><td>'+(row.player?playerLink(row.player):'<span class="muted">Deleted player</span>')+'</td><td class="num">'+row.legsPlayed+'</td><td class="num">'+row.goals+'</td><td class="num">'+row.assists+'</td><td class="num">'+row.saves+'</td><td class="num">'+row.tackles+'</td></tr>';});
+  if(!teamRows.length)return html+'<div class="empty" style="padding:18px">'+(seasonMode?'No registered players for this team yet.':'No player appearances recorded for this team in Leg '+legNumber+'.')+'</div></section>';
+  html+='<div class="tblwrap"><table class="md-lineup-table"><thead><tr><th>Player</th><th>EGOIST</th>'+(seasonMode?'<th class="num">GP</th>':'')+'<th class="num">G</th><th class="num">A</th><th class="num">SV</th><th class="num">TK</th></tr></thead><tbody>';
+  teamRows.forEach(row=>{
+    const stats=seasonMode?row:row.legStats[legNumber];
+    const grade=seasonMode?avgGrade({goals:(Number(row.goals)||0)/Math.max(1,Number(row.legsPlayed)||0),assists:(Number(row.assists)||0)/Math.max(1,Number(row.legsPlayed)||0),saves:(Number(row.saves)||0)/Math.max(1,Number(row.legsPlayed)||0),tackles:(Number(row.tackles)||0)/Math.max(1,Number(row.legsPlayed)||0)}):legGrade(stats);
+    html+='<tr><td>'+(row.player?playerLink(row.player):'<span class="muted">Deleted player</span>')+'</td><td><span class="rk rk-'+grade+'">'+grade+'</span></td>'+(seasonMode?'<td class="num">'+row.legsPlayed+'</td>':'')+'<td class="num">'+(stats.goals||0)+'</td><td class="num">'+(stats.assists||0)+'</td><td class="num">'+(stats.saves||0)+'</td><td class="num">'+(stats.tackles||0)+'</td></tr>';
+  });
   return html+'</tbody></table></div></section>';
 }
 function matchOverviewHTML(context,matchRows,seasonRows){
@@ -2330,10 +2350,12 @@ function renderMatchDetailPage(){
   const status=match?(aggregate&&aggregate.legs.length?'FULL TIME':'RESULT RECORDED'):'UPCOMING';
   let content='';
   if(activeTab==='lineups'){
-    content='<div class="md-lineups-intro"><b>TEAM SHEETS</b><p>'+(useSeason
-      ?'No match line-up has been recorded yet. These panels show registered squad members and their season totals.'
-      :'Players shown here are those recorded as having played at least one leg. UEL records per-leg participation and stats, not tactical formations or shirt numbers.')+
-      '</p></div><div class="md-lineup-grid">'+matchLineupTeamHTML(A,useSeason?seasonRows:matchRows,useSeason)+matchLineupTeamHTML(B,useSeason?seasonRows:matchRows,useSeason)+'</div>';
+    if(useSeason){
+      content='<div class="md-lineups-intro"><b>TEAM SHEETS</b><p>No match line-up has been recorded yet. These panels show registered squad members, season totals, and their average EGOIST rank.</p></div><div class="md-lineup-grid">'+matchLineupTeamHTML(A,seasonRows,true)+matchLineupTeamHTML(B,seasonRows,true)+'</div>';
+    }else{
+      const legPanels=aggregate.legs.map(leg=>'<section class="md-panel md-leg-lineup"><div class="md-panel-heading"><span>LEG '+leg.n+'</span><h3>Player Stats · Leg '+leg.n+'</h3></div><div class="md-lineup-grid">'+matchLineupTeamHTML(A,matchRows,false,leg.n)+matchLineupTeamHTML(B,matchRows,false,leg.n)+'</div></section>').join('');
+      content='<div class="md-lineups-intro"><b>TEAM SHEETS · PER LEG</b><p>Each leg has its own player list, match stats, and EGOIST rank. Players appear only in the legs they actually played.</p></div>'+legPanels;
+    }
   }else content=matchOverviewHTML(context,matchRows,seasonRows);
   return '<div class="md-page"><div class="md-breadcrumb"><button type="button" data-act="match:back">← Fixtures &amp; Results</button><span>'+esc(fixture.competition||'League')+' / '+esc(fixture.round||'Match')+'</span></div>'+
     '<section class="md-hero"><div class="md-hero-meta"><span>'+esc(fixture.competition||'LEAGUE')+'</span><span>'+esc(fixture.round||'MATCH')+'</span><span>'+esc(matchDetailDate(fixture,match))+'</span></div>'+
