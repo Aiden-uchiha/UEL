@@ -2592,11 +2592,11 @@ function shareAwardTop5(key){
     const team=row.sub?' · '+String(row.sub):'';
     return medals[index]+' **N'+(index+1)+'. '+name+'** — **'+awardShareValue(row,key)+'**'+team;
   });
-  const payload='['+awardShareIcon(key)+' '+String(award.title)+']('+pageUrl+')\\n'+
-    '**'+String(app.state.leagueName||'UEL')+' · TOP 5**\\n\\n'+
-    (lines.length?lines.join('\\n'):'No entries yet.');
+  const payload='['+awardShareIcon(key)+' '+String(award.title)+']('+pageUrl+')\n'+
+    '**'+String(app.state.leagueName||'UEL')+' · TOP 5**\n\n'+
+    (lines.length?lines.join('\n'):'No entries yet.');
   const iconUrl=AWARD_EMOJI_URLS[key];
-  const shareText=payload+(iconUrl?'\\n\\n'+iconUrl:'');
+  const shareText=payload+(iconUrl?'\n\n'+iconUrl:'');
   const done=()=>toast('📋 Discord Top 5 copied — paste it into your server','ok');
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(shareText).then(done,()=>trackCopyFallback(shareText,done));
   else trackCopyFallback(shareText,done);
