@@ -1156,7 +1156,7 @@ function bestDuo(){
         sub: pair.total + ' shared goals • ' + pair.sharedLegs + ' productive legs'
       };
     })
-    .sort((a,b) => b.total - a.total || b.sharedLegs - a.sharedLegs || (b.aToB+b.bToA) - (a.aToA+a.bToA));
+    .sort((a,b) => b.total - a.total || b.sharedLegs - a.sharedLegs );
 }
 
 function teamGoalDistribution(){
@@ -2597,7 +2597,7 @@ function renderAwardDetailPage(){
       : (teamById(row.id)&&app.state.teams.some(team=>team.id===row.id)?teamLink(teamById(row.id),20):'<b style="color:var(--cyan)">'+esc(row.label)+'</b>'));
   const valueHTML=row=>row.fmt?row.fmt(row.value):num(row.value);
   let html='<div id="award-share-capture" style="padding:16px;border-radius:16px;background:var(--bg)"><div class="view-head"><h2><span class="emoji float">'+award.icon+'</span>'+esc(award.title)+'</h2><div class="head-actions" data-html2canvas-ignore="true"><button class="btn gold sm" data-act="award:share" data-award="'+esc(key)+'">📸 Share Screenshot</button><button class="btn sm" data-act="goto" data-view="awards">← Awards</button></div></div>';
-  html+='<section class="card anim" style="margin-bottom:12px"><div class="tiny muted">'+esc(app.state.leagueName||'UEL')+' · '+esc(app.state.seasonName||'Season')+'</div><div class="between" style="margin-top:5px"><div><div class="tiny" style="color:var(--gold);letter-spacing:1.5px;font-weight:900">'+(key==='duo'?'TOP 10':'TOP 5')+'</div><div class="muted small" style="margin-top:4px">'+esc(award.desc)+'</div></div><span class="pill cy">'+topFive.length+' leaders</span></div>';
+  html+='<section class="card anim" style="margin-bottom:12px"><div class="tiny muted">'+esc(app.state.leagueName||'UEL')+' · '+esc(app.state.seasonName||'Season')+'</div><div class="between" style="margin-top:5px"><div><div class="tiny" style="color:var(--gold);letter-spacing:1.5px;font-weight:900">'+(key==='duo'?'TOP 10':'TOP 5')+'</div><div class="muted small" style="margin-top:4px">'+esc(award.desc)+'</div></div><span class="pill cy">'+featuredRows.length+' leaders</span></div>';
   if(!featuredRows.length)html+='<div class="empty" style="padding:16px">No data yet.</div>';
   else{
     html+='<div style="margin-top:12px">';
