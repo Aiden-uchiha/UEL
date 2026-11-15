@@ -323,6 +323,7 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
 'use strict';
@@ -441,7 +442,7 @@ const AWARD_EMOJI_URLS = {
 };
 function awardEmoji(key, fallback){
   const url = AWARD_EMOJI_URLS[key];
-  return url ? `<img class="award-custom-icon" src="${url}" alt="${esc(fallback || key)}" loading="lazy">` : (fallback || '🏅');
+  return url ? `<img class="award-custom-icon" src="${url}" alt="${esc(fallback || key)}" crossorigin="anonymous" loading="lazy">` : (fallback || '🏅');
 }
 
 function defaultState(){
@@ -2510,9 +2511,22 @@ VIEWS.playerprofile = () => {
 };
 VIEWS.ballonDor = () => {
   const ranking = ballonDor();
-  let html = `<div class="view-head"><h2>${awardEmoji('ballon',"Ballon d'Or")} Ballon d'Or</h2><div class="head-actions"><button class="btn gold sm" data-act="award:share" data-award="ballon">🔗 Copy Discord Share</button><button class="btn sm" data-act="goto" data-view="awards">← Awards</button></div></div>
-  <div class="card anim" style="margin-bottom:12px"><div class="section-title" style="margin-top:0">The Ballon d'Or race</div><div class="muted small">Live ranking calculated from league performance and fan Hype.</div></div>`;
-  if (!ranking.length) return html + `<div class="empty"><span class="big">🏆</span>No contenders yet. Add players and record match performances.</div>`;
+  const topFive=ranking.slice(0,5);
+  let html = `<div id="award-share-capture" style="padding:16px;border-radius:16px;background:var(--bg)">
+    <div class="view-head"><h2>${awardEmoji('ballon',"Ballon d'Or")} Ballon d'Or</h2><div class="head-actions" data-html2canvas-ignore="true"><button class="btn gold sm" data-act="award:share" data-award="ballon">📸 Share Screenshot</button><button class="btn sm" data-act="goto" data-view="awards">← Awards</button></div></div>
+    <section class="card anim" style="margin-bottom:12px">
+      <div class="tiny muted">${esc(app.state.leagueName||'UEL')} · ${esc(app.state.seasonName||'Season')}</div>
+      <div class="section-title" style="margin-top:5px">Ballon d'Or · TOP 5</div>
+      <div class="muted small">Live ranking calculated from league performance and fan Hype.</div>`;
+  if (!ranking.length) return html + `<div class="empty"><span class="big">🏆</span>No contenders yet. Add players and record match performances.</div></section></div>`;
+  html += `<div style="margin-top:12px">`;
+  topFive.forEach((r,i)=>{
+    const p=r.player,st=r.s||{},medals=['🥇','🥈','🥉','4️⃣','5️⃣'];
+    html += `<div class="between" style="gap:10px;padding:9px 0;border-top:1px solid var(--line)">
+      <div class="row" style="gap:9px;min-width:0"><span class="rk ${i===0?'rank1':i===1?'rank2':i===2?'rank3':'rk-D'}">${medals[i]}</span><div style="min-width:0"><b>${playerLink(p,'var(--cyan)')}</b><div class="tiny muted">${esc((teamById(p.teamId)||{}).name||'No team')} • ${st.goals||0}G ${st.assists||0}A</div></div></div>
+      <b class="mono" style="color:var(--gold);white-space:nowrap">${Number(r.pts||0).toFixed(1)} points</b></div>`;
+  });
+  html += `</div></section></div>`;
   html += `<div class="tblwrap"><table><thead><tr><th>#</th><th>Player</th><th>Team</th><th class="num">Points</th><th class="num">G</th><th class="num">A</th><th class="num">S</th><th class="num">T</th><th class="num">Hype</th></tr></thead><tbody>`;
   ranking.forEach((r,i) => {
     const p=r.player, st=r.s||{};
@@ -2540,8 +2554,8 @@ function renderAwardDetailPage(){
       ? (playerById(row.id)?playerLink(playerById(row.id),row.color):esc(row.label))
       : (teamById(row.id)&&app.state.teams.some(team=>team.id===row.id)?teamLink(teamById(row.id),20):'<b style="color:var(--cyan)">'+esc(row.label)+'</b>'));
   const valueHTML=row=>row.fmt?row.fmt(row.value):num(row.value);
-  let html='<div class="view-head"><h2><span class="emoji float">'+award.icon+'</span>'+esc(award.title)+'</h2><div class="head-actions"><button class="btn gold sm" data-act="award:share" data-award="'+esc(key)+'">🔗 Copy Discord Share</button><button class="btn sm" data-act="goto" data-view="awards">← Awards</button></div></div>';
-  html+='<section class="card anim" style="margin-bottom:12px"><div class="between"><div><div class="tiny" style="color:var(--gold);letter-spacing:1.5px;font-weight:900">TOP 5</div><div class="muted small" style="margin-top:4px">'+esc(award.desc)+'</div></div><span class="pill cy">'+topFive.length+' leaders</span></div>';
+  let html='<div id="award-share-capture" style="padding:16px;border-radius:16px;background:var(--bg)"><div class="view-head"><h2><span class="emoji float">'+award.icon+'</span>'+esc(award.title)+'</h2><div class="head-actions" data-html2canvas-ignore="true"><button class="btn gold sm" data-act="award:share" data-award="'+esc(key)+'">📸 Share Screenshot</button><button class="btn sm" data-act="goto" data-view="awards">← Awards</button></div></div>';
+  html+='<section class="card anim" style="margin-bottom:12px"><div class="tiny muted">'+esc(app.state.leagueName||'UEL')+' · '+esc(app.state.seasonName||'Season')+'</div><div class="between" style="margin-top:5px"><div><div class="tiny" style="color:var(--gold);letter-spacing:1.5px;font-weight:900">TOP 5</div><div class="muted small" style="margin-top:4px">'+esc(award.desc)+'</div></div><span class="pill cy">'+topFive.length+' leaders</span></div>';
   if(!topFive.length)html+='<div class="empty" style="padding:16px">No data yet.</div>';
   else{
     html+='<div style="margin-top:12px">';
@@ -2550,7 +2564,7 @@ function renderAwardDetailPage(){
     });
     html+='</div>';
   }
-  html+='</section><div class="section-title">Full Ranking ('+rows.length+')</div>';
+  html+='</section></div><div class="section-title">Full Ranking ('+rows.length+')</div>';
   if(!rows.length)return html+'<div class="empty">No entries yet.</div>';
   html+='<div class="tblwrap"><table><thead><tr><th>#</th><th>Name</th><th class="num">Value</th><th style="width:130px">Chart</th></tr></thead><tbody>';
   rows.forEach((row,index)=>{
@@ -2563,43 +2577,49 @@ VIEWS.awarddetail=()=>renderAwardDetailPage();
 function awardRouteForKey(key){
   return key==='ballon'?'awards/ballon-dor':'awards/'+encodeURIComponent(String(key||''));
 }
-function awardShareIcon(key){
-  const icons={
-    ballon:'🏆','golden-boot':'👟',playmaker:'🎯',gloves:'🧤',defender:'🛡️',oma:'⚔️',duo:'🤝',
-    'most-valued':'💰','german-machine':'⚙️',remontada:'🔥',wall:'🧱','goal-hunters':'🎯',
-    streak:'⚡',superstar:'🌟','mvp-value':'💎'
-  };
-  return icons[key]||'🏆';
-}
-function awardShareValue(row,key){
-  if(row.fmt)return String(row.fmt(row.value));
-  const units={
-    ballon:'points','golden-boot':'goals',playmaker:'assists',gloves:'saves',defender:'tackles',
-    oma:'times','duo':'G+A','most-valued':'value','german-machine':'% dependence',
-    remontada:'comebacks',wall:'tackles + saves','goal-hunters':'goals',streak:'wins',
-    superstar:'average value','mvp-value':'value'
-  };
-  return num(row.value)+' '+(units[key]||'points');
-}
-function shareAwardTop5(key){
-  const built=buildAwards(),award=built.teamAwards.concat(built.playerAwards).find(item=>item.key===key);
-  if(!award)return toast('Award not found','err');
-  const top=(award.rows||[]).slice(0,5);
-  const pageUrl=location.origin+location.pathname+'#/'+awardRouteForKey(key);
-  const medals=['🥇','🥈','🥉','4️⃣','5️⃣'];
-  const lines=top.map((row,index)=>{
-    const name=String(row.label||'Unknown');
-    const team=row.sub?' · '+String(row.sub):'';
-    return medals[index]+' **N'+(index+1)+'. '+name+'** — **'+awardShareValue(row,key)+'**'+team;
-  });
-  const payload='['+awardShareIcon(key)+' '+String(award.title)+']('+pageUrl+')\n'+
-    '**'+String(app.state.leagueName||'UEL')+' · TOP 5**\n\n'+
-    (lines.length?lines.join('\n'):'No entries yet.');
-  const iconUrl=AWARD_EMOJI_URLS[key];
-  const shareText=payload+(iconUrl?'\n\n'+iconUrl:'');
-  const done=()=>toast('📋 Discord Top 5 copied — paste it into your server','ok');
-  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(shareText).then(done,()=>trackCopyFallback(shareText,done));
-  else trackCopyFallback(shareText,done);
+async function shareAwardTop5(key){
+  const awardUrl=location.origin+location.pathname+'#/'+awardRouteForKey(key);
+  const awardName=key==='ballon'?"Ballon d'Or":((buildAwards().teamAwards.concat(buildAwards().playerAwards).find(item=>item.key===key)||{}).title||'Award');
+  const shareText='# '+String(app.state.leagueName||'UEL')+' ('+String(app.state.seasonName||'Season')+') ['+awardName+']('+awardUrl+')';
+  const target=document.getElementById('award-share-capture');
+  if(!target)return toast('Award preview not found','err');
+  if(typeof window.html2canvas!=='function')return toast('Screenshot tool is still loading. Try again in a moment.','err');
+  try{
+    const canvas=await window.html2canvas(target,{
+      backgroundColor:'#0b0d17',
+      scale:Math.min(2,window.devicePixelRatio||2),
+      useCORS:true,
+      allowTaint:false,
+      logging:false,
+      ignoreElements:element=>element.hasAttribute&&element.hasAttribute('data-html2canvas-ignore')
+    });
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+    if(!blob)throw new Error('Could not create screenshot');
+    const file=new File([blob],String(key)+'-top-5.png',{type:'image/png'});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file],title:awardName+' · TOP 5',text:shareText});
+        return;
+      }catch(error){
+        if(error&&error.name==='AbortError')return;
+      }
+    }
+    const downloadUrl=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=downloadUrl;
+    link.download=String(key)+'-top-5.png';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(downloadUrl),1500);
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(shareText);
+      toast('Screenshot downloaded · award link copied','ok');
+    }else{
+      trackCopyFallback(shareText,()=>toast('Screenshot downloaded · copy the award link','ok'));
+    }
+  }catch(error){
+    console.error('Award screenshot share failed:',error);
+    toast('Could not create the screenshot. Please try again.','err');
+  }
 }
 
 VIEWS.teamprofile = () => {
