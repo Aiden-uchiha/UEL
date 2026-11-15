@@ -1103,19 +1103,60 @@ function oneManArmy(){
 }
 
 function bestDuo(){
-  let best = null;
-  topContributorsPerLeg().forEach(entry => {
-    if (entry.players.length < 2) return;
-    const a = entry.players[0], b = entry.players[1];
-    const total = (a.g + a.a) + (b.g + b.a);
-    if (!best || total > best.total){
-      const p1 = playerById(a.pid);
-      const p2 = playerById(b.pid);
-      if (!p1 || !p2) return;
-      best = { total, a, b, teamId: entry.teamId, matchId: entry.matchId, leg: entry.leg, label: `${p1.name} & ${p2.name}` };
+  const pairs = new Map();
+  app.state.matches.forEach(m => {
+    const agg = matchAggregate(m);
+    if (!agg.legs.length) return;
+    const ps = m.playerStats || {};
+    for (let i = 0; i < agg.legs.length; i++){
+      const players = Object.keys(ps).map(pid => {
+        const lg = (ps[pid] || [])[i];
+        if (!lg || !lg.played || !playerById(pid)) return null;
+        const teamId = teamForMatch(m, pid);
+        if (!teamId) return null;
+        return { pid, teamId, g: Math.max(0, +lg.goals||0), a: Math.max(0, +lg.assists||0) };
+      }).filter(Boolean);
+      for (let x = 0; x < players.length; x++){
+        for (let y = x + 1; y < players.length; y++){
+          const a = players[x], b = players[y];
+          if (a.teamId !== b.teamId) continue;
+          const key = [a.pid,b.pid].sort().join('|');
+          const p1 = playerById(a.pid), p2 = playerById(b.pid);
+          if (!p1 || !p2) continue;
+          const aToB = Math.min(a.g, b.a);
+          const bToA = Math.min(b.g, a.a);
+          const sharedGoals = aToB + bToA;
+          if (!pairs.has(key)){
+            pairs.set(key, {
+              a: a.pid < b.pid ? a : b,
+              b: a.pid < b.pid ? b : a,
+              teamId: a.teamId,
+              total: 0,
+              aToB: 0,
+              bToA: 0,
+              sharedLegs: 0
+            });
+          }
+          const pair = pairs.get(key);
+          pair.total += sharedGoals;
+          pair.aToB += a.pid < b.pid ? aToB : bToA;
+          pair.bToA += a.pid < b.pid ? bToA : aToB;
+          if (sharedGoals > 0) pair.sharedLegs++;
+        }
+      }
     }
   });
-  return best;
+  return Array.from(pairs.values())
+    .filter(pair => pair.total > 0)
+    .map(pair => {
+      const p1 = playerById(pair.a.pid), p2 = playerById(pair.b.pid);
+      return {
+        ...pair,
+        label: p1 && p2 ? `${p1.name} & ${p2.name}` : 'Unknown Duo',
+        sub: pair.total + ' shared goals • ' + pair.sharedLegs + ' productive legs'
+      };
+    })
+    .sort((a,b) => b.total - a.total || b.sharedLegs - a.sharedLegs || (b.aToB+b.bToA) - (a.aToA+a.bToA));
 }
 
 function teamGoalDistribution(){
@@ -1301,13 +1342,13 @@ function buildAwards(){
     },
     {
       key:'duo', icon:'🤝', title:'Best Duo',
-      desc:'Highest combined goals + assists in the same leg.',
-      rows: duo ? [{
-        id: duo.a.pid, p2Id: duo.b.pid, label: duo.label,
-        color: teamById(duo.teamId).color,
-        sub: 'Leg ' + duo.leg + ' • ' + (duo.a.g + duo.a.a) + ' + ' + (duo.b.g + duo.b.a),
-        value: duo.total
-      }] : []
+      desc:'Most goals directly shared by two teammates, estimated from goals and assists across the season.',
+      rows: duo.map(pair => ({
+        id: pair.a.pid, p2Id: pair.b.pid, label: pair.label,
+        color: teamById(pair.teamId).color,
+        sub: pair.sub,
+        value: pair.total
+      }))
     },
     {
       key:'ballon', icon:awardEmoji('ballon','Ballon d\'Or'), title:'Ballon d\'Or',
@@ -2546,7 +2587,8 @@ function renderAwardDetailPage(){
   if(!award||(!app.isAdmin&&disabled.includes(key)))return '<div class="empty"><span class="big">🏆</span>Award not found or hidden. <button class="btn sm" data-act="goto" data-view="awards">Back to Awards</button></div>';
   const isPlayer=playerAwards.some(item=>item.key===key);
   const rows=(award.rows||[]).slice();
-  const topFive=rows.slice(0,5);
+  const featuredCount=key==='duo'?10:5;
+  const featuredRows=rows.slice(0,featuredCount);
   const maxValue=Math.max(...rows.map(row=>Math.abs(Number(row.value)||0)),1);
   const nameHTML=row=>row.p2Id
     ? playerLink(playerById(row.id),row.color)+' & '+playerLink(playerById(row.p2Id),row.color)
@@ -2555,11 +2597,11 @@ function renderAwardDetailPage(){
       : (teamById(row.id)&&app.state.teams.some(team=>team.id===row.id)?teamLink(teamById(row.id),20):'<b style="color:var(--cyan)">'+esc(row.label)+'</b>'));
   const valueHTML=row=>row.fmt?row.fmt(row.value):num(row.value);
   let html='<div id="award-share-capture" style="padding:16px;border-radius:16px;background:var(--bg)"><div class="view-head"><h2><span class="emoji float">'+award.icon+'</span>'+esc(award.title)+'</h2><div class="head-actions" data-html2canvas-ignore="true"><button class="btn gold sm" data-act="award:share" data-award="'+esc(key)+'">📸 Share Screenshot</button><button class="btn sm" data-act="goto" data-view="awards">← Awards</button></div></div>';
-  html+='<section class="card anim" style="margin-bottom:12px"><div class="tiny muted">'+esc(app.state.leagueName||'UEL')+' · '+esc(app.state.seasonName||'Season')+'</div><div class="between" style="margin-top:5px"><div><div class="tiny" style="color:var(--gold);letter-spacing:1.5px;font-weight:900">TOP 5</div><div class="muted small" style="margin-top:4px">'+esc(award.desc)+'</div></div><span class="pill cy">'+topFive.length+' leaders</span></div>';
-  if(!topFive.length)html+='<div class="empty" style="padding:16px">No data yet.</div>';
+  html+='<section class="card anim" style="margin-bottom:12px"><div class="tiny muted">'+esc(app.state.leagueName||'UEL')+' · '+esc(app.state.seasonName||'Season')+'</div><div class="between" style="margin-top:5px"><div><div class="tiny" style="color:var(--gold);letter-spacing:1.5px;font-weight:900">'+(key==='duo'?'TOP 10':'TOP 5')+'</div><div class="muted small" style="margin-top:4px">'+esc(award.desc)+'</div></div><span class="pill cy">'+topFive.length+' leaders</span></div>';
+  if(!featuredRows.length)html+='<div class="empty" style="padding:16px">No data yet.</div>';
   else{
     html+='<div style="margin-top:12px">';
-    topFive.forEach((row,index)=>{
+    featuredRows.forEach((row,index)=>{
       html+='<div class="between" style="gap:10px;padding:9px 0;border-top:1px solid var(--line)"><div class="row" style="gap:9px;min-width:0"><span class="rk '+(index===0?'rank1':index===1?'rank2':index===2?'rank3':'rk-D')+'">'+(index+1)+'</span><div style="min-width:0"><b>'+nameHTML(row)+'</b>'+(row.sub?'<div class="tiny muted">'+esc(row.sub)+'</div>':'')+'</div></div><b class="mono" style="color:var(--gold);white-space:nowrap">'+esc(String(valueHTML(row)))+'</b></div>';
     });
     html+='</div>';
