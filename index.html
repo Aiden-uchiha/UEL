@@ -2563,47 +2563,43 @@ VIEWS.awarddetail=()=>renderAwardDetailPage();
 function awardRouteForKey(key){
   return key==='ballon'?'awards/ballon-dor':'awards/'+encodeURIComponent(String(key||''));
 }
-function awardShareImageUrl(award){
-  const top=(award.rows||[]).slice(0,5);
-  const labels=top.map((row,index)=>{
-    const label=String(row.label||'Unknown').slice(0,42);
-    const team=String(row.sub||'').slice(0,34);
-    return '#'+(index+1)+' '+label+(team?'\n'+team:'');
-  });
-  const values=top.map(row=>Number(row.value)||0);
-  const chart={
-    type:'bar',
-    data:{labels:labels,datasets:[{label:award.title,data:values,backgroundColor:'#00cfe8',borderRadius:8,borderSkipped:false}]},
-    options:{
-      indexAxis:'y',
-      responsive:false,
-      layout:{padding:{left:18,right:30,top:12,bottom:12}},
-      plugins:{
-        legend:{display:false},
-        title:{display:true,text:[String(app.state.leagueName||'UEL'),String(award.title||'Award')+' · TOP 5'],color:'#ffffff',font:{size:24,weight:'bold'},padding:{top:12,bottom:22}}
-      },
-      scales:{
-        x:{beginAtZero:true,grid:{color:'rgba(255,255,255,0.12)'},ticks:{color:'#d5e1ed',font:{size:13}}},
-        y:{grid:{display:false},ticks:{color:'#ffffff',font:{size:15,weight:'bold'}}}
-      }
-    }
+function awardShareIcon(key){
+  const icons={
+    ballon:'🏆','golden-boot':'👟',playmaker:'🎯',gloves:'🧤',defender:'🛡️',oma:'⚔️',duo:'🤝',
+    'most-valued':'💰','german-machine':'⚙️',remontada:'🔥',wall:'🧱','goal-hunters':'🎯',
+    streak:'⚡',superstar:'🌟','mvp-value':'💎'
   };
-  return 'https://quickchart.io/chart?width=1200&height=675&devicePixelRatio=1&format=png&backgroundColor=%230b1220&c='+encodeURIComponent(JSON.stringify(chart));
+  return icons[key]||'🏆';
+}
+function awardShareValue(row,key){
+  if(row.fmt)return String(row.fmt(row.value));
+  const units={
+    ballon:'points','golden-boot':'goals',playmaker:'assists',gloves:'saves',defender:'tackles',
+    oma:'times','duo':'G+A','most-valued':'value','german-machine':'% dependence',
+    remontada:'comebacks',wall:'tackles + saves','goal-hunters':'goals',streak:'wins',
+    superstar:'average value','mvp-value':'value'
+  };
+  return num(row.value)+' '+(units[key]||'points');
 }
 function shareAwardTop5(key){
   const built=buildAwards(),award=built.teamAwards.concat(built.playerAwards).find(item=>item.key===key);
   if(!award)return toast('Award not found','err');
   const top=(award.rows||[]).slice(0,5);
-  const lines=top.map((row,index)=>{
-    const value=row.fmt?row.fmt(row.value):num(row.value);
-    return (index+1)+'. '+String(row.label||'Unknown')+(row.sub?' — '+row.sub:'')+' · '+value;
-  });
   const pageUrl=location.origin+location.pathname+'#/'+awardRouteForKey(key);
-  const imageUrl=awardShareImageUrl(award);
-  const payload='🏆 '+String(app.state.leagueName||'UEL')+' · '+award.title+' — TOP 5\n'+(lines.length?lines.join('\n'):'No entries yet.')+'\n\nFull ranking: '+pageUrl+'\n'+imageUrl;
-  const done=()=>toast('📋 Discord share copied — paste it into your server','ok');
-  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(payload).then(done,()=>trackCopyFallback(payload,done));
-  else trackCopyFallback(payload,done);
+  const medals=['🥇','🥈','🥉','4️⃣','5️⃣'];
+  const lines=top.map((row,index)=>{
+    const name=String(row.label||'Unknown');
+    const team=row.sub?' · '+String(row.sub):'';
+    return medals[index]+' **N'+(index+1)+'. '+name+'** — **'+awardShareValue(row,key)+'**'+team;
+  });
+  const payload='['+awardShareIcon(key)+' '+String(award.title)+']('+pageUrl+')\\n'+
+    '**'+String(app.state.leagueName||'UEL')+' · TOP 5**\\n\\n'+
+    (lines.length?lines.join('\\n'):'No entries yet.');
+  const iconUrl=AWARD_EMOJI_URLS[key];
+  const shareText=payload+(iconUrl?'\\n\\n'+iconUrl:'');
+  const done=()=>toast('📋 Discord Top 5 copied — paste it into your server','ok');
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(shareText).then(done,()=>trackCopyFallback(shareText,done));
+  else trackCopyFallback(shareText,done);
 }
 
 VIEWS.teamprofile = () => {
