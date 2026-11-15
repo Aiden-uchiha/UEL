@@ -2568,7 +2568,7 @@ function awardShareImageUrl(award){
   const labels=top.map((row,index)=>{
     const label=String(row.label||'Unknown').slice(0,42);
     const team=String(row.sub||'').slice(0,34);
-    return '#'+(index+1)+' '+label+(team?'\\n'+team:'');
+    return '#'+(index+1)+' '+label+(team?'\n'+team:'');
   });
   const values=top.map(row=>Number(row.value)||0);
   const chart={
@@ -2600,7 +2600,7 @@ function shareAwardTop5(key){
   });
   const pageUrl=location.origin+location.pathname+'#/'+awardRouteForKey(key);
   const imageUrl=awardShareImageUrl(award);
-  const payload='🏆 '+String(app.state.leagueName||'UEL')+' · '+award.title+' — TOP 5\\n'+(lines.length?lines.join('\\n'):'No entries yet.')+'\\n\\nFull ranking: '+pageUrl+'\\n'+imageUrl;
+  const payload='🏆 '+String(app.state.leagueName||'UEL')+' · '+award.title+' — TOP 5\n'+(lines.length?lines.join('\n'):'No entries yet.')+'\n\nFull ranking: '+pageUrl+'\n'+imageUrl;
   const done=()=>toast('📋 Discord share copied — paste it into your server','ok');
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(payload).then(done,()=>trackCopyFallback(payload,done));
   else trackCopyFallback(payload,done);
@@ -3139,7 +3139,8 @@ function applyHashRoute(){
     const awardSlug=decodeURIComponent(parts.slice(1).join('/'));
     if(awardSlug==='ballon-dor'||awardSlug==='ballon')app.currentView='ballonDor';
     else{
-      const available=buildAwards().teamAwards.concat(buildAwards().playerAwards).some(item=>item.key===awardSlug);
+      const awardData=buildAwards();
+      const available=awardData.teamAwards.concat(awardData.playerAwards).some(item=>item.key===awardSlug);
       app.currentView=available?'awarddetail':'awards';
       app._awardViewKey=available?awardSlug:null;
     }
