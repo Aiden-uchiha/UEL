@@ -3043,10 +3043,6 @@ VIEWS.archive = () => {
     });
     html += `</div>`;
   }
-  if (ARCHIVE_MODE) return html;
-  html += `<div class="section-title" style="margin-top:22px">Published HTML Archives</div>
-    <div class="tiny muted" style="margin:-5px 0 12px">Read-only season snapshots hosted on the UEL GitHub Pages site.</div>
-    <div id="published-html-archives"><div class="empty">Loading published archives…</div></div>`;
   return html;
 };
 
