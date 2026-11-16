@@ -3012,7 +3012,7 @@ VIEWS.archive = () => {
   const s = app.state;
   let html = `<div class="view-head">
     <h2><span class="emoji float">🗄️</span> Archive</h2>
-    <div class="head-actions">${app.isAdmin ? `<button class="btn" data-act="archive:download"><span class="emoji">💾</span> Download Data (HTML)</button><button class="btn gold" data-act="archive:create"><span class="emoji">📦</span> Archive Season</button>` : ''}</div>
+    <div class="head-actions">${app.isAdmin ? `<button class="btn" data-act="archive:download"><span class="emoji">💾</span> Download Data (HTML)</button><button class="btn gold" data-act="archive:link:add"><span class="emoji">🔗</span> Archive Season</button><button class="btn sm" data-act="archive:create"><span class="emoji">📦</span> Archive Current Season</button>` : ''}</div>
   </div>`;
 
   if (app._archiveViewId){
@@ -3025,7 +3025,11 @@ VIEWS.archive = () => {
   else {
     html += `<div class="grid g2">`;
     s.archives.slice().reverse().forEach(a => {
-      html += `<div class="card clickable anim" data-act="archive:view" data-id="${a.id}">
+      if (a.linkUrl){
+        html += '<div class="card anim"><div class="between"><b>' + esc(a.leagueName) + ' — ' + esc(a.seasonName) + '</b><span class="pill go">' + new Date(a.archivedAt || a.addedAt || Date.now()).toLocaleDateString() + '</span></div><div class="hint" style="margin:8px 0 12px">Published season archive</div><a class="btn gold" href="' + esc(a.linkUrl) + '" target="_blank" rel="noopener noreferrer">↗ Open Season</a>' + (app.isAdmin ? '<div style="margin-top:9px"><button class="btn sm danger" data-act="archive:del" data-id="' + esc(a.id) + '">🗑️ Delete</button></div>' : '') + '</div>';
+        return;
+      }
+      html += `<div class="card clickable anim" data-act="archive:view" data-id="${a.id}>
         <div class="between">
           <b>${esc(a.leagueName)} — ${esc(a.seasonName)}</b>
           <span class="pill go">${new Date(a.archivedAt).toLocaleDateString()}</span>
@@ -5015,6 +5019,33 @@ document.addEventListener('click', async e => {
   if (act === 'archive:download'){
     if (!app.isAdmin) return;
     downloadSeasonHTMLSnapshot();
+    return;
+  }
+  if (act === 'archive:link:add'){
+    if (!app.isAdmin) return;
+    openModal('🔗 Add Season Archive',
+      '<label class="fl">League name</label><input id="archive_league" maxlength="80" placeholder="Unmatched Ego League">' +
+      '<label class="fl">Season</label><input id="archive_season" maxlength="80" placeholder="Season 4">' +
+      '<label class="fl">Website link</label><input id="archive_url" type="url" inputmode="url" placeholder="https://aiden-uchiha.github.io/UEL-S4/">' +
+      '<div class="hint" style="margin-top:9px">Once saved, this link will appear in the public Archive for everyone.</div>',
+      '<button class="btn lime" data-act="archive:link:save">Save Archive</button><button class="btn" data-act="modal:close">Cancel</button>');
+    return;
+  }
+  if (act === 'archive:link:save'){
+    if (!app.isAdmin) return;
+    const leagueName = $('#archive_league').value.trim();
+    const seasonName = $('#archive_season').value.trim();
+    const rawUrl = $('#archive_url').value.trim();
+    if (!leagueName || !seasonName || !rawUrl) return toast('⚠️ Enter the league, season, and website link', 'err');
+    let parsed;
+    try { parsed = new URL(rawUrl); } catch(e){ return toast('⚠️ Enter a valid website URL', 'err'); }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return toast('⚠️ Use a link starting with https:// or http://', 'err');
+    app.state.archives = app.state.archives || [];
+    const now = Date.now();
+    app.state.archives.push({ id: uuid(), leagueName, seasonName, linkUrl: parsed.href, archivedAt: now, addedAt: now });
+    await logAdmin('Added public archive link "' + leagueName + ' — ' + seasonName + '"');
+    await saveState(); closeModal(); render();
+    toast('✅ Archive link published for everyone', 'ok');
     return;
   }
   if (act === 'archive:create'){
