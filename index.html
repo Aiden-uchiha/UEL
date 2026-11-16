@@ -325,9 +325,18 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-<script>
+<script id="uelMain">
 'use strict';
 
+/* Offline archive snapshots are embedded in the same real UEL application. */
+const ARCHIVE = (function(){
+  try { const el = document.getElementById('uel-archive-data'); return el ? JSON.parse(el.textContent) : null; }
+  catch(e){ console.error('UEL archive data could not be parsed', e); return null; }
+})();
+const ARCHIVE_MODE = !!ARCHIVE;
+const ARCHIVE_ACTS = new Set(['goto','modal:close','archive:view','archive:back','award:view','match:view','match:back','match:tab','matchleg','player:view','team:view','tournament:view','tournament:back']);
+
+/*FB-CONFIG-START*/
 const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyCQCUEuU75qt5QoDLo_I9kSJIdgacPlgr4",
   authDomain:        "uel2-146ab.firebaseapp.com",
@@ -337,11 +346,12 @@ const FIREBASE_CONFIG = {
   appId:             "1:521177018837:web:a1be1f28dec881559c8d5c"
 };
 const ADMIN_EMAILS = ["aiden.uchiha16u@gmail.com"];
+/*FB-CONFIG-END*/
 const LS_KEY   = 'lm_state_v1';
 const LS_LOGS  = 'lm_logs_v1';
 const DOC_PATH = 'usl/state';
 const LOGS_COL = 'usl_logs';
-let firebaseReady = /^AIza[0-9A-Za-z_-]{20,}$/.test(String(FIREBASE_CONFIG.apiKey || ''));
+let firebaseReady = !ARCHIVE_MODE && /^AIza[0-9A-Za-z_-]{20,}$/.test(String(FIREBASE_CONFIG.apiKey || ''));
 
 const $  = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
@@ -432,6 +442,7 @@ const BALLONDOR_DEFAULT = {
   oneManArmy: 15, hype: 1, _formulaVersion: 2
 };
 
+/*EMOJI-URLS-START*/
 const AWARD_EMOJI_URLS = {
   ballon: 'https://cdn.discordapp.com/emojis/1496862833542037646.png?format=webp&quality=lossless',
   playmaker: 'https://cdn.discordapp.com/emojis/1439706722255241236.png?format=webp&quality=lossless',
@@ -440,8 +451,9 @@ const AWARD_EMOJI_URLS = {
   defender: 'https://cdn.discordapp.com/emojis/1510737621515763877.png?format=webp&quality=lossless',
   oma: 'https://cdn.discordapp.com/emojis/1555406046175170642.png?format=webp&quality=lossless'
 };
+/*EMOJI-URLS-END*/
 function awardEmoji(key, fallback){
-  const url = AWARD_EMOJI_URLS[key];
+  const url = ARCHIVE_MODE ? ((ARCHIVE.assets && ARCHIVE.assets.awardEmoji && ARCHIVE.assets.awardEmoji[key]) || '') : AWARD_EMOJI_URLS[key];
   return url ? `<img class="award-custom-icon" src="${url}" alt="${esc(fallback || key)}" crossorigin="anonymous" loading="lazy">` : (fallback || '🏅');
 }
 
@@ -686,6 +698,16 @@ async function castPlayerHype(playerId){
 }
 
 function loadLocal(){
+  if (ARCHIVE_MODE){
+    app.state = hydrate(ARCHIVE.state);
+    app.state.logs = [];
+    migrate();
+    app._cloudLoaded = true;
+    app._hypeDocs = JSON.parse(JSON.stringify(ARCHIVE.hypeDocs || {}));
+    app._hypeReady = false;
+    rebuildHypeCountMap();
+    return;
+  }
   try {
     const raw = localStorage.getItem(LS_KEY);
     app.state = hydrate(raw ? JSON.parse(raw) : null);
@@ -701,6 +723,7 @@ function loadLocal(){
 }
 
 async function saveState(opts){
+  if (ARCHIVE_MODE) return;
   opts = opts || {};
   if (firebaseReady && app.db && !app._cloudLoaded && !opts.force){
     toast('⏳ Still loading the cloud save, wait a second and try again', 'err');
@@ -726,6 +749,7 @@ async function saveState(opts){
 }
 
 async function logAdmin(action, before, after){
+  if (ARCHIVE_MODE) return;
   const entry = { ts: Date.now(), email: (app.user && app.user.email) || 'local-admin', action,
     before: before === undefined ? null : before, after: after === undefined ? null : after };
   app.state.logs.push(entry);
@@ -3015,6 +3039,7 @@ VIEWS.archive = () => {
     });
     html += `</div>`;
   }
+  if (ARCHIVE_MODE) return html;
   html += `<div class="section-title" style="margin-top:22px">Published HTML Archives</div>
     <div class="tiny muted" style="margin:-5px 0 12px">Read-only season snapshots hosted on the UEL GitHub Pages site.</div>
     <div id="published-html-archives"><div class="empty">Loading published archives…</div></div>`;
@@ -3126,16 +3151,23 @@ function renderNav(){
     `<button class="navbtn ${activeView === v ? 'active' : ''}" data-act="goto" data-view="${v}">
       <span class="emoji">${ic}</span>${label}</button>`).join('');
 
-  if (app.isAdmin){
+  if (!ARCHIVE_MODE && app.isAdmin){
     html += `<button class="navbtn admin ${app.currentView === 'logs' ? 'active' : ''}" data-act="goto" data-view="logs"><span class="emoji">🧾</span>Logs</button>`;
   }
-  html += app.isAdmin
+  if (!ARCHIVE_MODE) html += app.isAdmin
     ? `<button class="navbtn ghost" data-act="logout"><span class="emoji">🚪</span>Logout</button>`
     : `<button class="navbtn ghost" data-act="login"><span class="emoji">🔐</span>Admin Login</button>`;
 
   nav.innerHTML = html;
   $('#brandName').textContent = app.state.leagueName;
   $('#seasonChip').textContent = app.state.seasonName;
+  if (ARCHIVE_MODE){
+    const badge = $('#cloudBadge');
+    badge.textContent = 'ARCHIVE';
+    badge.className = 'cloud-badge off';
+    badge.title = 'Read-only offline snapshot exported ' + new Date(ARCHIVE.exportedAt).toLocaleString();
+    document.title = app.state.leagueName + ' — ' + app.state.seasonName + ' | UEL Archive';
+  }
 
   const chip = $('#userChip');
   if (app.user){
@@ -3161,9 +3193,16 @@ function render(){
   try { out = fn(); }
   catch(e){ console.error(e); out = `<div class="empty"><span class="big">💥</span>Render error: ${esc(e.message)}</div>`; }
   $('#view').innerHTML = out;
-  if (app.currentView === 'archive' && !app._archiveViewId) loadPublishedArchives();
+  if (ARCHIVE_MODE) $('#view [data-act="award:share"]').forEach(el => el.remove());
+  if (!ARCHIVE_MODE && app.currentView === 'archive' && !app._archiveViewId) loadPublishedArchives();
 
-  if (window.anime){
+  if (ARCHIVE_MODE){
+    if (typeof Element.prototype.animate === 'function'){
+      $('#view .anim, #view .card, #view .statbox').forEach((el, i) => {
+        try { el.animate([{ transform:'translateY(16px)', opacity:0 }, { transform:'translateY(0)', opacity:1 }], { duration:480, delay:i*24, easing:'cubic-bezier(.215,.61,.355,1)', fill:'backwards' }); } catch(e){}
+      });
+    }
+  } else if (window.anime){
     anime({
       targets: '#view .anim, #view .card, #view .statbox',
       translateY: [16, 0], opacity: [0, 1],
@@ -4121,6 +4160,7 @@ document.addEventListener('click', async e => {
   if (!el) return;
   const act = el.dataset.act;
   const id = el.dataset.id;
+  if (ARCHIVE_MODE && !ARCHIVE_ACTS.has(act)) return;
 
   if (act === 'goto'){ go(el.dataset.view); return; }
   if (act === 'modal:close'){ closeModal(); return; }
@@ -5302,9 +5342,9 @@ function playerProfileHTML(pid){
     <div class="hype-panel">
       <div class="hype-panel-copy"><b>🔥 Fanbase Hype</b><span>Give this player a boost in the Ballon d’Or race.</span></div>
       <div class="hype-panel-action"><div class="hype-total"><b id="playerHypeCount">${num(hypeCount)}</b><small>HYPES</small></div>
-        <button id="playerHypeButton" class="btn hype-fire" data-act="player:hype" data-id="${esc(p.id)}" ${alreadyHyped || !canHype ? 'disabled' : ''}>${alreadyHyped ? '🔥 Already Hyped' : canHype ? '🔥 Hype this player' : '🔥 Connecting…'}</button>
+        <button id="playerHypeButton" class="btn hype-fire" data-act="player:hype" data-id="${esc(p.id)}" ${ARCHIVE_MODE || alreadyHyped || !canHype ? 'disabled' : ''}>${ARCHIVE_MODE ? '🔥 Voting closed' : alreadyHyped ? '🔥 Already Hyped' : canHype ? '🔥 Hype this player' : '🔥 Connecting…'}</button>
       </div>
-      ${!canHype ? `<div class="hype-help">${app._hypeError ? 'Hype is temporarily unavailable. Please try again shortly.' : 'Connecting to the fanbase…'}</div>` : alreadyHyped ? `<div class="hype-help">You’ve already hyped this player this season.</div>` : ''}
+      ${ARCHIVE_MODE ? `<div class="hype-help">Final Hype total recorded when this season was archived.</div>` : !canHype ? `<div class="hype-help">${app._hypeError ? 'Hype is temporarily unavailable. Please try again shortly.' : 'Connecting to the fanbase…'}</div>` : alreadyHyped ? `<div class="hype-help">You’ve already hyped this player this season.</div>` : ''}
     </div>
 
     <div class="section-title" style="margin-top:14px">Stats</div>
@@ -5571,91 +5611,154 @@ function snapshotSlug(value){
   return String(value||'uel').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60)||'uel';
 }
 
-function downloadSeasonHTMLSnapshot(){
-  if (!app.isAdmin) return;
+/* ------------------------------------------------------------------
+   OFFLINE SEASON ARCHIVE EXPORT
+   The archive is this very website, frozen: the real UI code and CSS are
+   copied into one HTML file together with a JSON snapshot of the season.
+   When that file opens, ARCHIVE_MODE turns on (read-only, no Firebase,
+   no localStorage, no network) and every page renders from the snapshot.
+------------------------------------------------------------------- */
+async function imageToDataURL(url){
+  const withTimeout = (promise, ms) => Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+  try {
+    const resp = await withTimeout(fetch(url, { mode:'cors' }), 10000);
+    if (!resp.ok) throw new Error('http ' + resp.status);
+    const blob = await resp.blob();
+    if (!/^image\//i.test(blob.type)) throw new Error('not an image');
+    return await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(blob);
+    });
+  } catch(e){ /* fall through to canvas */ }
+  try {
+    return await withTimeout(new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth || 64; c.height = img.naturalHeight || 64;
+          c.getContext('2d').drawImage(img, 0, 0);
+          resolve(c.toDataURL('image/png'));
+        } catch(err){ reject(err); }
+      };
+      img.onerror = () => reject(new Error('image load failed'));
+      img.src = url;
+    }), 10000);
+  } catch(e){ return ''; }
+}
+
+function archiveFrozenResults(){
+  const standings = standingsSorted().map(r => [r.id, r.pts, r.gd, r.gf]);
+  const aw = buildAwards();
+  const awards = {};
+  (aw.teamAwards || []).concat(aw.playerAwards || []).forEach(a => {
+    awards[a.key] = (a.rows || []).slice(0, 10).map(r => [r.id || null, r.p2Id || null, r.label || null, Number(r.value) || 0]);
+  });
+  const ballon = ballonDor().slice(0, 10).map(r => [r.player.id, Math.round(r.pts * 100) / 100]);
+  return { standings, awards, ballon };
+}
+
+function verifyArchiveIntegrity(){
+  try {
+    const now = JSON.stringify(archiveFrozenResults());
+    const ok = now === JSON.stringify(ARCHIVE.frozen);
+    app._archiveIntegrity = ok;
+    if (!ok) console.warn('UEL archive: recomputed results differ from the frozen snapshot');
+    return ok;
+  } catch(e){ console.warn('UEL archive integrity check failed', e); app._archiveIntegrity = false; return false; }
+}
+
+async function downloadSeasonHTMLSnapshot(){
+  if (ARCHIVE_MODE || !app.isAdmin) return;
+  if (app._exportingArchive) return;
+  app._exportingArchive = true;
   try{
-    const state=JSON.parse(JSON.stringify(app.state));
-    const stats=computePlayerStats();
-    const standings=standingsSorted().map(r=>({id:r.id,name:r.name,mp:r.mp,w:r.w,d:r.d,l:r.l,gf:r.gf,ga:r.ga,gd:r.gd,pts:r.pts}));
-    const players=state.players.map(p=>{const x=stats[p.id]||{},t=state.teams.find(z=>z.id===p.teamId);return{id:p.id,name:p.name,teamId:p.teamId,team:t?t.name:'No team',goals:x.goals||0,assists:x.assists||0,saves:x.saves||0,tackles:x.tackles||0,mvp:x.mvp||0,motm:x.motm||0,matches:x.matches||0,legsPlayed:x.legsPlayed||0,value:x.playerValue||0,startingValue:x.startingValue||0,growth:x.growth||0,legLog:x.legLog||[]}}).sort((a,b)=>b.goals-a.goals||b.assists-a.assists);
-    const aw=buildAwards(),awards=(aw.teamAwards||[]).concat(aw.playerAwards||[]).map(a=>({title:a.title,description:a.desc,rows:(a.rows||[]).map(x=>({name:x.p2Id?((playerById(x.id)||{}).name||'Unknown'):(x.label||((playerById(x.id)||teamById(x.id)||{}).name)||'Unknown'),secondPlayer:x.p2Id?(playerById(x.p2Id)||{}).name||'Unknown':null,value:x.value,details:x.sub||''}))}));
-    const snapshot={format:'UEL_READ_ONLY_ARCHIVE',version:2,exportedAt:new Date().toISOString(),leagueName:state.leagueName,seasonName:state.seasonName,summary:{teamCount:state.teams.length,playerCount:state.players.length,matchCount:state.matches.length,fixtureCount:state.fixtures.length},standings,playerStats:players,awards,hypeCounts:JSON.parse(JSON.stringify(app._hypeCounts||{})),state};
-    const json=JSON.stringify(snapshot).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
-    function archiveRuntime(){
-      const D=JSON.parse(document.getElementById('uel-data').textContent),S=D.state||{},$=q=>document.querySelector(q),$$=q=>Array.from(document.querySelectorAll(q));
-      const e=v=>String(v==null?'—':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-      const team=id=>(S.teams||[]).find(x=>x.id===id)||{},player=id=>(S.players||[]).find(x=>x.id===id)||{};
-      const date=v=>{if(!v)return'—';const n=Number(v),d=new Date(n>0&&n<1e12?n*1000:v);return isNaN(d.getTime())?String(v):d.toLocaleDateString()};
-      const legs=m=>{const a=[];for(let i=1;i<=4;i++){const x=m['leg'+i+'ScoreA'],y=m['leg'+i+'ScoreB'];if(x!==null&&x!==undefined&&x!==''&&y!==null&&y!==undefined&&y!=='')a.push({n:i,a:+x||0,b:+y||0})}return a};
-      const agg=m=>{const l=legs(m),a=l.reduce((n,x)=>n+x.a,0),b=l.reduce((n,x)=>n+x.b,0);return{legs:l,a:Math.max(0,a),b:Math.max(0,b)}};
-      const pLink=p=>'<a href="#player/'+encodeURIComponent(p.id)+'">'+e(p.name)+'</a>',tLink=t=>'<a href="#team/'+encodeURIComponent(t.id)+'">'+e(t.name)+'</a>';
-      const panel=(h,b)=>'<section class="panel"><h2>'+h+'</h2>'+b+'</section>';
-      const table=(heads,rows)=>'<div class="table-wrap"><table><thead><tr>'+heads.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+(rows.length?rows.join(''):'<tr><td colspan="'+heads.length+'" class="muted">No records available</td></tr>')+'</tbody></table></div>';
-      const stat=(k,v)=>'<div class="stat"><small>'+e(k)+'</small><b>'+e(v)+'</b></div>';
-      const matchCard=m=>{const a=agg(m),A=team(m.teamAId),B=team(m.teamBId);return'<a class="match-card" href="#match/'+encodeURIComponent(m.id)+'"><small>'+e(m.competition||'League')+' · '+date(m.date||m.timestamp)+'</small><div><b>'+e(A.name||'Team A')+'</b><strong>'+(a.legs.length?a.a+' : '+a.b:'VS')+'</strong><b>'+e(B.name||'Team B')+'</b></div><small>Open match report →</small></a>'};
-      function render(){
-        const route=location.hash.replace(/^#\/?/,'').split('/'),view=route[0]||'overview',id=route[1]?decodeURIComponent(route[1]):'',content=$('#content');let html='';
-        $$('.nav a').forEach(a=>a.classList.toggle('active',a.dataset.view===view));
-        if(view==='overview'){
-          html='<div class="hero"><small>OFFICIAL SEASON ARCHIVE</small><h1>'+e(D.leagueName)+' <span>/ '+e(D.seasonName)+'</span></h1><p>Complete season records, player profiles, club pages and match reports. This archive works offline.</p><div class="stats-grid">'+stat('Teams',D.summary.teamCount)+stat('Players',D.summary.playerCount)+stat('Matches',D.summary.matchCount)+stat('Fixtures',D.summary.fixtureCount)+'</div></div>';
-          html+=panel('Final standings',table(['#','Team','MP','W','D','L','GD','PTS'],D.standings.map((x,i)=>'<tr><td class="gold">'+(i+1)+'</td><td>'+tLink(team(x.id))+'</td><td>'+x.mp+'</td><td>'+x.w+'</td><td>'+x.d+'</td><td>'+x.l+'</td><td>'+x.gd+'</td><td class="gold">'+x.pts+'</td></tr>')));
-          html+=panel('Top players',table(['Player','Team','G','A','SV','TK','Matches'],D.playerStats.slice(0,10).map(x=>'<tr><td>'+pLink(player(x.id))+'</td><td>'+tLink(team(x.teamId))+'</td><td>'+x.goals+'</td><td>'+x.assists+'</td><td>'+x.saves+'</td><td>'+x.tackles+'</td><td>'+x.matches+'</td></tr>')));
-          html+=panel('Recent matches','<div class="match-grid">'+S.matches.slice().sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)).slice(0,6).map(matchCard).join('')+'</div>');
-        }else if(view==='standings'){
-          html='<div class="page-title"><small>COMPETITION</small><h1>League standings</h1></div>'+panel('Final table',table(['#','Team','MP','W','D','L','GF','GA','GD','PTS'],D.standings.map((x,i)=>'<tr><td class="gold">'+(i+1)+'</td><td>'+tLink(team(x.id))+'</td><td>'+x.mp+'</td><td>'+x.w+'</td><td>'+x.d+'</td><td>'+x.l+'</td><td>'+x.gf+'</td><td>'+x.ga+'</td><td>'+x.gd+'</td><td class="gold">'+x.pts+'</td></tr>')));
-        }else if(view==='players'){
-          html='<div class="page-title"><small>PLAYER DATABASE</small><h1>All players</h1><p>Open a name to view the full profile and match history.</p><input id="search" placeholder="Search players or clubs…"></div>'+panel('Player registry',table(['Player','Team','Matches','Legs','G','A','SV','TK','Value'],D.playerStats.map(x=>'<tr data-search="'+e((x.name+' '+x.team).toLowerCase())+'"><td>'+pLink(player(x.id))+'</td><td>'+tLink(team(x.teamId))+'</td><td>'+x.matches+'</td><td>'+x.legsPlayed+'</td><td>'+x.goals+'</td><td>'+x.assists+'</td><td>'+x.saves+'</td><td>'+x.tackles+'</td><td>'+Number(x.value||0).toLocaleString()+'</td></tr>')));
-        }else if(view==='player'){
-          const p=player(id),x=D.playerStats.find(z=>z.id===id)||{};if(!p.id)html='<div class="empty">Player not found.</div>';else{
-            const history=S.matches.filter(m=>m.playerStats&&m.playerStats[id]).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)),rows=[];
-            history.forEach(m=>(m.playerStats[id]||[]).forEach((l,i)=>{if(l&&l.played)rows.push('<tr><td><a href="#match/'+encodeURIComponent(m.id)+'">'+e(team(m.teamAId).name)+' vs '+e(team(m.teamBId).name)+'</a></td><td>'+date(m.date||m.timestamp)+'</td><td>'+(i+1)+'</td><td>'+(l.goals||l.g||0)+'</td><td>'+(l.assists||l.a||0)+'</td><td>'+(l.saves||l.s||0)+'</td><td>'+(l.tackles||l.t||0)+'</td></tr>')}));
-            html='<p class="back"><a href="#players">← All players</a></p><div class="profile-hero"><small>PLAYER PROFILE</small><h1>'+e(p.name)+'</h1><p>'+(p.freeAgent?'Free agent':tLink(team(p.teamId)))+(p.loanStatus?' · Loan player':'')+'</p><div class="stats-grid">'+stat('Goals',x.goals)+stat('Assists',x.assists)+stat('Saves',x.saves)+stat('Tackles',x.tackles)+stat('Matches',x.matches)+stat('Legs played',x.legsPlayed)+stat('MVP',x.mvp)+stat('MOTM',x.motm)+stat('Player value',Number(x.value||0).toLocaleString())+'</div></div>';
-            html+=panel('Match history',table(['Match','Date','Leg','G','A','SV','TK'],rows));
-            if(p.transferHistory||p.transfers)html+=panel('Transfer history','<pre>'+e(JSON.stringify(p.transferHistory||p.transfers,null,2))+'</pre>');
-          }
-        }else if(view==='teams'){
-          html='<div class="page-title"><small>CLUB DIRECTORY</small><h1>All teams</h1></div><div class="team-grid">'+S.teams.map(t=>{const r=D.standings.find(x=>x.id===t.id)||{};return'<a class="team-card" href="#team/'+encodeURIComponent(t.id)+'"><b class="team-mark">'+e((t.name||'?').slice(0,1))+'</b><span><strong>'+e(t.name)+'</strong><small>'+(S.players.filter(p=>p.teamId===t.id&&!p.freeAgent).length)+' players</small></span><b class="gold">'+(r.pts||0)+' PTS</b></a>'}).join('')+'</div>';
-        }else if(view==='team'){
-          const t=team(id),r=D.standings.find(x=>x.id===id)||{};if(!t.id)html='<div class="empty">Team not found.</div>';else{
-            const squad=D.playerStats.filter(x=>x.teamId===id),matches=S.matches.filter(m=>m.teamAId===id||m.teamBId===id).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
-            html='<p class="back"><a href="#teams">← All teams</a></p><div class="profile-hero"><small>CLUB PROFILE</small><h1>'+e(t.name)+'</h1><div class="stats-grid">'+stat('Points',r.pts||0)+stat('Played',r.mp||0)+stat('Wins',r.w||0)+stat('Draws',r.d||0)+stat('Losses',r.l||0)+stat('Goals for',r.gf||0)+stat('Goals against',r.ga||0)+'</div></div>';
-            html+=panel('Squad',table(['Player','Matches','G','A','SV','TK','Value'],squad.map(x=>'<tr><td>'+pLink(player(x.id))+'</td><td>'+x.matches+'</td><td>'+x.goals+'</td><td>'+x.assists+'</td><td>'+x.saves+'</td><td>'+x.tackles+'</td><td>'+Number(x.value||0).toLocaleString()+'</td></tr>')));
-            html+=panel('Match history','<div class="match-grid">'+matches.map(matchCard).join('')+'</div>');
-          }
-        }else if(view==='matches'||view==='fixtures'){
-          const list=view==='matches'?S.matches:(S.fixtures||[]);html='<div class="page-title"><small>MATCH CENTRE</small><h1>'+(view==='matches'?'Match reports':'Fixtures')+'</h1></div><div class="match-grid">'+list.map(matchCard).join('')+'</div>';
-        }else if(view==='match'){
-          const m=S.matches.find(x=>x.id===id);if(!m)html='<div class="empty">Match not found.</div>';else{
-            const A=team(m.teamAId),B=team(m.teamBId),a=agg(m),rows=[];Object.keys(m.playerStats||{}).forEach(pid=>(m.playerStats[pid]||[]).forEach((l,i)=>{if(l&&l.played){const p=player(pid),tid=(m.playerTeams||{})[pid]||p.teamId;rows.push('<tr><td>'+pLink(p)+'</td><td>'+e(team(tid).name)+'</td><td>'+(i+1)+'</td><td>'+(l.goals||l.g||0)+'</td><td>'+(l.assists||l.a||0)+'</td><td>'+(l.saves||l.s||0)+'</td><td>'+(l.tackles||l.t||0)+'</td></tr>')}}));
-            html='<p class="back"><a href="#matches">← All matches</a></p><div class="score-hero"><small>'+e(m.competition||'LEAGUE')+' · '+date(m.date||m.timestamp)+'</small><div class="scoreline"><b>'+e(A.name)+'</b><strong>'+(a.legs.length?a.a+' — '+a.b:'VS')+'</strong><b>'+e(B.name)+'</b></div><p>'+(a.legs.length?'FULL TIME · '+a.legs.length+' LEGS':'RESULT NOT RECORDED')+'</p></div>';
-            html+=panel('Leg-by-leg score',table(['Leg',A.name||'Team A',B.name||'Team B'],a.legs.map(l=>'<tr><td>Leg '+l.n+'</td><td>'+l.a+'</td><td>'+l.b+'</td></tr>')));
-            html+=panel('Player match statistics',table(['Player','Team','Leg','G','A','SV','TK'],rows));
-            if(m.mvpId||m.motmId)html+=panel('Match awards','<div class="stats-grid">'+(m.mvpId?stat('MVP',player(m.mvpId).name):'')+(m.motmId?stat('Man of the match',player(m.motmId).name):'')+'</div>');
-          }
-        }else if(view==='awards'){
-          html='<div class="page-title"><small>SEASON HONOURS</small><h1>Awards & rankings</h1></div>'+D.awards.map(a=>panel(e(a.title),'<p class="muted">'+e(a.description||'')+'</p><ol>'+(a.rows||[]).map(x=>'<li><b>'+e(x.name)+(x.secondPlayer?' &amp; '+e(x.secondPlayer):'')+'</b> — '+e(x.value)+' <span class="muted">'+e(x.details||'')+'</span></li>').join('')+'</ol>')).join('');
-        }else if(view==='tournaments'){
-          html='<div class="page-title"><small>COMPETITIONS</small><h1>Tournaments</h1></div>'+(S.tournaments||[]).map(x=>panel(e(x.name||x.title||'Tournament'),'<pre>'+e(JSON.stringify(x,null,2))+'</pre>')).join('')||'<div class="empty">No tournament data.</div>';
-        }else if(view==='data'){
-          html='<div class="page-title"><small>FULL SOURCE SNAPSHOT</small><h1>Complete season data</h1><p>All original website records are embedded in this file.</p></div>'+panel('Raw JSON','<button class="btn" id="download-json">Download JSON</button><pre>'+e(JSON.stringify(S,null,2))+'</pre>');
-        }else{location.hash='#overview';return}
-        content.innerHTML=html;
-        const search=$('#search');if(search)search.addEventListener('input',()=>$$('[data-search]').forEach(row=>row.hidden=row.dataset.search.indexOf(search.value.toLowerCase())<0));
-        const dl=$('#download-json');if(dl)dl.addEventListener('click',()=>{const u=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='uel-season-data.json';a.click();URL.revokeObjectURL(u)});
-      }
-      document.addEventListener('click',ev=>{const a=ev.target.closest('a[href^="#"]');if(a&&a.getAttribute('href').indexOf('#/')===0){ev.preventDefault();location.hash=a.getAttribute('href').slice(1)}});
-      window.addEventListener('hashchange',render);render();
+    toast('📦 Building the offline archive… embedding images and data', 'ok');
+    const state = JSON.parse(JSON.stringify(app.state));
+    state.logs = [];
+    delete state._needsHypeCyclePersist;
+    delete state._needsBallonFormulaPersist;
+    state.settings.isAdmin = false;
+
+    /* Fan Hype totals live outside the league document; freeze the current cycle's totals. */
+    const cycle = currentHypeCycleId();
+    const hypeDocs = {};
+    Object.keys(app._hypeDocs || {}).forEach(k => {
+      const d = app._hypeDocs[k] || {};
+      if (d.cycleId === cycle && d.playerId) hypeDocs[k] = { cycleId: d.cycleId, playerId: d.playerId, count: Math.max(0, Number(d.count) || 0) };
+    });
+
+    /* Embed every remote image so the file needs no network. */
+    const assets = { awardEmoji: {} };
+    let missing = 0;
+    for (const key of Object.keys(AWARD_EMOJI_URLS)){
+      const data = await imageToDataURL(AWARD_EMOJI_URLS[key]);
+      if (data) assets.awardEmoji[key] = data; else missing++;
     }
-    const runtime='('+archiveRuntime.toString()+')();';
-    const title=String(snapshot.leagueName||'UEL')+' — '+String(snapshot.seasonName||'Season');
-    const page='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090d17"><title>'+esc(title)+' | UEL Archive</title><style>'+
-      '*{box-sizing:border-box}body{margin:0;background:#090d17;color:#edf1fb;font:15px/1.55 Inter,system-ui,sans-serif}a{color:#f0cf70;text-decoration:none}a:hover{text-decoration:underline}.top{height:66px;background:#0e1522;border-bottom:1px solid #293247;display:flex;align-items:center;justify-content:space-between;padding:0 25px;position:sticky;top:0;z-index:3}.brand{font-weight:950;letter-spacing:2px}.brand b{display:inline-grid;place-items:center;background:#e8c35e;color:#17130a;width:34px;height:34px;border-radius:10px;margin-right:10px}.brand small{display:block;color:#78869f;font-size:9px;letter-spacing:2px;margin-left:46px;margin-top:-8px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);max-width:1450px;margin:auto;min-height:calc(100vh - 66px)}aside{background:#0d1320;border-right:1px solid #293247;padding:22px 12px}.nav{display:grid;gap:5px}.nav a{padding:11px 12px;border-radius:9px;color:#aeb8ca;font-weight:700}.nav a.active,.nav a:hover{background:#202a3d;color:#f5d77d;text-decoration:none}main{padding:30px clamp(14px,3vw,42px) 65px;max-width:1200px;width:100%;margin:auto}.hero,.profile-hero,.score-hero{padding:28px;border:1px solid #333b50;border-radius:18px;background:radial-gradient(ellipse at 85% 0%,#37334b,transparent 45%),linear-gradient(130deg,#192236,#101725);margin-bottom:20px}.hero h1,.profile-hero h1{font-size:clamp(28px,5vw,44px);margin:8px 0}.hero h1 span{color:#c6a95d}.hero p,.page-title p,.profile-hero p{color:#9ba8bd}.hero small,.profile-hero small,.score-hero small,.page-title small{color:#e7c45f;letter-spacing:2px;font-size:10px;font-weight:900}.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:9px;margin-top:22px}.stat{background:#0c1422;border:1px solid #2b354b;border-radius:12px;padding:13px;min-width:0}.stat small{display:block;color:#8794aa;font-size:10px;text-transform:uppercase;letter-spacing:1px}.stat b{display:block;color:#f0d276;font-size:23px;overflow-wrap:anywhere}.panel{background:#121a29;border:1px solid #29354a;border-radius:15px;padding:19px;margin:0 0 16px;min-width:0}.panel h2{font-size:18px;margin:0 0 12px}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:560px}th{text-align:left;color:#8290a8;font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:11px;border-bottom:1px solid #344056}td{padding:11px;border-bottom:1px solid #273248;white-space:nowrap}tr:hover{background:#192438}.gold{color:#f1d071;font-weight:900}.match-grid,.team-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}.match-card,.team-card{display:block;background:#0d1523;border:1px solid #2c374d;border-radius:13px;padding:15px;color:#edf1fb}.match-card:hover,.team-card:hover{border-color:#c2a050;text-decoration:none}.match-card small,.team-card small{display:block;color:#8492aa;font-size:11px}.match-card div{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin:15px 0}.match-card div b:last-child{text-align:right}.match-card strong{color:#f2d16e;font-size:18px}.team-card{display:flex;align-items:center;gap:12px}.team-card>span{flex:1}.team-mark{background:#d5b55e;color:#111;width:38px;height:38px;border-radius:10px;display:grid;place-items:center}.page-title{margin-bottom:20px}.page-title h1{font-size:34px;margin:5px 0}.back{margin:0 0 14px;color:#91a0b7}.scoreline{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;text-align:center}.scoreline strong{font-size:clamp(28px,6vw,48px);color:#f2d16e;white-space:nowrap}.score-hero>p{text-align:center;color:#94a1b8;font-size:11px;letter-spacing:2px}.muted{color:#8b99b0}.empty{text-align:center;color:#8b99b0;padding:25px}.btn{border:0;background:#e4c35f;color:#18150d;padding:9px 14px;border-radius:8px;font-weight:850}input{background:#0b1320;border:1px solid #34415a;border-radius:9px;padding:11px 13px;color:white;width:100%;max-width:420px;margin:12px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b1320;padding:14px;border-radius:10px;max-height:650px;overflow:auto;color:#b9c6d9;font-size:12px}.foot{text-align:center;padding:28px;color:#697791;font-size:11px}@media(max-width:740px){.layout{display:block}.top{height:58px;padding:0 14px}aside{position:sticky;top:58px;z-index:2;padding:7px;overflow-x:auto;border-right:0;border-bottom:1px solid #293247}.nav{display:flex;min-width:max-content}.nav a{padding:9px 10px;font-size:12px}main{padding:16px 11px 45px}.hero,.profile-hero,.score-hero{padding:19px}.panel{padding:14px}.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}'+
-      '</style></head><body><header class="top"><div class="brand"><b>U</b>UEL<small>SEASON ARCHIVE</small></div><span class="muted">'+esc(title)+' · READ ONLY</span></header><div class="layout"><aside><nav class="nav">'+
-      '<a href="#overview" data-view="overview">Overview</a><a href="#standings" data-view="standings">Standings</a><a href="#players" data-view="players">Players</a><a href="#teams" data-view="teams">Teams</a><a href="#matches" data-view="matches">Matches</a><a href="#fixtures" data-view="fixtures">Fixtures</a><a href="#awards" data-view="awards">Awards</a><a href="#tournaments" data-view="tournaments">Tournaments</a><a href="#data" data-view="data">Raw data</a></nav></aside><main id="content"><div class="empty">Loading archive…</div></main></div><div class="foot">UEL · Static offline snapshot · Exported '+esc(new Date(snapshot.exportedAt).toLocaleString())+' · No Firebase connection</div><script type="application/json" id="uel-data">'+json+'</scr'+'ipt><script>'+runtime+'</scr'+'ipt></body></html>';
-    const blob=new Blob([page],{type:'text/html;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
-    link.href=url;link.download=snapshotSlug(snapshot.leagueName)+'-'+snapshotSlug(snapshot.seasonName)+'-archive.html';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
-    toast('Complete read-only season website downloaded. Upload it to the GitHub archives/ folder.','ok');
-  }catch(error){console.error('Archive HTML export failed:',error);toast('Could not export the season HTML. Check the console for details.','err')}
+    for (const t of state.teams){
+      const logo = t.logo ? String(t.logo).trim() : '';
+      if (/^(https?:)?\/\//i.test(logo) || /^blob:/i.test(logo)){
+        const data = await imageToDataURL(logo);
+        if (data) t.logo = data; else { t.logo = ''; missing++; }
+      }
+    }
+
+    const frozen = archiveFrozenResults();
+    const snapshot = {
+      format: 'UEL_OFFLINE_ARCHIVE', version: 3,
+      exportedAt: new Date().toISOString(),
+      leagueName: state.leagueName, seasonName: state.seasonName,
+      summary: { teams: state.teams.length, players: state.players.length, matches: state.matches.length, fixtures: state.fixtures.length, tournaments: state.tournaments.length },
+      state, hypeDocs, assets, frozen
+    };
+    const json = JSON.stringify(snapshot).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+
+    /* Clone the real page shell, CSS and application code. */
+    const clone = document.documentElement.cloneNode(true);
+    clone.querySelectorAll('script[src]').forEach(n => n.remove());
+    clone.querySelectorAll('.discord-header-btn').forEach(n => n.remove());
+    ['view', 'nav', 'modalRoot', 'toastRoot'].forEach(id => {
+      const n = clone.querySelector('#' + id);
+      if (n){ n.innerHTML = ''; n.classList.remove('open'); }
+    });
+    const body = clone.querySelector('body');
+    if (body) body.removeAttribute('style');
+    const mainEl = clone.querySelector('#uelMain');
+    if (!mainEl) throw new Error('Application script not found');
+    const code = mainEl.textContent;
+    const stripped = code.replace(/\/\*FB-CONFIG-START\*\/[\s\S]*?\/\*FB-CONFIG-END\*\//, 'const FIREBASE_CONFIG = {};\nconst ADMIN_EMAILS = [];');
+    if (stripped === code) throw new Error('Could not remove the Firebase configuration');
+    /* The remote emoji URLs are replaced by the embedded copies, so drop them from the file. */
+    const stripped2 = stripped.replace(/\/\*EMOJI-URLS-START\*\/[\s\S]*?\/\*EMOJI-URLS-END\*\//, 'const AWARD_EMOJI_URLS = {};');
+    if (stripped2 === stripped) throw new Error('Could not remove the remote emoji URLs');
+    mainEl.textContent = stripped2;
+    const data = document.createElement('script');
+    data.type = 'application/json';
+    data.id = 'uel-archive-data';
+    data.textContent = json;
+    mainEl.parentNode.insertBefore(data, mainEl);
+    const titleEl = clone.querySelector('title');
+    if (titleEl) titleEl.textContent = state.leagueName + ' — ' + state.seasonName + ' | UEL Archive';
+
+    const page = '<!DOCTYPE html>\n<!-- UEL read-only offline season archive. Exported ' + snapshot.exportedAt + '. -->\n' + clone.outerHTML;
+    const blob = new Blob([page], { type:'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = snapshotSlug(snapshot.leagueName) + '-' + snapshotSlug(snapshot.seasonName) + '-archive.html';
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    app._lastExport = { bytes: page.length, missingImages: missing };
+    toast('✅ Offline season archive downloaded (' + (page.length / 1048576).toFixed(2) + ' MB)' + (missing ? ' · ' + missing + ' remote image(s) could not be embedded and use the default icon' : '') + '. Upload it to the GitHub archives/ folder.', 'ok');
+  }catch(error){
+    console.error('Archive HTML export failed:', error);
+    toast('Could not export the season HTML: ' + esc(error.message || error), 'err');
+  }finally{
+    app._exportingArchive = false;
+  }
 }
 
 async function loadPublishedArchives(){
@@ -5730,6 +5833,11 @@ async function archiveSeason(){
 
 (function boot(){
   loadLocal();
+  if (ARCHIVE_MODE){
+    const discord = document.querySelector('.discord-header-btn');
+    if (discord) discord.remove();
+    verifyArchiveIntegrity();
+  }
   if (location.hash) applyHashRoute();
   if (firebaseReady) initFirebase();
   else {
