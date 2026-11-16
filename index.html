@@ -3029,7 +3029,7 @@ VIEWS.archive = () => {
         html += '<div class="card anim"><div class="between"><b>' + esc(a.leagueName) + ' — ' + esc(a.seasonName) + '</b><span class="pill go">' + new Date(a.archivedAt || a.addedAt || Date.now()).toLocaleDateString() + '</span></div><div class="hint" style="margin:8px 0 12px">Published season archive</div><a class="btn gold" href="' + esc(a.linkUrl) + '" target="_blank" rel="noopener noreferrer">↗ Open Season</a>' + (app.isAdmin ? '<div style="margin-top:9px"><button class="btn sm danger" data-act="archive:del" data-id="' + esc(a.id) + '">🗑️ Delete</button></div>' : '') + '</div>';
         return;
       }
-      html += `<div class="card clickable anim" data-act="archive:view" data-id="${a.id}>
+      html += `<div class="card clickable anim" data-act="archive:view" data-id="${a.id}">
         <div class="between">
           <b>${esc(a.leagueName)} — ${esc(a.seasonName)}</b>
           <span class="pill go">${new Date(a.archivedAt).toLocaleDateString()}</span>
