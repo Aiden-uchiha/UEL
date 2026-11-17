@@ -296,6 +296,26 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 @media(max-width:760px){.md-overview-grid{grid-template-columns:1fr}.md-lineup-grid{grid-template-columns:1fr}}
 @media(max-width:600px){.md-hero{padding:14px 10px}.md-hero-teams{grid-template-columns:minmax(0,1fr) 88px minmax(0,1fr);gap:5px;padding:18px 0}.md-club{flex-direction:column;gap:6px;font-size:11px}.md-club .tlogo{width:44px!important;height:44px!important}.md-score{gap:5px;font-size:26px}.md-vs{font-size:20px}.md-tabs button{padding:11px 8px;font-size:9px}.md-panel{padding:11px}.md-breadcrumb{font-size:10px}}
 @media (max-width:640px){body{font-size:14px}.brand{font-size:16px;letter-spacing:1.6px}.view-head h2{font-size:16px}.modal-body{padding:12px;max-height:calc(100vh - 130px)}.btn{padding:8px 12px;font-size:10.5px}table{font-size:12px;min-width:460px}th,td{padding:7px 8px}.grid.g3{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.grid.g4{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}
+
+/* Anonymous fixture predictions */
+.prediction-panel{margin:10px 0 2px;padding:10px;border:1px solid rgba(0,240,255,.16);border-radius:10px;background:linear-gradient(135deg,rgba(0,240,255,.045),rgba(255,43,214,.035))}
+.prediction-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;color:var(--dim);font-size:9px;font-weight:900;letter-spacing:1.25px;text-transform:uppercase}
+.prediction-head b{color:var(--cyan);font-size:10px;white-space:nowrap}
+.prediction-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.prediction-choice{min-width:0;min-height:76px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1px solid rgba(255,255,255,.10);border-radius:8px;background:rgba(0,0,0,.22);color:var(--txt);font-family:inherit;cursor:pointer;transition:all .16s}
+.prediction-choice:hover:not(:disabled){border-color:var(--cyan);background:rgba(0,240,255,.10);transform:translateY(-1px)}
+.prediction-choice b{max-width:100%;font-size:10.5px;line-height:1.25;text-align:center;overflow-wrap:anywhere}
+.prediction-choice .pred-caption{color:var(--dim);font-size:8px;font-weight:900;letter-spacing:1px;text-transform:uppercase}
+.prediction-choice .pred-votes{color:var(--dim);font-size:9px;font-variant-numeric:tabular-nums}
+.prediction-choice .pred-track{width:100%;height:4px;margin-top:2px;overflow:hidden;border-radius:99px;background:rgba(255,255,255,.08)}
+.prediction-choice .pred-track i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--cyan),var(--magenta));transition:width .35s ease}
+.prediction-choice.selected{border-color:var(--lime);background:rgba(139,255,60,.10);box-shadow:inset 0 0 14px rgba(139,255,60,.08)}
+.prediction-choice.selected .pred-votes{color:var(--lime)}
+.prediction-choice.leader:not(.selected){border-color:rgba(0,240,255,.5)}
+.prediction-choice:disabled{cursor:default;opacity:.88}
+.prediction-foot{margin-top:8px;color:var(--dim);font-size:9.5px;line-height:1.4;text-align:center}
+@media(max-width:390px){.prediction-choice{padding:7px 3px}.prediction-choice b{font-size:9px}.prediction-choice .pred-caption{font-size:7px}}
+
 </style>
 </head>
 <body>
@@ -484,7 +504,8 @@ const app = {
   state: null, currentView: 'registry', user: null, isAdmin: false,
   firebaseReady, db: null, auth: null, _draft: null, _suppress: false, _cloudLoaded: false,
   _hypeReady: false, _hypeError: null, _hypeAuthRequested: false, _hypeAuthPromise: null,
-  _hypeDocs: {}, _hypeCounts: {}, _hypedPlayerIds: {}, _activePlayerProfileId: null
+  _hypeDocs: {}, _hypeCounts: {}, _hypedPlayerIds: {}, _activePlayerProfileId: null,
+  _predictionCounts: {}, _predictionVotes: {}, _predictionVotesReady: false, _predictionReady: false, _predictionSubmitting: {}, _predictionVoteUnsub: null
 };
 window.app = app;
 const econ = () => app.state.settings.economy;
@@ -632,6 +653,136 @@ async function ensureHypeFanIdentity(){
     });
   }
   return app._hypeAuthPromise;
+}
+
+
+/* Fixture predictions use the existing public voting collections, with
+   namespaced document IDs so they never overlap player Hype records. */
+function predictionCounterId(fixtureId){ return 'prediction_' + String(fixtureId); }
+function predictionVoteId(fixtureId, uid){ return 'prediction_' + String(fixtureId) + '_' + String(uid); }
+
+function watchMyFixturePredictions(uid){
+  if (app._predictionVoteUnsub){ app._predictionVoteUnsub(); app._predictionVoteUnsub = null; }
+  app._predictionVotes = {};
+  app._predictionVotesReady = false;
+  if (!firebaseReady || !app.db || !uid) return;
+
+  app._predictionVoteUnsub = app.db.collection('hype_votes').where('uid', '==', uid).onSnapshot(snap => {
+    if (!app.user || app.user.uid !== uid) return;
+    const votes = {};
+    snap.forEach(doc => {
+      const data = doc.data() || {};
+      if (data.kind === 'fixture_prediction' && data.fixtureId && ['home','draw','away'].includes(data.choice)){
+        votes[data.fixtureId] = data.choice;
+      }
+    });
+    app._predictionVotes = votes;
+    app._predictionVotesReady = true;
+    render();
+  }, error => {
+    console.warn('Could not load the current user\'s fixture predictions', error);
+    app._predictionVotesReady = false;
+    app._predictionVoteError = error.code || error.message || 'Prediction status unavailable';
+    render();
+  });
+}
+
+function fixturePredictionsHTML(fixture){
+  if (ARCHIVE_MODE || !firebaseReady || !app.db) return '';
+  const A = teamById(fixture.teamAId), B = teamById(fixture.teamBId);
+  const raw = app._predictionCounts[fixture.id] || {};
+  const counts = {
+    home: Math.max(0, Number(raw.home) || 0),
+    draw: Math.max(0, Number(raw.draw) || 0),
+    away: Math.max(0, Number(raw.away) || 0)
+  };
+  const total = counts.home + counts.draw + counts.away;
+  const maxVotes = Math.max(counts.home, counts.draw, counts.away);
+  const mine = app._predictionVotes[fixture.id] || null;
+  const choices = [
+    {key:'home',caption:'HOME WIN',label:A.name,count:counts.home},
+    {key:'draw',caption:'DRAW',label:'Draw',count:counts.draw},
+    {key:'away',caption:'AWAY WIN',label:B.name,count:counts.away}
+  ];
+  const waiting = !app.user || !app.user.uid || !app._predictionReady || !app._predictionVotesReady;
+  const disabled = !!fixture.played || waiting || !!app._predictionSubmitting[fixture.id];
+  const note = fixture.played ? 'Voting closed · final prediction totals' :
+    mine ? 'Your anonymous pick: ' + (choices.find(x=>x.key===mine)?.label || '—') + ' · choose another to change it' :
+    waiting ? (app._predictionVoteError ? 'Your vote status could not be checked. You can still try voting.' : 'Connecting to anonymous voting…') :
+    'Anonymous voting · you can change your pick until the match is recorded';
+  return `<section class="prediction-panel" aria-label="Anonymous fixture predictions">
+    <div class="prediction-head"><span>📊 Community Predictions</span><b>${num(total)} vote${total===1?'':'s'}</b></div>
+    <div class="prediction-options">
+      ${choices.map(option => {
+        const percent = total ? Math.round(option.count / total * 100) : 0;
+        const selected = mine === option.key;
+        const leader = total > 0 && option.count === maxVotes;
+        return `<button type="button" class="prediction-choice${selected?' selected':''}${leader?' leader':''}" data-pred-action="vote" data-fixture-id="${esc(fixture.id)}" data-choice="${option.key}" ${disabled?'disabled':''} title="${esc(option.label)}: ${option.count} votes (${percent}%)">
+          <span class="pred-caption">${option.caption}</span><b>${esc(option.label)}</b>
+          <span class="pred-votes">${num(option.count)} · ${percent}%</span>
+          <span class="pred-track"><i style="width:${percent}%"></i></span>
+        </button>`;
+      }).join('')}
+    </div>
+    <div class="prediction-foot">${esc(note)}</div>
+  </section>`;
+}
+
+async function castFixturePrediction(fixtureId, choice){
+  const fixture = fixtureById(fixtureId);
+  if (!fixture) return toast('⚠️ Fixture not found', 'err');
+  if (fixture.played) return toast('🔒 Voting is closed for this fixture', 'err');
+  if (!['home','draw','away'].includes(choice)) return;
+  if (!firebaseReady || !app.db || !app._predictionReady) return toast('⏳ Live predictions are still connecting. Try again shortly.', 'err');
+  if (app._predictionSubmitting[fixtureId]) return;
+
+  app._predictionSubmitting[fixtureId] = true;
+  render();
+  try {
+    const fan = await ensureHypeFanIdentity();
+    const uid = fan.uid;
+    const counterRef = app.db.collection('hype_counts').doc(predictionCounterId(fixtureId));
+    const voteRef = app.db.collection('hype_votes').doc(predictionVoteId(fixtureId, uid));
+    const result = await app.db.runTransaction(async tx => {
+      const voteSnap = await tx.get(voteRef);
+      const countSnap = await tx.get(counterRef);
+      const previousData = voteSnap.exists ? (voteSnap.data() || {}) : {};
+      const previous = previousData.kind === 'fixture_prediction' ? previousData.choice : null;
+      const countData = countSnap.exists ? (countSnap.data() || {}) : {};
+      const next = {
+        home: Math.max(0, Number(countData.home) || 0),
+        draw: Math.max(0, Number(countData.draw) || 0),
+        away: Math.max(0, Number(countData.away) || 0)
+      };
+      if (previous === choice) return {unchanged:true, counts:next};
+      if (['home','draw','away'].includes(previous)) next[previous] = Math.max(0, next[previous] - 1);
+      next[choice] += 1;
+      const serverTime = firebase.firestore.FieldValue.serverTimestamp();
+      tx.set(counterRef, {
+        kind:'fixture_prediction', fixtureId,
+        home:next.home, draw:next.draw, away:next.away,
+        total:next.home + next.draw + next.away, updatedAt:serverTime
+      });
+      tx.set(voteRef, {
+        kind:'fixture_prediction', fixtureId, uid, choice, updatedAt:serverTime
+      });
+      return {unchanged:false, counts:next};
+    });
+
+    app._predictionCounts[fixtureId] = result.counts;
+    app._predictionVotes[fixtureId] = choice;
+    if (result.unchanged) toast('✅ Your prediction is already set to that outcome', 'ok');
+    else toast('✅ Anonymous prediction saved', 'ok');
+  } catch(error){
+    console.error('Fixture prediction failed', error);
+    const reason = error.code === 'permission-denied'
+      ? 'Firestore blocked the prediction write. Check the public voting permissions.'
+      : (error.message || error.code || 'Unknown error');
+    toast('❌ Prediction could not be saved: ' + esc(reason), 'err');
+  } finally {
+    delete app._predictionSubmitting[fixtureId];
+    render();
+  }
 }
 
 async function refreshPlayerHypeVoteStatus(playerId){
@@ -792,24 +943,41 @@ function initFirebase(){
 
     /* Public Hype totals live in their own collection, separate from the admin-only league document. */
     app.db.collection('hype_counts').onSnapshot(snap => {
-      const docs = {};
-      snap.forEach(doc => docs[doc.id] = doc.data() || {});
+      const docs = {}, predictions = {};
+      snap.forEach(doc => {
+        const data = doc.data() || {};
+        docs[doc.id] = data;
+        if (data.kind === 'fixture_prediction' && data.fixtureId){
+          predictions[data.fixtureId] = {
+            home:Math.max(0, Number(data.home) || 0),
+            draw:Math.max(0, Number(data.draw) || 0),
+            away:Math.max(0, Number(data.away) || 0)
+          };
+        }
+      });
       app._hypeDocs = docs;
+      app._predictionCounts = predictions;
+      app._predictionReady = true;
       app._hypeReady = true;
       app._hypeError = null;
       rebuildHypeCountMap();
       render();
     }, err => {
-      console.warn('Hype counter listener error', err);
+      console.warn('Hype / prediction counter listener error', err);
       app._hypeReady = false;
-      app._hypeError = err.code || err.message || 'Hype counters unavailable';
+      app._predictionReady = false;
+      app._hypeError = err.code || err.message || 'Public counters unavailable';
       render();
     });
 
     app.auth.onAuthStateChanged(async u => {
       const previousUid = app.user && app.user.uid;
       app.user = u;
-      if (previousUid !== (u && u.uid)) app._hypedPlayerIds = {};
+      if (previousUid !== (u && u.uid)){
+        app._hypedPlayerIds = {};
+        app._predictionVotes = {};
+        app._predictionVotesReady = false;
+      }
       if (!u){
         app.isAdmin = false;
         if (!app._hypeAuthRequested && !app._hypeAuthPromise){
@@ -827,6 +995,7 @@ function initFirebase(){
         if (!u.isAnonymous && !app.isAdmin) toast('⚠️ Signed in, but this email is not in ADMIN_EMAILS', 'err');
         if (app._activePlayerProfileId) refreshPlayerHypeVoteStatus(app._activePlayerProfileId);
       }
+      watchMyFixturePredictions(u && u.uid);
       render();
     });
   } catch(e){
@@ -2181,6 +2350,7 @@ VIEWS.fixtures = () => {
         <div class="mc-score">${score}</div>
         ${teamSide(B, 42, true)}
       </div>
+      ${fixturePredictionsHTML(f)}
       <div class="mc-footer">
         <span class="pill ${f.played ? 'li' : 'cy'}" style="font-size:9.5px">${f.played ? 'FINISHED' : 'PENDING'}</span>
         <div class="row" style="gap:6px">
@@ -5120,6 +5290,13 @@ document.addEventListener('click', async e => {
     toast('🧾 Logs cleared', 'err');
     return;
   }
+});
+
+document.addEventListener('click', e => {
+  const button = e.target.closest('[data-pred-action="vote"]');
+  if (!button) return;
+  e.preventDefault();
+  castFixturePrediction(button.dataset.fixtureId, button.dataset.choice);
 });
 
 function handleInput(e){
