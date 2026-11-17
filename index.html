@@ -662,33 +662,35 @@ function predictionCounterId(fixtureId){ return 'prediction_' + String(fixtureId
 function predictionVoteId(fixtureId, uid){ return 'prediction_' + String(fixtureId) + '_' + String(uid); }
 
 function watchMyFixturePredictions(uid){
-  if (app._predictionVoteUnsub){ app._predictionVoteUnsub(); app._predictionVoteUnsub = null; }
   app._predictionVotes = {};
-  app._predictionVotesReady = false;
-  if (!firebaseReady || !app.db || !uid) return;
+  app._predictionVoteStatus = {};
+  app._predictionVotesReady = !!(uid && firebaseReady && app.db);
+}
 
-  app._predictionVoteUnsub = app.db.collection('hype_votes').where('uid', '==', uid).onSnapshot(snap => {
-    if (!app.user || app.user.uid !== uid) return;
-    const votes = {};
-    snap.forEach(doc => {
-      const data = doc.data() || {};
-      if (data.kind === 'fixture_prediction' && data.fixtureId && ['home','draw','away'].includes(data.choice)){
-        votes[data.fixtureId] = data.choice;
-      }
-    });
-    app._predictionVotes = votes;
-    app._predictionVotesReady = true;
-    render();
-  }, error => {
-    console.warn('Could not load the current user\'s fixture predictions', error);
-    app._predictionVotesReady = false;
+function loadFixturePredictionVote(fixtureId){
+  const uid = app.user && app.user.uid;
+  if (!uid || !app.db || app._predictionVoteStatus[fixtureId]) return;
+  app._predictionVoteStatus[fixtureId] = 'loading';
+  app.db.collection('hype_votes').doc(predictionVoteId(fixtureId, uid)).get().then(snap => {
+    if (!app.user || app.user.uid !== uid || app._predictionVoteStatus[fixtureId] !== 'loading') return;
+    const data = snap.exists ? (snap.data() || {}) : {};
+    if (data.kind === 'fixture_prediction' && ['home','draw','away'].includes(data.choice)){
+      app._predictionVotes[fixtureId] = data.choice;
+    }
+    app._predictionVoteStatus[fixtureId] = 'loaded';
+    if (app.currentView === 'fixtures') render();
+  }).catch(error => {
+    console.warn('Could not check this fixture prediction', error);
+    if (app._predictionVoteStatus[fixtureId] !== 'loading') return;
+    app._predictionVoteStatus[fixtureId] = 'failed';
     app._predictionVoteError = error.code || error.message || 'Prediction status unavailable';
-    render();
+    if (app.currentView === 'fixtures') render();
   });
 }
 
 function fixturePredictionsHTML(fixture){
   if (ARCHIVE_MODE || !firebaseReady || !app.db) return '';
+  if (!fixture.played) loadFixturePredictionVote(fixture.id);
   const A = teamById(fixture.teamAId), B = teamById(fixture.teamBId);
   const raw = app._predictionCounts[fixture.id] || {};
   const counts = {
@@ -737,6 +739,7 @@ async function castFixturePrediction(fixtureId, choice){
   if (app._predictionSubmitting[fixtureId]) return;
 
   app._predictionSubmitting[fixtureId] = true;
+  app._predictionVoteStatus[fixtureId] = 'voting';
   render();
   try {
     const fan = await ensureHypeFanIdentity();
@@ -771,9 +774,11 @@ async function castFixturePrediction(fixtureId, choice){
 
     app._predictionCounts[fixtureId] = result.counts;
     app._predictionVotes[fixtureId] = choice;
+    app._predictionVoteStatus[fixtureId] = 'loaded';
     if (result.unchanged) toast('✅ Your prediction is already set to that outcome', 'ok');
     else toast('✅ Anonymous prediction saved', 'ok');
   } catch(error){
+    delete app._predictionVoteStatus[fixtureId];
     console.error('Fixture prediction failed', error);
     const reason = error.code === 'permission-denied'
       ? 'Firestore blocked the prediction write. Check the public voting permissions.'
@@ -976,6 +981,7 @@ function initFirebase(){
       if (previousUid !== (u && u.uid)){
         app._hypedPlayerIds = {};
         app._predictionVotes = {};
+        app._predictionVoteStatus = {};
         app._predictionVotesReady = false;
       }
       if (!u){
