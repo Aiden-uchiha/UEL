@@ -707,11 +707,11 @@ function fixturePredictionsHTML(fixture){
     {key:'away',caption:'AWAY WIN',label:B.name,count:counts.away}
   ];
   const waiting = !app.user || !app.user.uid || !app._predictionReady || !app._predictionVotesReady;
-  const disabled = !!fixture.played || waiting || !!app._predictionSubmitting[fixture.id];
+  const disabled = !!fixture.played || !!mine || waiting || !!app._predictionSubmitting[fixture.id];
   const note = fixture.played ? 'Voting closed · final prediction totals' :
-    mine ? 'Your anonymous pick: ' + (choices.find(x=>x.key===mine)?.label || '—') + ' · choose another to change it' :
+    mine ? '🔒 Your anonymous pick: ' + (choices.find(x=>x.key===mine)?.label || '—') + ' · vote locked' :
     waiting ? (app._predictionVoteError ? 'Your vote status could not be checked. You can still try voting.' : 'Connecting to anonymous voting…') :
-    'Anonymous voting · you can change your pick until the match is recorded';
+    'Anonymous voting · one vote per person, and it cannot be changed';
   return `<section class="prediction-panel" aria-label="Anonymous fixture predictions">
     <div class="prediction-head"><span>📊 Community Predictions</span><b>${num(total)} vote${total===1?'':'s'}</b></div>
     <div class="prediction-options">
@@ -752,13 +752,18 @@ async function castFixturePrediction(fixtureId, choice){
       const previousData = voteSnap.exists ? (voteSnap.data() || {}) : {};
       const previous = previousData.kind === 'fixture_prediction' ? previousData.choice : null;
       const countData = countSnap.exists ? (countSnap.data() || {}) : {};
+      if (['home','draw','away'].includes(previous)) {
+        return {locked:true, counts:{
+          home:Math.max(0, Number(countData.home) || 0),
+          draw:Math.max(0, Number(countData.draw) || 0),
+          away:Math.max(0, Number(countData.away) || 0)
+        }};
+      }
       const next = {
         home: Math.max(0, Number(countData.home) || 0),
         draw: Math.max(0, Number(countData.draw) || 0),
         away: Math.max(0, Number(countData.away) || 0)
       };
-      if (previous === choice) return {unchanged:true, counts:next};
-      if (['home','draw','away'].includes(previous)) next[previous] = Math.max(0, next[previous] - 1);
       next[choice] += 1;
       const serverTime = firebase.firestore.FieldValue.serverTimestamp();
       tx.set(counterRef, {
@@ -773,10 +778,17 @@ async function castFixturePrediction(fixtureId, choice){
     });
 
     app._predictionCounts[fixtureId] = result.counts;
-    app._predictionVotes[fixtureId] = choice;
-    app._predictionVoteStatus[fixtureId] = 'loaded';
-    if (result.unchanged) toast('✅ Your prediction is already set to that outcome', 'ok');
-    else toast('✅ Anonymous prediction saved', 'ok');
+    if (result.locked) {
+      app._predictionVoteStatus[fixtureId] = 'loaded';
+      const voteSnap = await voteRef.get();
+      const savedChoice = voteSnap.exists ? (voteSnap.data() || {}).choice : null;
+      if (['home','draw','away'].includes(savedChoice)) app._predictionVotes[fixtureId] = savedChoice;
+      toast('🔒 You have already voted. Your prediction is locked.', 'err');
+    } else {
+      app._predictionVotes[fixtureId] = choice;
+      app._predictionVoteStatus[fixtureId] = 'loaded';
+      toast('✅ Anonymous prediction saved and locked', 'ok');
+    }
   } catch(error){
     delete app._predictionVoteStatus[fixtureId];
     console.error('Fixture prediction failed', error);
