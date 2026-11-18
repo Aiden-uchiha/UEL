@@ -967,8 +967,9 @@ async function saveState(opts){
   opts = opts || {};
   if (firebaseReady && app.db && !app._cloudLoaded && !opts.force){
     toast('⏳ Still loading the cloud save, wait a second and try again', 'err');
-    return;
+    return false;
   }
+  let cloudSaved = !(firebaseReady && app.db);
   if (!opts.silent) app._suppress = true;
   try { localStorage.setItem(LS_KEY, JSON.stringify(app.state)); } catch(e){ console.warn('LS save failed', e); }
   try { localStorage.setItem(LS_LOGS, JSON.stringify(app.state.logs.slice(-200))); } catch(e){}
@@ -988,7 +989,9 @@ async function saveState(opts){
         throw new Error('The league has too many separate data chunks for one safe cloud save.');
       }
       await batch.commit();
+      cloudSaved = true;
     } catch(e){
+      cloudSaved = false;
       console.warn('Firestore save failed', e);
       const why = e.code === 'permission-denied'
         ? 'Firestore rules blocked the cloud save. The usl collection must allow the admin to read and write its documents.'
@@ -999,6 +1002,7 @@ async function saveState(opts){
     }
   }
   setTimeout(() => { app._suppress = false; }, 400);
+  return cloudSaved;
 }
 
 async function logAdmin(action, before, after){
@@ -4849,7 +4853,7 @@ document.addEventListener('click', async e => {
       <label class="fl">League name</label><input id="sc_league" value="${esc(app.state.leagueName)}">
       <label class="fl">Season name</label><input id="sc_season" value="${esc(app.state.seasonName)}">
       <div class="divider"></div>
-      <div class="warnbox">⚠️ Resetting the season clears all matches, fixtures and tournaments, and resets player values and team treasuries.</div>
+      <div class="warnbox">⚠️ Clears all matches, fixtures and tournaments; resets team treasuries and player values, loans and transfer history. Teams, registered players, archive links and admin audit logs are kept.</div>
     `, `<button class="btn lime" data-act="season:rename">💾 Rename</button>
         <button class="btn danger" data-act="season:reset">♻️ Reset Season</button>
         <button class="btn" data-act="modal:close">Close</button>`);
@@ -4875,8 +4879,13 @@ document.addEventListener('click', async e => {
     app.state.players.forEach(p => { p.startingValue = E.playerStart; p.loanStatus = null; p.transferHistory = []; });
     app.state.hypeCycleId = uuid();
     await logAdmin('Reset season');
-    await saveState(); closeModal(); render();
-    toast('♻️ Season reset', 'err');
+    const cloudSaved = await saveState();
+    closeModal(); render();
+    if (firebaseReady && app.db && !cloudSaved){
+      toast('⚠️ Reset applied on this device only. Cloud reset failed, so the old cloud season may return after reload. Fix Firestore rules and save again before refreshing.', 'err');
+    } else {
+      toast('♻️ Season reset', 'ok');
+    }
     return;
   }
 
