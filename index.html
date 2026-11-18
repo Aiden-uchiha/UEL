@@ -1042,7 +1042,11 @@ const isActivePlayer = p => p && !p.freeAgent;
 
 function matchLegs(m){
   const legs = [];
-  for (let i = 1; i <= 4; i++){
+  const max = Math.max(1, Number(m && m.legs) || 0, ...Object.keys(m || {}).map(k => {
+    const hit = /^leg(\\d+)ScoreA$/.exec(k);
+    return hit ? Number(hit[1]) : 0;
+  }));
+  for (let i = 1; i <= max; i++){
     const a = m['leg'+i+'ScoreA'], b = m['leg'+i+'ScoreB'];
     if (a === null || a === undefined || a === '' || b === null || b === undefined || b === '') continue;
     legs.push({ n:i, a:Number(a), b:Number(b) });
@@ -1068,11 +1072,12 @@ function matchAggregate(m){
   return { legs, rawA, rawB, penaltyA, penaltyB, a, b, res: a > b ? 'A' : (b > a ? 'B' : 'D') };
 }
 function legCount(m){
-  for (let i = 4; i >= 1; i--){
-    const a = m['leg'+i+'ScoreA'];
-    if (a !== null && a !== undefined && a !== '') return i;
-  }
-  return 0;
+  let max = 0;
+  Object.keys(m || {}).forEach(k => {
+    const hit = /^leg(\\d+)ScoreA$/.exec(k);
+    if (hit && m[k] !== null && m[k] !== undefined && m[k] !== '') max = Math.max(max, Number(hit[1]));
+  });
+  return Math.max(max, Number(m && m.legs) || 0);
 }
 
 /* Which team did this player play for in this match? Snapshot-based. */
@@ -1863,71 +1868,6 @@ function applyMatchToState(m, fixture){
   if (fixture && fixture.tournamentId) progressTournament(fixture.tournamentId);
 }
 
-/* Group-stage pair helpers. Each pairing starts with two home/away legs.
-   Admins may add further fixture-legs with no fixed cap when the aggregate is level. */
-function groupPairKey(tid, gi, aId, bId){
-  return String(tid) + '_' + String(gi) + '_' + [String(aId), String(bId)].sort().join('_');
-}
-
-function groupPairFixtures(t, gi, aId, bId){
-  if (!t) return [];
-  return app.state.fixtures
-    .filter(f => f.tournamentId === t.id && f.stage === 'group' && Number(f.group) === Number(gi) &&
-      ((f.teamAId === aId && f.teamBId === bId) || (f.teamAId === bId && f.teamBId === aId)))
-    .map((fixture, index) => ({ fixture, index, leg: Number(fixture.groupLeg) || index + 1 }))
-    .sort((a, b) => a.leg - b.leg || a.index - b.index)
-    .map(x => x.fixture);
-}
-
-function groupPairAggregate(t, gi, aId, bId){
-  const fixtures = groupPairFixtures(t, gi, aId, bId);
-  if (fixtures.length < 2 || fixtures.some(f => !f.played)) {
-    return { fixtures, complete:false, tied:false, a:0, b:0 };
-  }
-  let totalA = 0, totalB = 0;
-  for (const fixture of fixtures){
-    const match = fixture.matchId ? matchById(fixture.matchId) : null;
-    if (!match) return { fixtures, complete:false, tied:false, a:totalA, b:totalB };
-    const aggregate = matchAggregate(match);
-    if (!aggregate.legs.length) return { fixtures, complete:false, tied:false, a:totalA, b:totalB };
-    if (match.teamAId === aId && match.teamBId === bId){
-      totalA += aggregate.a; totalB += aggregate.b;
-    } else if (match.teamAId === bId && match.teamBId === aId){
-      totalA += aggregate.b; totalB += aggregate.a;
-    } else {
-      return { fixtures, complete:false, tied:false, a:totalA, b:totalB };
-    }
-  }
-  return { fixtures, complete:true, tied:totalA === totalB, a:totalA, b:totalB };
-}
-
-function addTournamentGroupLeg(tid, gi, aId, bId){
-  const t = tourById(tid);
-  if (!t || t.phase !== 'group') { toast('⚠️ This group stage is no longer active', 'err'); return null; }
-  const members = t.groups[Number(gi)] || [];
-  if (!members.includes(aId) || !members.includes(bId) || aId === bId) {
-    toast('⚠️ Invalid group pairing', 'err'); return null;
-  }
-  const existing = groupPairFixtures(t, gi, aId, bId);
-  const result = groupPairAggregate(t, gi, aId, bId);
-  if (!result.complete) { toast('⚠️ Finish every existing leg first', 'err'); return null; }
-  if (!result.tied) { toast('⚠️ Extra legs are available only when the aggregate score is level', 'err'); return null; }
-
-  const first = existing[0];
-  const nextLeg = existing.length + 1;
-  const homeId = nextLeg % 2 === 1 ? first.teamAId : first.teamBId;
-  const awayId = homeId === first.teamAId ? first.teamBId : first.teamAId;
-  const fixture = {
-    id: uuid(), teamAId:homeId, teamBId:awayId,
-    competition:'Tournament', round:'Group ' + String.fromCharCode(65 + Number(gi)),
-    date:'', legs:1, played:false, stage:'group',
-    tournamentId:t.id, group:Number(gi),
-    groupLeg:nextLeg, groupPairId:groupPairKey(t.id, gi, aId, bId), extraLeg:true
-  };
-  app.state.fixtures.push(fixture);
-  return fixture;
-}
-
 function createTournament(name, teamIds, groupCount, koLegs){
   const t = {
     id: uuid(), name: name || 'Cup', format: 'Groups + Knockout',
@@ -1947,18 +1887,13 @@ function createTournament(name, teamIds, groupCount, koLegs){
   t.groups.forEach((g, gi) => {
     for (let i = 0; i < g.length; i++){
       for (let j = i + 1; j < g.length; j++){
-        for (let leg = 1; leg <= 2; leg++){
-          app.state.fixtures.push({
-            id: uuid(),
-            teamAId: leg === 1 ? g[i] : g[j],
-            teamBId: leg === 1 ? g[j] : g[i],
-            competition: 'Tournament',
-            round: 'Group ' + String.fromCharCode(65 + gi),
-            date: '', legs: 1, played: false, stage: 'group',
-            tournamentId: t.id, group: gi,
-            groupLeg: leg, groupPairId: groupPairKey(t.id, gi, g[i], g[j])
-          });
-        }
+        app.state.fixtures.push({
+          id: uuid(), teamAId:g[i], teamBId:g[j],
+          competition:'Tournament',
+          round:'Group ' + String.fromCharCode(65 + gi),
+          date:'', legs:2, played:false, stage:'group',
+          tournamentId:t.id, group:gi
+        });
       }
     }
   });
@@ -3107,21 +3042,16 @@ function tournamentDetail(t){
 
   const gfx = app.state.fixtures.filter(f => f.tournamentId === t.id && f.stage === 'group');
   html += `<div class="section-title">Group Fixtures (${gfx.filter(f=>f.played).length}/${gfx.length})</div>
-    <div class="hint" style="margin-bottom:10px">Each pairing starts with two home-and-away legs. If the completed aggregate is level, admins can add another leg. Extra legs have no fixed limit.</div>
+    <div class="hint" style="margin-bottom:10px">Each pairing is ONE match containing two legs (home and away). If the aggregate is level after Leg 2 or any later leg, admins can add another leg inside that same match. There is no fixed limit.</div>
     <div class="grid g2">`;
   gfx.forEach(f => {
     const A = teamById(f.teamAId), B = teamById(f.teamBId);
     const m = f.matchId ? matchById(f.matchId) : null;
-    const sc = m ? (() => { const a = matchAggregate(m); return a.a + ' - ' + a.b; })() : '';
-    const pairFixtures = groupPairFixtures(t, f.group, f.teamAId, f.teamBId);
-    const pairIndex = pairFixtures.findIndex(x => x.id === f.id);
-    const legNumber = Number(f.groupLeg) || pairIndex + 1;
-    const isLastPairLeg = pairIndex === pairFixtures.length - 1;
-    const pairBase = pairFixtures[0] || f;
-    const pairResult = isLastPairLeg ? groupPairAggregate(t, f.group, pairBase.teamAId, pairBase.teamBId) : null;
-    const canAddExtraLeg = !!(app.isAdmin && isLastPairLeg && pairResult && pairResult.complete && pairResult.tied);
+    const agg = m ? matchAggregate(m) : null;
+    const sc = agg ? agg.a + ' - ' + agg.b : '';
+    const canAddExtraLeg = !!(app.isAdmin && f.played && agg && agg.legs.length >= 2 && agg.a === agg.b);
     html += `<div class="match-card anim">
-      <div class="mc-header"><span>${f.round} · LEG ${legNumber}${f.extraLeg ? ' · EXTRA' : ''}</span><span>${f.played ? 'FINISHED' : 'PENDING'}</span></div>
+      <div class="mc-header"><span>${f.round} · ${Math.max(2, Number(f.legs) || 2)} LEGS</span><span>${f.played ? 'FINISHED' : 'PENDING'}</span></div>
       <div class="mc-body" style="padding:4px 0">
         ${teamSide(A, 24)}
         <div class="mc-score" style="font-size:16px;padding:2px 10px">${sc || 'VS'}</div>
@@ -3130,10 +3060,9 @@ function tournamentDetail(t){
       <div class="mc-footer" style="margin-top:6px;padding-top:6px;justify-content:center">
         ${app.isAdmin ? `
           ${f.played
-            ? `<button class="btn sm" data-act="match:view" data-id="${f.matchId}">📊</button>`
-            : `<button class="btn sm lime" data-act="track:open" data-id="${f.id}">▶️</button>
-               <button class="btn sm" data-act="match:record" data-id="${f.id}">📝</button>`}
-          ${canAddExtraLeg ? `<button class="btn sm gold" data-act="tournament:group-add-leg" data-id="${t.id}" data-group="${f.group}" data-a="${esc(pairBase.teamAId)}" data-b="${esc(pairBase.teamBId)}">➕ Extra Leg</button>` : ''}
+            ? `<button class="btn sm" data-act="match:edit" data-id="${f.matchId}">📊 Edit Match</button>`
+            : `<button class="btn sm lime" data-act="match:record" data-id="${f.id}">📝 Record Match</button>`}
+          ${canAddExtraLeg ? `<button class="btn sm gold" data-act="match:add-leg" data-id="${f.id}">➕ Add Leg</button>` : ''}
         ` : ''}
       </div>
     </div>`;
@@ -4291,22 +4220,14 @@ function foulEditorHTML(fouls, teamAId, teamBId, scope){
 }
 
 function buildMatchDraft(fixture, existingMatch){
-  let maxLeg = fixture.legs || 1;
-  if (existingMatch) {
-    for(let i=4; i>=1; i--) {
-      if (existingMatch['leg'+i+'ScoreA'] !== null && existingMatch['leg'+i+'ScoreA'] !== undefined) {
-        maxLeg = Math.max(maxLeg, i); break;
-      }
-    }
-  }
-  const legs = maxLeg;
+  const legs = Math.max(1, Number(fixture.legs) || 1, existingMatch ? legCount(existingMatch) : 0);
 
   /* Build stats for all current players + players who have stats in the existing match */
   const stats = {};
   const currentPlayers = app.state.players.filter(p => (p.teamId === fixture.teamAId || p.teamId === fixture.teamBId) && !p.freeAgent);
   currentPlayers.forEach(p => {
     stats[p.id] = [];
-    for (let i = 0; i < 4; i++) stats[p.id].push({ played:false, goals:0, assists:0, saves:0, tackles:0 });
+    for (let i = 0; i < legs; i++) stats[p.id].push({ played:false, goals:0, assists:0, saves:0, tackles:0 });
   });
 
   /* Snapshot of who played for which team (preserved from old match if editing) */
@@ -4318,9 +4239,10 @@ function buildMatchDraft(fixture, existingMatch){
     Object.keys(existingMatch.playerStats).forEach(pid => {
       const p = playerById(pid);
       if (!p) return;
-      if (!stats[pid]) stats[pid] = [{played:false,goals:0,assists:0,saves:0,tackles:0},{played:false,goals:0,assists:0,saves:0,tackles:0},{played:false,goals:0,assists:0,saves:0,tackles:0},{played:false,goals:0,assists:0,saves:0,tackles:0}];
+      if (!stats[pid]) stats[pid] = Array.from({length:legs}, () => ({played:false,goals:0,assists:0,saves:0,tackles:0}));
       const src = existingMatch.playerStats[pid] || [];
-      for (let i = 0; i < 4; i++){
+      while (stats[pid].length < Math.max(legs, src.length)) stats[pid].push({played:false,goals:0,assists:0,saves:0,tackles:0});
+      for (let i = 0; i < Math.max(legs, src.length); i++){
         if (src[i]) stats[pid][i] = Object.assign({played:false,goals:0,assists:0,saves:0,tackles:0}, src[i]);
       }
       if (!playerTeams[pid] && p.teamId) playerTeams[pid] = p.teamId;
@@ -4337,7 +4259,7 @@ function buildMatchDraft(fixture, existingMatch){
     stats, playerTeams, fouls: normalizeMatchFouls(existingMatch && existingMatch.fouls, fixture.teamAId, fixture.teamBId)
   };
 
-  for (let i = 0; i < 4; i++){
+  for (let i = 0; i < legs; i++){
     draft.scores.push({
       a: (existingMatch && existingMatch['leg'+(i+1)+'ScoreA'] !== null && existingMatch['leg'+(i+1)+'ScoreA'] !== undefined) ? existingMatch['leg'+(i+1)+'ScoreA'] : '',
       b: (existingMatch && existingMatch['leg'+(i+1)+'ScoreB'] !== null && existingMatch['leg'+(i+1)+'ScoreB'] !== undefined) ? existingMatch['leg'+(i+1)+'ScoreB'] : ''
@@ -4354,7 +4276,7 @@ function matchFormBody(){
 
   let html = `<div class="row" style="margin-bottom:6px">
     ${teamTag(A, 24)}<span class="muted">vs</span>${teamTag(B, 24)}
-    <span class="pill cy">${f.legs} leg${f.legs>1?'s':''}</span>
+    <span class="pill cy">${d.legs} leg${d.legs>1?'s':''}</span>
     ${f.round ? `<span class="pill">${esc(f.round)}</span>` : ''}
   </div>`;
 
@@ -4369,6 +4291,9 @@ function matchFormBody(){
     </tr>`;
   }
   html += `</tbody></table></div>`;
+  if (app.isAdmin && f.tournamentId && f.stage === 'group') {
+    html += `<div style="margin-top:8px"><button class="btn sm" data-act="match:draft-add-leg">➕ Add another leg to this match</button></div>`;
+  }
 
   html += `<div class="section-title" style="margin-top:16px">Player Stats — Leg ${leg}</div>
   <div class="legtab">${Array.from({length:d.legs},(_,i) =>
@@ -5142,6 +5067,38 @@ document.addEventListener('click', async e => {
     reModal(matchFormBody());
     return;
   }
+  if (act === 'match:draft-add-leg'){
+    if (!app.isAdmin || !app._draft) return;
+    const d = app._draft;
+    d.legs += 1;
+    d.scores.push({a:'',b:''});
+    Object.keys(d.stats).forEach(pid => {
+      d.stats[pid] = d.stats[pid] || [];
+      d.stats[pid].push({played:false,goals:0,assists:0,saves:0,tackles:0});
+    });
+    d.leg = d.legs;
+    reModal(matchFormBody());
+    return;
+  }
+  if (act === 'match:add-leg'){
+    if (!app.isAdmin) return;
+    const f = fixtureById(id), m = f && f.matchId ? matchById(f.matchId) : null;
+    if (!f || !m) return toast('⚠️ Match result not found', 'err');
+    const agg = matchAggregate(m);
+    if (agg.legs.length < 2 || agg.a !== agg.b) return toast('⚠️ Extra legs are available only when the current aggregate is level', 'err');
+    app._draft = buildMatchDraft(f, m);
+    const d = app._draft;
+    d.legs += 1;
+    d.scores.push({a:'',b:''});
+    Object.keys(d.stats).forEach(pid => {
+      d.stats[pid] = d.stats[pid] || [];
+      d.stats[pid].push({played:false,goals:0,assists:0,saves:0,tackles:0});
+    });
+    d.leg = d.legs;
+    openModal('➕ Add Leg to Existing Match', matchFormBody(),
+      `<button class="btn lime" data-act="match:save">💾 Save Extra Leg</button><button class="btn" data-act="modal:close">Cancel</button>`);
+    return;
+  }
   if (act === 'match:edit'){
     if (!app.isAdmin) return;
     const m = matchById(id);
@@ -5551,6 +5508,7 @@ async function saveMatch(){
   const m = {
     id: d.matchId || uuid(),
     teamAId: f.teamAId, teamBId: f.teamBId, fixtureId: f.id,
+    legs: d.legs,
     timestamp: Date.now(),
     mvpId: d.mvpId || null, motmId: d.motmId || null,
     mvpSnapshot: d.mvpId ? (() => { const p = playerById(d.mvpId); return p ? { name:p.name, teamId:p.teamId } : null; })() : null,
@@ -5565,12 +5523,13 @@ async function saveMatch(){
   });
 
   const isScored = val => val !== '' && val !== null && val !== undefined;
-  for (let i = 1; i <= 4; i++){
-    if (i <= d.legs && isScored(d.scores[i-1].a) && isScored(d.scores[i-1].b)){
+  for (let i = 1; i <= d.legs; i++){
+    if (isScored(d.scores[i-1].a) && isScored(d.scores[i-1].b)){
       m['leg'+i+'ScoreA'] = Number(d.scores[i-1].a);
       m['leg'+i+'ScoreB'] = Number(d.scores[i-1].b);
     } else { m['leg'+i+'ScoreA'] = null; m['leg'+i+'ScoreB'] = null; }
   }
+  f.legs = d.legs;
 
   if (isEdit){
     const old = matchById(d.matchId);
