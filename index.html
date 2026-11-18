@@ -890,6 +890,78 @@ function loadLocal(){
   }
 }
 
+const CLOUD_CHUNK_PREFIX = 'state_chunk_';
+const CLOUD_CHUNK_BYTES = 650 * 1024;
+
+function cloudJsonBytes(value){
+  const json = JSON.stringify(value);
+  return typeof TextEncoder !== 'undefined'
+    ? new TextEncoder().encode(json).length
+    : json.length * 2;
+}
+
+function splitStateForCloud(source){
+  const core = JSON.parse(JSON.stringify(source));
+  const chunks = {};
+  Object.keys(core).forEach(field => {
+    if (!Array.isArray(core[field])) return;
+    const items = core[field];
+    delete core[field];
+    chunks[field] = [];
+    let current = [];
+    for (const item of items){
+      const candidate = current.concat([item]);
+      if (current.length && cloudJsonBytes({ items:candidate }) > CLOUD_CHUNK_BYTES){
+        chunks[field].push(current);
+        current = [item];
+      } else current = candidate;
+      if (cloudJsonBytes({ items:current }) > CLOUD_CHUNK_BYTES){
+        throw new Error('A single ' + field + ' record is too large to store safely.');
+      }
+    }
+    if (current.length) chunks[field].push(current);
+  });
+  const fields = {};
+  Object.keys(chunks).forEach(field => { fields[field] = chunks[field].length; });
+  core._uelStorage = { version:2, fields };
+  if (cloudJsonBytes(core) > CLOUD_CHUNK_BYTES){
+    throw new Error('The core league settings are too large to store safely.');
+  }
+  const docs = {};
+  Object.keys(chunks).forEach(field => {
+    chunks[field].forEach((items,index) => {
+      docs[CLOUD_CHUNK_PREFIX + field + '_' + index] = {
+        _uelChunk:true, field, index, items
+      };
+    });
+  });
+  return { core, docs };
+}
+
+function stateFromCloudSnapshot(snapshot){
+  const stateDoc = snapshot.docs.find(d => d.id === 'state');
+  if (!stateDoc) return hydrate(null);
+  const core = stateDoc.data() || {};
+  const storage = core._uelStorage;
+  delete core._uelStorage;
+  if (!storage || storage.version !== 2) return hydrate(core);
+  Object.keys(storage.fields || {}).forEach(field => {
+    const count = Math.max(0, Number(storage.fields[field]) || 0);
+    const items = [];
+    for (let index=0; index<count; index++){
+      const chunkDoc = snapshot.docs.find(d => d.id === CLOUD_CHUNK_PREFIX + field + '_' + index);
+      if (!chunkDoc){
+        console.warn('Missing cloud data chunk:', field, index);
+        continue;
+      }
+      const data = chunkDoc.data() || {};
+      if (Array.isArray(data.items)) items.push(...data.items);
+    }
+    core[field] = items;
+  });
+  return hydrate(core);
+}
+
 async function saveState(opts){
   if (ARCHIVE_MODE) return;
   opts = opts || {};
@@ -902,14 +974,27 @@ async function saveState(opts){
   try { localStorage.setItem(LS_LOGS, JSON.stringify(app.state.logs.slice(-200))); } catch(e){}
   if (firebaseReady && app.db){
     try {
-      await app.db.doc(DOC_PATH).set(JSON.parse(JSON.stringify(app.state)));
+      const packed = splitStateForCloud(app.state);
+      const collection = app.db.collection('usl');
+      const existing = await collection.get();
+      const batch = app.db.batch();
+      batch.set(collection.doc('state'), packed.core);
+      Object.keys(packed.docs).forEach(id => batch.set(collection.doc(id), packed.docs[id]));
+      const keep = new Set(Object.keys(packed.docs));
+      existing.docs.forEach(doc => {
+        if (doc.id.startsWith(CLOUD_CHUNK_PREFIX) && !keep.has(doc.id)) batch.delete(doc.ref);
+      });
+      if (Object.keys(packed.docs).length + existing.docs.filter(doc => doc.id.startsWith(CLOUD_CHUNK_PREFIX) && !keep.has(doc.id)).length + 1 > 450){
+        throw new Error('The league has too many separate data chunks for one safe cloud save.');
+      }
+      await batch.commit();
     } catch(e){
       console.warn('Firestore save failed', e);
       const why = e.code === 'permission-denied'
-        ? 'Firestore rules blocked the write. Are you logged in as the admin email?'
+        ? 'Firestore rules blocked the cloud save. The usl collection must allow the admin to read and write its documents.'
         : e.code === 'invalid-argument' || /too large/i.test(e.message || '')
-          ? 'The league document is too big for Firestore (1 MB limit).'
-          : (e.code || e.message);
+          ? 'A league record is still too large for Firestore.'
+          : (e.message || e.code);
       toast('☁️ Cloud save failed, saved locally only: ' + why, 'err');
     }
   }
@@ -936,17 +1021,12 @@ function initFirebase(){
     $('#cloudBadge').textContent = 'CLOUD';
     $('#cloudBadge').className = 'cloud-badge on';
 
-    app.db.doc(DOC_PATH).onSnapshot(snap => {
+    app.db.collection('usl').onSnapshot(snapshot => {
       const firstCloudSnapshot = !app._cloudLoaded;
       app._cloudLoaded = true;
-      if (snap.metadata && snap.metadata.hasPendingWrites) return;
-      if (!snap.exists){
-        app.state = hydrate(null);
-        render();
-        return;
-      }
+      if (snapshot.metadata && snapshot.metadata.hasPendingWrites) return;
       if (app._suppress) return;
-      app.state = hydrate(snap.data());
+      app.state = stateFromCloudSnapshot(snapshot);
       if (migrate()) saveState({ silent:true, force:true });
       if (firstCloudSnapshot && location.hash) applyHashRoute();
       else render();
