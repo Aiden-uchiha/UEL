@@ -891,7 +891,10 @@ function loadLocal(){
 }
 
 const CLOUD_CHUNK_PREFIX = 'state_chunk_';
-const CLOUD_CHUNK_BYTES = 650 * 1024;
+const CLOUD_LARGE_PREFIX = 'state_large_';
+const CLOUD_CHUNK_BYTES = 450 * 1024;
+const CLOUD_LARGE_SEGMENT_CHARS = 90000;
+const CLOUD_LARGE_MARKER = '__UEL_CLOUD_LARGE_RECORD_2__';
 
 function cloudJsonBytes(value){
   const json = JSON.stringify(value);
@@ -900,34 +903,58 @@ function cloudJsonBytes(value){
     : json.length * 2;
 }
 
+function splitCloudJsonText(value){
+  const parts = [];
+  for (let start=0; start<value.length;){
+    let end = Math.min(value.length, start + CLOUD_LARGE_SEGMENT_CHARS);
+    const last = value.charCodeAt(end-1);
+    if (last >= 0xD800 && last <= 0xDBFF) end--;
+    parts.push(value.slice(start,end));
+    start = end;
+  }
+  return parts;
+}
+
 function splitStateForCloud(source){
   const core = JSON.parse(JSON.stringify(source));
-  const chunks = {};
+  const chunks = {}, largeRecords = {}, docs = {};
+  let largeIndex = 0;
   Object.keys(core).forEach(field => {
     if (!Array.isArray(core[field])) return;
     const items = core[field];
     delete core[field];
     chunks[field] = [];
     let current = [];
+    const flush = () => {
+      if (current.length){ chunks[field].push(current); current = []; }
+    };
     for (const item of items){
-      const candidate = current.concat([item]);
-      if (current.length && cloudJsonBytes({ items:candidate }) > CLOUD_CHUNK_BYTES){
-        chunks[field].push(current);
-        current = [item];
-      } else current = candidate;
-      if (cloudJsonBytes({ items:current }) > CLOUD_CHUNK_BYTES){
-        throw new Error('A single ' + field + ' record is too large to store safely.');
+      const singleSize = cloudJsonBytes({ items:[item] });
+      if (singleSize > CLOUD_CHUNK_BYTES){
+        flush();
+        const recordId = String(largeIndex++);
+        const json = JSON.stringify(item);
+        const parts = splitCloudJsonText(json);
+        largeRecords[recordId] = { field, parts:parts.length };
+        chunks[field].push([{ [CLOUD_LARGE_MARKER]:recordId }]);
+        parts.forEach((data,part) => {
+          const id = CLOUD_LARGE_PREFIX + field + '_' + recordId + '_' + part;
+          docs[id] = { _uelLargeRecord:true, field, recordId, part, data };
+        });
+        continue;
       }
+      const candidate = current.concat([item]);
+      if (current.length && cloudJsonBytes({ items:candidate }) > CLOUD_CHUNK_BYTES) flush();
+      current.push(item);
     }
-    if (current.length) chunks[field].push(current);
+    flush();
   });
   const fields = {};
   Object.keys(chunks).forEach(field => { fields[field] = chunks[field].length; });
-  core._uelStorage = { version:2, fields };
+  core._uelStorage = { version:3, fields, largeRecords };
   if (cloudJsonBytes(core) > CLOUD_CHUNK_BYTES){
-    throw new Error('The core league settings are too large to store safely.');
+    throw new Error('League settings are too large to store in the cloud.');
   }
-  const docs = {};
   Object.keys(chunks).forEach(field => {
     chunks[field].forEach((items,index) => {
       docs[CLOUD_CHUNK_PREFIX + field + '_' + index] = {
@@ -935,27 +962,45 @@ function splitStateForCloud(source){
       };
     });
   });
+  if (Object.keys(docs).length + 1 > 450){
+    throw new Error('The league needs too many cloud storage documents for one safe save.');
+  }
   return { core, docs };
 }
 
 function stateFromCloudSnapshot(snapshot){
-  const stateDoc = snapshot.docs.find(d => d.id === 'state');
+  const byId = new Map(snapshot.docs.map(d => [d.id,d]));
+  const stateDoc = byId.get('state');
   if (!stateDoc) return hydrate(null);
   const core = stateDoc.data() || {};
   const storage = core._uelStorage;
   delete core._uelStorage;
-  if (!storage || storage.version !== 2) return hydrate(core);
+  if (!storage || ![2,3].includes(storage.version)) return hydrate(core);
   Object.keys(storage.fields || {}).forEach(field => {
     const count = Math.max(0, Number(storage.fields[field]) || 0);
     const items = [];
     for (let index=0; index<count; index++){
-      const chunkDoc = snapshot.docs.find(d => d.id === CLOUD_CHUNK_PREFIX + field + '_' + index);
+      const chunkDoc = byId.get(CLOUD_CHUNK_PREFIX + field + '_' + index);
       if (!chunkDoc){
         console.warn('Missing cloud data chunk:', field, index);
         continue;
       }
       const data = chunkDoc.data() || {};
-      if (Array.isArray(data.items)) items.push(...data.items);
+      if (!Array.isArray(data.items)) continue;
+      data.items.forEach(item => {
+        if (storage.version === 3 && item && item[CLOUD_LARGE_MARKER] !== undefined){
+          const recordId = String(item[CLOUD_LARGE_MARKER]);
+          const meta = storage.largeRecords && storage.largeRecords[recordId];
+          if (!meta) throw new Error('Missing large-record metadata for ' + field + ' item ' + recordId + '.');
+          let json = '';
+          for (let part=0; part<meta.parts; part++){
+            const segment = byId.get(CLOUD_LARGE_PREFIX + field + '_' + recordId + '_' + part);
+            if (!segment) throw new Error('Missing large-record segment ' + part + ' for ' + field + ' item ' + recordId + '.');
+            json += String((segment.data() || {}).data || '');
+          }
+          items.push(JSON.parse(json));
+        } else items.push(item);
+      });
     }
     core[field] = items;
   });
@@ -983,9 +1028,12 @@ async function saveState(opts){
       Object.keys(packed.docs).forEach(id => batch.set(collection.doc(id), packed.docs[id]));
       const keep = new Set(Object.keys(packed.docs));
       existing.docs.forEach(doc => {
-        if (doc.id.startsWith(CLOUD_CHUNK_PREFIX) && !keep.has(doc.id)) batch.delete(doc.ref);
+        if ((doc.id.startsWith(CLOUD_CHUNK_PREFIX) || doc.id.startsWith(CLOUD_LARGE_PREFIX)) && !keep.has(doc.id)) batch.delete(doc.ref);
       });
-      if (Object.keys(packed.docs).length + existing.docs.filter(doc => doc.id.startsWith(CLOUD_CHUNK_PREFIX) && !keep.has(doc.id)).length + 1 > 450){
+      const obsoleteCount = existing.docs.filter(doc =>
+        (doc.id.startsWith(CLOUD_CHUNK_PREFIX) || doc.id.startsWith(CLOUD_LARGE_PREFIX)) && !keep.has(doc.id)
+      ).length;
+      if (Object.keys(packed.docs).length + obsoleteCount + 1 > 450){
         throw new Error('The league has too many separate data chunks for one safe cloud save.');
       }
       await batch.commit();
