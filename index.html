@@ -4291,10 +4291,6 @@ function matchFormBody(){
     </tr>`;
   }
   html += `</tbody></table></div>`;
-  if (app.isAdmin && f.tournamentId && f.stage === 'group') {
-    html += `<div style="margin-top:8px"><button class="btn sm" data-act="match:draft-add-leg">➕ Add another leg to this match</button></div>`;
-  }
-
   html += `<div class="section-title" style="margin-top:16px">Player Stats — Leg ${leg}</div>
   <div class="legtab">${Array.from({length:d.legs},(_,i) =>
     `<button class="${d.leg===i+1?'on':''}" data-act="matchleg" data-leg="${i+1}">Leg ${i+1}</button>`).join('')}</div>`;
@@ -5067,19 +5063,6 @@ document.addEventListener('click', async e => {
     reModal(matchFormBody());
     return;
   }
-  if (act === 'match:draft-add-leg'){
-    if (!app.isAdmin || !app._draft) return;
-    const d = app._draft;
-    d.legs += 1;
-    d.scores.push({a:'',b:''});
-    Object.keys(d.stats).forEach(pid => {
-      d.stats[pid] = d.stats[pid] || [];
-      d.stats[pid].push({played:false,goals:0,assists:0,saves:0,tackles:0});
-    });
-    d.leg = d.legs;
-    reModal(matchFormBody());
-    return;
-  }
   if (act === 'match:add-leg'){
     if (!app.isAdmin) return;
     const f = fixtureById(id), m = f && f.matchId ? matchById(f.matchId) : null;
@@ -5201,17 +5184,6 @@ document.addEventListener('click', async e => {
     advanceToKnockout(id);
     await logAdmin('Advanced tournament to knockout');
     await saveState(); render();
-    return;
-  }
-  if (act === 'tournament:group-add-leg'){
-    if (!app.isAdmin) return;
-    const t = tourById(id);
-    const gi = Number(el.dataset.group);
-    const fixture = addTournamentGroupLeg(id, gi, el.dataset.a, el.dataset.b);
-    if (!fixture) return;
-    await logAdmin('Added group extra leg ' + fixture.groupLeg + ' in tournament "' + (t ? t.name : '') + '"');
-    await saveState(); render();
-    toast('➕ Extra group leg ' + fixture.groupLeg + ' added', 'ok');
     return;
   }
   if (act === 'tournament:del'){
