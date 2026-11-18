@@ -1043,7 +1043,7 @@ const isActivePlayer = p => p && !p.freeAgent;
 function matchLegs(m){
   const legs = [];
   const max = Math.max(1, Number(m && m.legs) || 0, ...Object.keys(m || {}).map(k => {
-    const hit = /^leg(\\d+)ScoreA$/.exec(k);
+    const hit = /^leg(\d+)ScoreA$/.exec(k);
     return hit ? Number(hit[1]) : 0;
   }));
   for (let i = 1; i <= max; i++){
@@ -1074,7 +1074,7 @@ function matchAggregate(m){
 function legCount(m){
   let max = 0;
   Object.keys(m || {}).forEach(k => {
-    const hit = /^leg(\\d+)ScoreA$/.exec(k);
+    const hit = /^leg(\d+)ScoreA$/.exec(k);
     if (hit && m[k] !== null && m[k] !== undefined && m[k] !== '') max = Math.max(max, Number(hit[1]));
   });
   return Math.max(max, Number(m && m.legs) || 0);
