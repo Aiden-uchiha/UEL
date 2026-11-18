@@ -1928,7 +1928,13 @@ function groupStandings(t, gi){
 
 function groupComplete(t){
   const fx = app.state.fixtures.filter(f => f.tournamentId === t.id && f.stage === 'group');
-  return fx.length > 0 && fx.every(f => f.played);
+  return fx.length > 0 && fx.every(f => {
+    if (!f.played) return false;
+    const m = f.matchId ? matchById(f.matchId) : null;
+    if (!m) return false;
+    const agg = matchAggregate(m);
+    return agg.legs.length >= 2 && agg.a !== agg.b;
+  });
 }
 
 function advanceToKnockout(tid){
