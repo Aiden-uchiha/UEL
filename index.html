@@ -1933,7 +1933,7 @@ function groupComplete(t){
     const m = f.matchId ? matchById(f.matchId) : null;
     if (!m) return false;
     const agg = matchAggregate(m);
-    return agg.legs.length >= 2 && agg.a !== agg.b;
+    return agg.legs.length >= 2;
   });
 }
 
@@ -1986,19 +1986,15 @@ function materializeKO(t){
       if (tie.fixtureIds && tie.fixtureIds.length) return;
       if (!tie.a || !tie.b) return;
       tie.fixtureIds = [];
-      const legs = t.koLegs || 1;
-      for (let l = 1; l <= legs; l++){
-        const f = {
-          id: uuid(),
-          teamAId: l % 2 === 1 ? tie.a : tie.b,
-          teamBId: l % 2 === 1 ? tie.b : tie.a,
-          competition: 'Tournament', round: round.name, date: '',
-          legs: 1, played: false, stage: 'ko',
-          tournamentId: t.id, koRound: ri, koTie: ti
-        };
-        app.state.fixtures.push(f);
-        tie.fixtureIds.push(f.id);
-      }
+      const isFinal = String(round.name || '').toLowerCase() === 'final';
+      const f = {
+        id: uuid(), teamAId: tie.a, teamBId: tie.b,
+        competition: 'Tournament', round: round.name, date: '',
+        legs: isFinal ? 4 : 2, played: false, stage: 'ko',
+        tournamentId: t.id, koRound: ri, koTie: ti
+      };
+      app.state.fixtures.push(f);
+      tie.fixtureIds = [f.id];
     });
   });
 }
@@ -2012,17 +2008,13 @@ function progressTournament(tid){
       if (tie.winner) return;
       if (!tie.fixtureIds || !tie.fixtureIds.length) return;
       const fxs = tie.fixtureIds.map(fixtureById).filter(Boolean);
-      if (!fxs.length || !fxs.every(f => f.played)) return;
-
-      let aggA = 0, aggB = 0;
-      fxs.forEach(f => {
-        const m = app.state.matches.find(x => x.id === f.matchId);
-        if (!m) return;
-        const agg = matchAggregate(m);
-        if (m.teamAId === tie.a){ aggA += agg.a; aggB += agg.b; }
-        else { aggA += agg.b; aggB += agg.a; }
-      });
-      tie.winner = aggA >= aggB ? tie.a : tie.b;
+      if (fxs.length !== 1 || !fxs[0].played) return;
+      const f = fxs[0], m = f.matchId ? matchById(f.matchId) : null;
+      if (!m) return;
+      const minLegs = String(round.name || '').toLowerCase() === 'final' ? 4 : 2;
+      const agg = matchAggregate(m);
+      if (agg.legs.length < minLegs || agg.a === agg.b) return;
+      tie.winner = agg.a > agg.b ? m.teamAId : m.teamBId;
 
       const next = t.ko.rounds[ri + 1];
       if (next){
@@ -3055,7 +3047,9 @@ function tournamentDetail(t){
     const m = f.matchId ? matchById(f.matchId) : null;
     const agg = m ? matchAggregate(m) : null;
     const sc = agg ? agg.a + ' - ' + agg.b : '';
-    const canAddExtraLeg = !!(app.isAdmin && f.played && agg && agg.legs.length >= 2 && agg.a === agg.b);
+    const minLegs = f.stage === 'ko' && String(f.round || '').toLowerCase() === 'final' ? 4 : 2;
+    const currentLegs = m ? legCount(m) : Math.max(minLegs, Number(f.legs) || minLegs);
+    const canManageLegs = !!(app.isAdmin && f.played && m);
     html += `<div class="match-card anim">
       <div class="mc-header"><span>${f.round} · ${Math.max(2, Number(f.legs) || 2)} LEGS</span><span>${f.played ? 'FINISHED' : 'PENDING'}</span></div>
       <div class="mc-body" style="padding:4px 0">
@@ -3068,7 +3062,7 @@ function tournamentDetail(t){
           ${f.played
             ? `<button class="btn sm" data-act="match:edit" data-id="${f.matchId}">📊 Edit Match</button>`
             : `<button class="btn sm lime" data-act="match:record" data-id="${f.id}">📝 Record Match</button>`}
-          ${canAddExtraLeg ? `<button class="btn sm gold" data-act="match:add-leg" data-id="${f.id}">➕ Add Leg</button>` : ''}
+          ${canManageLegs ? `<button class="btn sm gold" data-act="match:add-leg" data-id="${f.id}">➕ Add Leg</button>${currentLegs > minLegs ? `<button class="btn sm danger" data-act="match:remove-leg" data-id="${f.id}">➖ Remove Leg</button>` : ''}` : ''}
         ` : ''}
       </div>
     </div>`;
@@ -5069,23 +5063,29 @@ document.addEventListener('click', async e => {
     reModal(matchFormBody());
     return;
   }
-  if (act === 'match:add-leg'){
+  if (act === 'match:add-leg' || act === 'match:remove-leg'){
     if (!app.isAdmin) return;
     const f = fixtureById(id), m = f && f.matchId ? matchById(f.matchId) : null;
     if (!f || !m) return toast('⚠️ Match result not found', 'err');
-    const agg = matchAggregate(m);
-    if (agg.legs.length < 2 || agg.a !== agg.b) return toast('⚠️ Extra legs are available only when the current aggregate is level', 'err');
+    const isFinal = f.stage === 'ko' && String(f.round || '').toLowerCase() === 'final';
+    const minimumLegs = isFinal ? 4 : 2;
     app._draft = buildMatchDraft(f, m);
     const d = app._draft;
-    d.legs += 1;
-    d.scores.push({a:'',b:''});
-    Object.keys(d.stats).forEach(pid => {
-      d.stats[pid] = d.stats[pid] || [];
-      d.stats[pid].push({played:false,goals:0,assists:0,saves:0,tackles:0});
-    });
+    if (act === 'match:add-leg'){
+      d.legs += 1;
+      d.scores.push({a:'',b:''});
+      Object.keys(d.stats).forEach(pid => d.stats[pid].push({played:false,goals:0,assists:0,saves:0,tackles:0}));
+    } else {
+      if (d.legs <= minimumLegs) return toast('⚠️ This match must keep at least ' + minimumLegs + ' legs', 'err');
+      const ix = d.legs - 1, score = d.scores[ix] || {};
+      const hasData = (score.a !== '' && score.a != null) || (score.b !== '' && score.b != null) || Object.values(d.stats).some(a => a[ix] && a[ix].played);
+      if (hasData && !confirm('Remove the last leg and its recorded scores/player stats?')) return;
+      d.legs--; d.scores.pop();
+      Object.keys(d.stats).forEach(pid => d.stats[pid].pop());
+    }
     d.leg = d.legs;
-    openModal('➕ Add Leg to Existing Match', matchFormBody(),
-      `<button class="btn lime" data-act="match:save">💾 Save Extra Leg</button><button class="btn" data-act="modal:close">Cancel</button>`);
+    openModal(act === 'match:add-leg' ? '➕ Add Leg to Existing Match' : '➖ Remove Last Leg', matchFormBody(),
+      `<button class="btn lime" data-act="match:save">💾 Save Match Changes</button><button class="btn" data-act="modal:close">Cancel</button>`);
     return;
   }
   if (act === 'match:edit'){
