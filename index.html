@@ -1863,6 +1863,71 @@ function applyMatchToState(m, fixture){
   if (fixture && fixture.tournamentId) progressTournament(fixture.tournamentId);
 }
 
+/* Group-stage pair helpers. Each pairing starts with two home/away legs.
+   Admins may add further fixture-legs with no fixed cap when the aggregate is level. */
+function groupPairKey(tid, gi, aId, bId){
+  return String(tid) + '_' + String(gi) + '_' + [String(aId), String(bId)].sort().join('_');
+}
+
+function groupPairFixtures(t, gi, aId, bId){
+  if (!t) return [];
+  return app.state.fixtures
+    .filter(f => f.tournamentId === t.id && f.stage === 'group' && Number(f.group) === Number(gi) &&
+      ((f.teamAId === aId && f.teamBId === bId) || (f.teamAId === bId && f.teamBId === aId)))
+    .map((fixture, index) => ({ fixture, index, leg: Number(fixture.groupLeg) || index + 1 }))
+    .sort((a, b) => a.leg - b.leg || a.index - b.index)
+    .map(x => x.fixture);
+}
+
+function groupPairAggregate(t, gi, aId, bId){
+  const fixtures = groupPairFixtures(t, gi, aId, bId);
+  if (fixtures.length < 2 || fixtures.some(f => !f.played)) {
+    return { fixtures, complete:false, tied:false, a:0, b:0 };
+  }
+  let totalA = 0, totalB = 0;
+  for (const fixture of fixtures){
+    const match = fixture.matchId ? matchById(fixture.matchId) : null;
+    if (!match) return { fixtures, complete:false, tied:false, a:totalA, b:totalB };
+    const aggregate = matchAggregate(match);
+    if (!aggregate.legs.length) return { fixtures, complete:false, tied:false, a:totalA, b:totalB };
+    if (match.teamAId === aId && match.teamBId === bId){
+      totalA += aggregate.a; totalB += aggregate.b;
+    } else if (match.teamAId === bId && match.teamBId === aId){
+      totalA += aggregate.b; totalB += aggregate.a;
+    } else {
+      return { fixtures, complete:false, tied:false, a:totalA, b:totalB };
+    }
+  }
+  return { fixtures, complete:true, tied:totalA === totalB, a:totalA, b:totalB };
+}
+
+function addTournamentGroupLeg(tid, gi, aId, bId){
+  const t = tourById(tid);
+  if (!t || t.phase !== 'group') { toast('⚠️ This group stage is no longer active', 'err'); return null; }
+  const members = t.groups[Number(gi)] || [];
+  if (!members.includes(aId) || !members.includes(bId) || aId === bId) {
+    toast('⚠️ Invalid group pairing', 'err'); return null;
+  }
+  const existing = groupPairFixtures(t, gi, aId, bId);
+  const result = groupPairAggregate(t, gi, aId, bId);
+  if (!result.complete) { toast('⚠️ Finish every existing leg first', 'err'); return null; }
+  if (!result.tied) { toast('⚠️ Extra legs are available only when the aggregate score is level', 'err'); return null; }
+
+  const first = existing[0];
+  const nextLeg = existing.length + 1;
+  const homeId = nextLeg % 2 === 1 ? first.teamAId : first.teamBId;
+  const awayId = homeId === first.teamAId ? first.teamBId : first.teamAId;
+  const fixture = {
+    id: uuid(), teamAId:homeId, teamBId:awayId,
+    competition:'Tournament', round:'Group ' + String.fromCharCode(65 + Number(gi)),
+    date:'', legs:1, played:false, stage:'group',
+    tournamentId:t.id, group:Number(gi),
+    groupLeg:nextLeg, groupPairId:groupPairKey(t.id, gi, aId, bId), extraLeg:true
+  };
+  app.state.fixtures.push(fixture);
+  return fixture;
+}
+
 function createTournament(name, teamIds, groupCount, koLegs){
   const t = {
     id: uuid(), name: name || 'Cup', format: 'Groups + Knockout',
@@ -1890,7 +1955,8 @@ function createTournament(name, teamIds, groupCount, koLegs){
             competition: 'Tournament',
             round: 'Group ' + String.fromCharCode(65 + gi),
             date: '', legs: 1, played: false, stage: 'group',
-            tournamentId: t.id, group: gi
+            tournamentId: t.id, group: gi,
+            groupLeg: leg, groupPairId: groupPairKey(t.id, gi, g[i], g[j])
           });
         }
       }
@@ -3040,23 +3106,35 @@ function tournamentDetail(t){
   });
 
   const gfx = app.state.fixtures.filter(f => f.tournamentId === t.id && f.stage === 'group');
-  html += `<div class="section-title">Group Fixtures (${gfx.filter(f=>f.played).length}/${gfx.length})</div><div class="grid g2">`;
+  html += `<div class="section-title">Group Fixtures (${gfx.filter(f=>f.played).length}/${gfx.length})</div>
+    <div class="hint" style="margin-bottom:10px">Each pairing starts with two home-and-away legs. If the completed aggregate is level, admins can add another leg. Extra legs have no fixed limit.</div>
+    <div class="grid g2">`;
   gfx.forEach(f => {
     const A = teamById(f.teamAId), B = teamById(f.teamBId);
     const m = f.matchId ? matchById(f.matchId) : null;
     const sc = m ? (() => { const a = matchAggregate(m); return a.a + ' - ' + a.b; })() : '';
+    const pairFixtures = groupPairFixtures(t, f.group, f.teamAId, f.teamBId);
+    const pairIndex = pairFixtures.findIndex(x => x.id === f.id);
+    const legNumber = Number(f.groupLeg) || pairIndex + 1;
+    const isLastPairLeg = pairIndex === pairFixtures.length - 1;
+    const pairBase = pairFixtures[0] || f;
+    const pairResult = isLastPairLeg ? groupPairAggregate(t, f.group, pairBase.teamAId, pairBase.teamBId) : null;
+    const canAddExtraLeg = !!(app.isAdmin && isLastPairLeg && pairResult && pairResult.complete && pairResult.tied);
     html += `<div class="match-card anim">
-      <div class="mc-header"><span>${f.round}</span><span>${f.played ? 'FINISHED' : 'PENDING'}</span></div>
+      <div class="mc-header"><span>${f.round} · LEG ${legNumber}${f.extraLeg ? ' · EXTRA' : ''}</span><span>${f.played ? 'FINISHED' : 'PENDING'}</span></div>
       <div class="mc-body" style="padding:4px 0">
         ${teamSide(A, 24)}
         <div class="mc-score" style="font-size:16px;padding:2px 10px">${sc || 'VS'}</div>
         ${teamSide(B, 24, true)}
       </div>
       <div class="mc-footer" style="margin-top:6px;padding-top:6px;justify-content:center">
-        ${app.isAdmin ? (f.played
-          ? `<button class="btn sm" data-act="match:view" data-id="${f.matchId}">📊</button>`
-          : `<button class="btn sm lime" data-act="track:open" data-id="${f.id}">▶️</button>
-             <button class="btn sm" data-act="match:record" data-id="${f.id}">📝</button>`) : ''}
+        ${app.isAdmin ? `
+          ${f.played
+            ? `<button class="btn sm" data-act="match:view" data-id="${f.matchId}">📊</button>`
+            : `<button class="btn sm lime" data-act="track:open" data-id="${f.id}">▶️</button>
+               <button class="btn sm" data-act="match:record" data-id="${f.id}">📝</button>`}
+          ${canAddExtraLeg ? `<button class="btn sm gold" data-act="tournament:group-add-leg" data-id="${t.id}" data-group="${f.group}" data-a="${esc(pairBase.teamAId)}" data-b="${esc(pairBase.teamBId)}">➕ Extra Leg</button>` : ''}
+        ` : ''}
       </div>
     </div>`;
   });
@@ -5168,6 +5246,17 @@ document.addEventListener('click', async e => {
     await saveState(); render();
     return;
   }
+  if (act === 'tournament:group-add-leg'){
+    if (!app.isAdmin) return;
+    const t = tourById(id);
+    const gi = Number(el.dataset.group);
+    const fixture = addTournamentGroupLeg(id, gi, el.dataset.a, el.dataset.b);
+    if (!fixture) return;
+    await logAdmin('Added group extra leg ' + fixture.groupLeg + ' in tournament "' + (t ? t.name : '') + '"');
+    await saveState(); render();
+    toast('➕ Extra group leg ' + fixture.groupLeg + ' added', 'ok');
+    return;
+  }
   if (act === 'tournament:del'){
     if (!app.isAdmin) return;
     const t = tourById(id);
@@ -5792,7 +5881,7 @@ function openTournamentCreator(){
         ${teamLogo(t, 22)}${esc(t.name)}
       </label>`).join('')}
     </div>
-    <div class="hint" style="margin-top:8px">Group stage is 2 legs per pairing (round robin). Qualifiers: top 2 from each group.</div>
+    <div class="hint" style="margin-top:8px">Group stage starts with 2 legs per pairing (home and away). When all legs are played and the aggregate score is level, admins can add another leg. There is no cap on extra legs. Qualifiers: top 2 from each group.</div>
   `;
   openModal('🏆 Create Tournament', html,
     `<button class="btn lime" data-act="tournament:save">Create</button><button class="btn" data-act="modal:close">Cancel</button>`);
