@@ -1042,10 +1042,10 @@ async function saveState(opts){
       cloudSaved = false;
       console.warn('Firestore save failed', e);
       const why = e.code === 'permission-denied'
-        ? 'Firestore rules blocked the cloud save. The usl collection must allow the admin to read and write its documents.'
-        : e.code === 'invalid-argument' || /too large/i.test(e.message || '')
-          ? 'A league record is still too large for Firestore.'
-          : (e.message || e.code);
+        ? 'Firestore rules blocked the cloud save. Check the /usl/{documentId} admin write rule.'
+        : e.code === 'invalid-argument'
+          ? 'Firestore rejected the write: ' + (e.message || e.code)
+          : (e.message || e.code || 'Unknown cloud save error');
       toast('☁️ Cloud save failed, saved locally only: ' + why, 'err');
     }
   }
