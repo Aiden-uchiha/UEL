@@ -3076,13 +3076,16 @@ function tournamentDetail(t){
       html += `<div class="kocol"><div class="pill cy center">${esc(round.name)}</div>`;
       round.ties.forEach((tie, ti) => {
         const fxs = (tie.fixtureIds||[]).map(fixtureById).filter(Boolean);
-        const unplayed = fxs.filter(f => !f.played);
+        const f = fxs[0];
+        const m = f && f.matchId ? matchById(f.matchId) : null;
+        const minLegs = String(round.name || '').toLowerCase() === 'final' ? 4 : 2;
+        const count = m ? legCount(m) : (f ? Math.max(minLegs, Number(f.legs) || minLegs) : minLegs);
         html += `<div class="ko-tie">
           <div class="tm ${tie.winner === tie.a && tie.a ? 'win' : ''}"><span>${tie.a ? teamLink(teamById(tie.a), 20) : '<span class="muted">TBD</span>'}</span></div>
           <div class="tm ${tie.winner === tie.b && tie.b ? 'win' : ''}"><span>${tie.b ? teamLink(teamById(tie.b), 20) : '<span class="muted">TBD</span>'}</span></div>
-          ${app.isAdmin && unplayed.length ? `<div class="row" style="margin-top:7px;gap:5px">
-            <button class="btn sm lime" data-act="track:open" data-id="${unplayed[0].id}">▶️</button>
-            <button class="btn sm" data-act="match:record" data-id="${unplayed[0].id}">📝</button>
+          ${f && app.isAdmin ? `<div class="row" style="margin-top:7px;gap:5px">
+            ${f.played ? `<button class="btn sm" data-act="match:edit" data-id="${f.matchId}">📊 Edit Match</button>` : `<button class="btn sm lime" data-act="match:record" data-id="${f.id}">📝 Record Match</button>`}
+            ${f.played ? `<button class="btn sm gold" data-act="match:add-leg" data-id="${f.id}">➕ Add Leg</button>${count > minLegs ? `<button class="btn sm danger" data-act="match:remove-leg" data-id="${f.id}">➖ Remove Leg</button>` : ''}` : ''}
           </div>` : ''}
         </div>`;
       });
