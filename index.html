@@ -1099,6 +1099,7 @@ function computePlayerStats(){
   app.state.players.forEach(p => get(p.id));
 
   app.state.matches.forEach(m => {
+    if (isTournamentMatch(m)) return;
     const agg = matchAggregate(m);
     if (!agg.legs.length) return;
     const ps = m.playerStats || {};
@@ -1196,6 +1197,13 @@ function playerAverages(st){
   };
 }
 
+function isTournamentMatch(m){
+  if (!m) return false;
+  if (m.tournamentId) return true;
+  const fixture = m.fixtureId ? app.state.fixtures.find(f => f.id === m.fixtureId) : null;
+  return !!(fixture && fixture.tournamentId);
+}
+
 function computeStandings(){
   const map = {};
   app.state.teams.forEach(t => {
@@ -1206,6 +1214,7 @@ function computeStandings(){
 
   const ms = app.state.matches.slice().sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
   ms.forEach(m => {
+    if (isTournamentMatch(m)) return;
     const agg = matchAggregate(m);
     if (!agg.legs.length) return;
     const A = map[m.teamAId], B = map[m.teamBId];
@@ -5489,6 +5498,7 @@ async function saveMatch(){
   const m = {
     id: d.matchId || uuid(),
     teamAId: f.teamAId, teamBId: f.teamBId, fixtureId: f.id,
+    tournamentId: f.tournamentId || null,
     legs: d.legs,
     timestamp: Date.now(),
     mvpId: d.mvpId || null, motmId: d.motmId || null,
