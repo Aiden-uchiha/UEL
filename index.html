@@ -929,11 +929,14 @@ function splitStateForCloud(source){
       if (current.length){ chunks[field].push(current); current = []; }
     };
     for (const item of items){
-      const singleSize = cloudJsonBytes({ items:[item] });
+      // Firestore rejects arrays nested inside arrays. Store every state record
+      // as JSON text so its internal arrays/maps remain intact without nesting.
+      const json = JSON.stringify(item);
+      const encoded = json;
+      const singleSize = cloudJsonBytes({ items:[encoded] });
       if (singleSize > CLOUD_CHUNK_BYTES){
         flush();
         const recordId = String(largeIndex++);
-        const json = JSON.stringify(item);
         const parts = splitCloudJsonText(json);
         largeRecords[recordId] = { field, parts:parts.length };
         chunks[field].push([{ [CLOUD_LARGE_MARKER]:recordId }]);
@@ -943,15 +946,15 @@ function splitStateForCloud(source){
         });
         continue;
       }
-      const candidate = current.concat([item]);
+      const candidate = current.concat([encoded]);
       if (current.length && cloudJsonBytes({ items:candidate }) > CLOUD_CHUNK_BYTES) flush();
-      current.push(item);
+      current.push(encoded);
     }
     flush();
   });
   const fields = {};
   Object.keys(chunks).forEach(field => { fields[field] = chunks[field].length; });
-  core._uelStorage = { version:3, fields, largeRecords };
+  core._uelStorage = { version:4, fields, largeRecords, encoding:'json-string-records' };
   if (cloudJsonBytes(core) > CLOUD_CHUNK_BYTES){
     throw new Error('League settings are too large to store in the cloud.');
   }
@@ -975,7 +978,7 @@ function stateFromCloudSnapshot(snapshot){
   const core = stateDoc.data() || {};
   const storage = core._uelStorage;
   delete core._uelStorage;
-  if (!storage || ![2,3].includes(storage.version)) return hydrate(core);
+  if (!storage || ![2,3,4].includes(storage.version)) return hydrate(core);
   Object.keys(storage.fields || {}).forEach(field => {
     const count = Math.max(0, Number(storage.fields[field]) || 0);
     const items = [];
@@ -988,7 +991,7 @@ function stateFromCloudSnapshot(snapshot){
       const data = chunkDoc.data() || {};
       if (!Array.isArray(data.items)) continue;
       data.items.forEach(item => {
-        if (storage.version === 3 && item && item[CLOUD_LARGE_MARKER] !== undefined){
+        if (item && typeof item === 'object' && item[CLOUD_LARGE_MARKER] !== undefined){
           const recordId = String(item[CLOUD_LARGE_MARKER]);
           const meta = storage.largeRecords && storage.largeRecords[recordId];
           if (!meta) throw new Error('Missing large-record metadata for ' + field + ' item ' + recordId + '.');
@@ -999,6 +1002,9 @@ function stateFromCloudSnapshot(snapshot){
             json += String((segment.data() || {}).data || '');
           }
           items.push(JSON.parse(json));
+        } else if (storage.version === 4){
+          if (typeof item !== 'string') throw new Error('Invalid encoded cloud record in ' + field + '.');
+          items.push(JSON.parse(item));
         } else items.push(item);
       });
     }
