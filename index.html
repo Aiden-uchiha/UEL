@@ -2111,47 +2111,27 @@ function groupComplete(t){
 }
 
 function advanceToKnockout(tid){
-  const t = tourById(tid);
-  if (!t) return;
-  if (!groupComplete(t)){ toast('⚠️ Group stage is not finished yet', 'err'); return; }
-
-  const qualifiers = [];
-  t.groups.forEach((g, gi) => {
-    const tbl = groupStandings(t, gi);
-    tbl.slice(0, 2).forEach((r, idx) => qualifiers.push({ teamId: r.id, seed: gi * 2 + idx + 1, pts: r.pts, gd: r.gd }));
-  });
-  qualifiers.sort((a,b) => b.pts - a.pts || b.gd - a.gd);
-  qualifiers.forEach((q, i) => q.seed = i + 1);
-
-  const qIds = qualifiers.map(q => q.teamId);
-  const rounds = [];
-
-  if (qIds.length === 4){
-    rounds.push({ name:'Semi-finals', ties: [
-      { a: qIds[0], b: qIds[3], winner:null, fixtureIds:[] },
-      { a: qIds[1], b: qIds[2], winner:null, fixtureIds:[] }
-    ]});
-    rounds.push({ name:'Final', ties:[ { a:null, b:null, winner:null, fixtureIds:[] } ]});
-  } else if (qIds.length === 6){
-    rounds.push({ name:'Quarter-finals', ties: [
-      { a: qIds[2], b: qIds[5], winner:null, fixtureIds:[] },
-      { a: qIds[3], b: qIds[4], winner:null, fixtureIds:[] }
-    ]});
-    rounds.push({ name:'Semi-finals', ties: [
-      { a: qIds[0], b:null, winner:null, fixtureIds:[] },
-      { a: qIds[1], b:null, winner:null, fixtureIds:[] }
-    ]});
-    rounds.push({ name:'Final', ties:[ { a:null, b:null, winner:null, fixtureIds:[] } ]});
-  } else {
-    toast('⚠️ Need 4 or 6 qualifiers', 'err'); return;
-  }
-
-  t.ko = { rounds };
-  t.phase = 'knockout';
-  materializeKO(t);
-  toast('🏁 Knockout stage generated!', 'ok');
+  const t=tourById(tid);if(!t)return;
+  if(!groupComplete(t)){toast('⚠️ Group stage is not finished yet','err');return;}
+  const qualifiers=[];
+  t.groups.forEach((g,gi)=>groupStandings(t,gi).slice(0,2).forEach((r,idx)=>qualifiers.push({teamId:r.id,seed:gi*2+idx+1,pts:r.pts,gd:r.gd})));
+  qualifiers.sort((a,b)=>b.pts-a.pts||b.gd-a.gd);
+  const q=qualifiers.map(x=>x.teamId),rounds=[];
+  if(q.length===4){
+    rounds.push({name:'Semi-finals',ties:[{a:q[0],b:q[3],winner:null,fixtureIds:[]},{a:q[1],b:q[2],winner:null,fixtureIds:[]}]});
+    rounds.push({name:'Final',ties:[{a:null,b:null,winner:null,fixtureIds:[]}]});
+  }else if(q.length===6){
+    rounds.push({name:'Quarter-finals',ties:[{a:q[2],b:q[5],winner:null,fixtureIds:[]},{a:q[3],b:q[4],winner:null,fixtureIds:[]}]});
+    rounds.push({name:'Semi-finals',ties:[{a:q[0],b:null,winner:null,fixtureIds:[]},{a:q[1],b:null,winner:null,fixtureIds:[]}]});
+    rounds.push({name:'Final',ties:[{a:null,b:null,winner:null,fixtureIds:[]}]});
+  }else if(q.length===8){
+    rounds.push({name:'Quarter-finals',ties:[{a:q[0],b:q[7],winner:null,fixtureIds:[]},{a:q[3],b:q[4],winner:null,fixtureIds:[]},{a:q[1],b:q[6],winner:null,fixtureIds:[]},{a:q[2],b:q[5],winner:null,fixtureIds:[]}]});
+    rounds.push({name:'Semi-finals',ties:[{a:null,b:null,winner:null,fixtureIds:[]},{a:null,b:null,winner:null,fixtureIds:[]}]});
+    rounds.push({name:'Final',ties:[{a:null,b:null,winner:null,fixtureIds:[]}]});
+  }else{toast('⚠️ This format needs 4, 6 or 8 group qualifiers. Adjust the group count so two teams per group qualify.','err');return;}
+  t.ko={rounds,thirdPlace:{a:null,b:null,winner:null,fixtureIds:[]}};
+  t.phase='knockout';materializeKO(t);toast('🏁 Knockout bracket generated!','ok');
 }
-
 function materializeKO(t){
   if(!t.ko)return;
   const discardFixture=fixture=>{
@@ -2184,45 +2164,60 @@ function materializeKO(t){
       app.state.fixtures.push(fixture);tie.fixtureIds=[fixture.id];
     });
   });
+  const third=t.ko.thirdPlace;
+  if(third){
+    const existing=(third.fixtureIds||[]).map(fixtureById).filter(Boolean);
+    if(third.a&&third.b){
+      const keep=existing.find(f=>f.teamAId===third.a&&f.teamBId===third.b);
+      if(keep){existing.filter(f=>f.id!==keep.id).forEach(discardFixture);third.fixtureIds=[keep.id];}
+      else{
+        existing.forEach(discardFixture);third.fixtureIds=[];
+        const fixture={id:uuid(),teamAId:third.a,teamBId:third.b,competition:'Tournament',round:'Third-place match',date:'',legs:Math.max(2,Number(t.koLegs)||2),played:false,stage:'ko',tournamentId:t.id,koThirdPlace:true};
+        app.state.fixtures.push(fixture);third.fixtureIds=[fixture.id];
+      }
+    }
+  }
 }
 
 function progressTournament(tid){
-  const t = tourById(tid);
-  if (!t || !t.ko) return;
-
-  t.ko.rounds.forEach((round, ri) => {
-    round.ties.forEach((tie, ti) => {
-      if (tie.winner) return;
-      if (!tie.fixtureIds || !tie.fixtureIds.length) return;
-      const fxs = tie.fixtureIds.map(fixtureById).filter(Boolean);
-      if (fxs.length !== 1 || !fxs[0].played) return;
-      const f = fxs[0], m = f.matchId ? matchById(f.matchId) : null;
-      if (!m) return;
-      const minLegs = String(round.name || '').toLowerCase() === 'final' ? 4 : 2;
-      const agg = matchAggregate(m);
-      if (agg.legs.length < minLegs || agg.a === agg.b) return;
-      tie.winner = agg.a > agg.b ? m.teamAId : m.teamBId;
-
-      const next = t.ko.rounds[ri + 1];
-      if (next){
-        if (ri === 0 && t.ko.rounds.length === 2) {
-          next.ties[0][ti === 0 ? 'a' : 'b'] = tie.winner;
-        } else if (ri === 0 && t.ko.rounds.length === 3) {
-          next.ties[ti].b = tie.winner;
-        } else if (ri === 1 && t.ko.rounds.length === 3) {
-          next.ties[0][ti === 0 ? 'a' : 'b'] = tie.winner;
-        }
+  const t=tourById(tid);if(!t||!t.ko)return;
+  const rounds=t.ko.rounds;
+  rounds.forEach((round,ri)=>{
+    round.ties.forEach((tie,ti)=>{
+      if(tie.winner||!tie.fixtureIds||!tie.fixtureIds.length)return;
+      const fs=tie.fixtureIds.map(fixtureById).filter(Boolean);if(fs.length!==1||!fs[0].played)return;
+      const f=fs[0],m=f.matchId?matchById(f.matchId):null;if(!m)return;
+      const min=String(round.name).toLowerCase()==='final'?4:2,agg=matchAggregate(m);
+      if(agg.legs.length<min||agg.a===agg.b)return;
+      tie.winner=agg.a>agg.b?m.teamAId:m.teamBId;
+      tie.loser=agg.a>agg.b?m.teamBId:m.teamAId;
+      const next=rounds[ri+1];
+      if(next){
+        if(round.name==='Quarter-finals'&&next.name==='Semi-finals'){
+          if(rounds.length===3&&rounds[0].ties.length===4){const target=Math.floor(ti/2),slot=ti%2?'b':'a';next.ties[target][slot]=tie.winner;}
+          else next.ties[ti].b=tie.winner;
+        }else if(round.name==='Semi-finals'&&next.name==='Final'){next.ties[0][ti===0?'a':'b']=tie.winner;}
         materializeKO(t);
-      } else {
-        t.completed = true;
-        t.phase = 'done';
-        t.winner = tie.winner;
-        toast('🏆 ' + teamById(tie.winner).name + ' wins ' + t.name + '!', 'ok');
       }
     });
   });
+  const sf=rounds.find(r=>r.name==='Semi-finals');
+  if(sf&&sf.ties.every(x=>x.winner)){
+    const third=t.ko.thirdPlace||(t.ko.thirdPlace={a:null,b:null,winner:null,fixtureIds:[]});
+    third.a=sf.ties[0].loser||null;third.b=sf.ties[1].loser||null;
+    materializeKO(t);
+  }
+  const final=rounds[rounds.length-1].ties[0];
+  if(final&&final.winner){
+    t.winner=final.winner;t.completed=true;t.phase='done';
+    const third=t.ko.thirdPlace;
+    if(third&&third.a&&third.b&&third.fixtureIds&&third.fixtureIds.length){
+      const f=third.fixtureIds.map(fixtureById).find(Boolean),m=f&&f.matchId?matchById(f.matchId):null;
+      if(m){const a=matchAggregate(m);if(a.legs.length>=2&&a.a!==a.b)third.winner=a.a>a.b?m.teamAId:m.teamBId;}
+    }
+    toast('🏆 '+(teamById(t.winner)?.name||'A team')+' wins '+t.name+'!','ok');
+  }
 }
-
 function rebuildTournamentKO(tid){
   const t=tourById(tid);if(!t||!t.ko)return;
   t.ko.rounds.forEach(round=>round.ties.forEach(tie=>{tie.winner=null;}));
@@ -2816,6 +2811,13 @@ function renderMatchDetailPage(){
 }
 VIEWS.matchdetail=()=>renderMatchDetailPage();
 VIEWS.standings = () => {
+  if(app.state.competitionMode==='tournament'){
+    const active=app.state.tournaments.filter(t=>!t.completed||t.ko);
+    let out='<div class="view-head"><h2><span class="emoji float">🏆</span> Tournament Group Standings</h2></div>';
+    if(!active.length)return out+'<div class="empty"><span class="big">🏁</span>Create a tournament to see its group standings.</div>';
+    active.forEach(t=>{out+='<section class="tour-panel"><div class="tour-panel-head"><div><span>TOURNAMENT</span><h3>'+esc(t.name)+'</h3></div><button class="btn sm" data-act="tournament:view" data-id="'+esc(t.id)+'">Open Tournament</button></div>'+tournamentStandingsHTML(t)+'</section>';});
+    return out;
+  }
   const table = standingsSorted();
   if (!table.length) return `<div class="view-head"><h2><span class="emoji float">🏆</span> Standings</h2></div><div class="empty"><span class="big">📉</span>No standings yet.</div>`;
 
@@ -3352,6 +3354,11 @@ function tournamentKnockoutHTML(t){
     html += '</div>';
   });
   html += '</div></section>';
+  const third=t.ko.thirdPlace;
+  if(third){
+    const f=(third.fixtureIds||[]).map(fixtureById).find(Boolean);
+    html += '<section class="tour-panel" style="margin-top:14px"><div class="tour-panel-head"><div><span>PLACEMENT MATCH</span><h3>Third-place match</h3></div>'+(third.winner?'<b>3RD PLACE DECIDED</b>':'<b>3rd place</b>')+'</div><div class="ko-tie"><div class="tm">'+(third.a?teamLink(teamById(third.a),20):'<span class="muted">TBD</span>')+'</div><div class="tm">'+(third.b?teamLink(teamById(third.b),20):'<span class="muted">TBD</span>')+'</div>'+(f?tournamentFixtureCard(f):'')+'</div>'+(third.winner?'<div class="hint">🥉 Third place: '+teamLink(teamById(third.winner),22)+'</div>':'')+'</section>';
+  }
   if (t.completed && t.winner) html += '<div class="tour-champion"><div>🏆</div><span>TOURNAMENT CHAMPION</span><h2>' + teamLink(teamById(t.winner),34) + '</h2></div>';
   return html;
 }
