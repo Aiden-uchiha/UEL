@@ -2470,8 +2470,8 @@ function moveFixture(id, dir){
 
 VIEWS.fixtures = () => {
   const s = app.state;
-  const upcoming = sortedFixtures(s.fixtures.filter(f => !f.played));
-  const done = sortedFixtures(s.fixtures.filter(f => f.played)).reverse();
+  const upcoming = sortedFixtures(s.fixtures.filter(f => !f.played && !f.tournamentId));
+  const done = sortedFixtures(s.fixtures.filter(f => f.played && !f.tournamentId)).reverse();
 
   const fxRow = (f, i, list) => {
     const A = teamById(f.teamAId), B = teamById(f.teamBId);
@@ -2612,7 +2612,7 @@ function matchPageContext(){
   const fixture=(match&&fixtureById(match.fixtureId))||(match&&app.state.fixtures.find(item=>item.matchId===match.id))||requestedFixture||null;
   const teamAId=match?match.teamAId:(fixture&&fixture.teamAId),teamBId=match?match.teamBId:(fixture&&fixture.teamBId);
   if(!teamAId||!teamBId)return null;
-  const fallback={id:id,teamAId:teamAId,teamBId:teamBId,competition:'League',round:'',legs:match?(legCount(match)||1):1,date:'',played:!!match};
+  const fallback={id:id,teamAId:teamAId,teamBId:teamBId,competition:(match&&isTournamentMatch(match))?'Tournament':'League',round:'',legs:match?(legCount(match)||1):1,date:'',played:!!match};
   return {match:match,fixture:fixture||fallback,A:teamById(teamAId),B:teamById(teamBId)};
 }
 function matchPagePlayerStats(match,teamAId,teamBId){
@@ -3517,6 +3517,43 @@ function archiveDetail(a){
       <td><span class="rk ${i===0?'rank1':i===1?'rank2':i===2?'rank3':'rk-D'}">${i+1}</span></td>
       <td>${esc(r.name)}</td><td>${esc(r.team)}</td><td class="num" style="color:var(--gold);font-weight:900">${r.pts}</td></tr>`).join('')}</tbody>
   </table></div>`;
+
+  if (Array.isArray(a.tournaments) && a.tournaments.length){
+    html += `<div class="section-title">🏆 Archived Tournaments (${a.tournaments.length})</div>`;
+    a.tournaments.forEach(cup => {
+      html += `<div class="card anim" style="margin-bottom:14px">
+        <div class="between"><b style="font-size:15px">${esc(cup.name)}</b><span class="pill ${cup.completed?'li':'cy'}">${cup.completed?'COMPLETED':esc(String(cup.phase||'GROUP').toUpperCase())}</span></div>
+        <div class="kv"><span>Champion</span><b>${esc(cup.winner||'Not completed')}</b></div>
+        <div class="kv"><span>Teams</span><b>${(cup.teams||[]).length}</b></div>
+        <div class="kv"><span>Matches played</span><b>${(cup.fixtures||[]).filter(f=>f.played).length} / ${(cup.fixtures||[]).length}</b></div>`;
+      (cup.groups||[]).forEach(group => {
+        html += `<div class="section-title">${esc(group.name)} · Final Table</div><div class="tblwrap"><table>
+          <thead><tr><th>#</th><th>Team</th><th class="num">MP</th><th class="num">W</th><th class="num">D</th><th class="num">L</th><th class="num">GF</th><th class="num">GA</th><th class="num">GD</th><th class="num">PTS</th></tr></thead><tbody>`;
+        (group.standings||[]).forEach((row,i) => {
+          html += `<tr><td>${i+1}</td><td>${esc(row.team)}</td><td class="num">${row.mp}</td><td class="num">${row.w}</td><td class="num">${row.d}</td><td class="num">${row.l}</td><td class="num">${row.gf}</td><td class="num">${row.ga}</td><td class="num">${row.gd>0?'+':''}${row.gd}</td><td class="num">${row.pts}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+      });
+      if ((cup.fixtures||[]).length){
+        html += `<div class="section-title">Fixtures &amp; Results</div><div class="tblwrap"><table>
+          <thead><tr><th>Round</th><th>Home</th><th class="num">Score</th><th>Away</th><th>Legs</th></tr></thead><tbody>`;
+        cup.fixtures.forEach(f => {
+          const legs=(f.legs||[]).map(leg=>'L'+leg.number+': '+leg.score).join(' · ');
+          html += `<tr><td>${esc(f.round||f.stage||'Match')}</td><td>${esc(f.teamA)}</td><td class="num">${esc(f.score||'VS')}</td><td>${esc(f.teamB)}</td><td class="tiny muted">${esc(legs||'—')}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+      if ((cup.players||[]).length){
+        html += `<div class="section-title">Tournament Player Statistics</div><div class="tblwrap"><table>
+          <thead><tr><th>#</th><th>Player</th><th>Team</th><th class="num">MP</th><th class="num">Apps</th><th class="num">G</th><th class="num">A</th><th class="num">S</th><th class="num">T</th><th class="num">MVP</th><th class="num">MOTM</th></tr></thead><tbody>`;
+        cup.players.forEach((p,i) => {
+          html += `<tr><td>${i+1}</td><td>${esc(p.name)}</td><td>${esc(p.team)}</td><td class="num">${p.matches}</td><td class="num">${p.appearances}</td><td class="num">${p.goals}</td><td class="num">${p.assists}</td><td class="num">${p.saves}</td><td class="num">${p.tackles}</td><td class="num">${p.mvp}</td><td class="num">${p.motm}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+    });
+  }
   return html;
 }
 
@@ -6362,6 +6399,44 @@ async function archiveSeason(){
     value: st[p.id]?.playerValue || 0
   })).sort((a,b) => (b.goals*5 + b.assists*3) - (a.goals*5 + a.assists*3)).slice(0, 25);
 
+  const tournamentHistory = (app.state.tournaments || []).map(t => {
+    const fixtures = app.state.fixtures.filter(f => f.tournamentId === t.id);
+    const matches = tournamentMatches(t);
+    return {
+      id:t.id, name:t.name, phase:t.phase, completed:!!t.completed,
+      winnerId:t.winner || null, winner:t.winner && teamById(t.winner) ? teamById(t.winner).name : null,
+      teams:(t.teams || []).map(id => ({id,name:teamById(id)?.name || 'Unknown team'})),
+      groups:(t.groups || []).map((ids,gi) => ({
+        name:'Group '+String.fromCharCode(65+gi),
+        standings:groupStandings(t,gi).map(row => ({
+          team:row.name,mp:row.mp,w:row.w,d:row.d,l:row.l,gf:row.gf,ga:row.ga,gd:row.gd,pts:row.pts
+        }))
+      })),
+      fixtures:fixtures.map(f => {
+        const m=f.matchId?matchById(f.matchId):null;
+        const agg=m?matchAggregate(m):null;
+        return {
+          stage:f.stage,round:f.round,group:f.group,
+          teamA:teamById(f.teamAId)?.name || 'Unknown team',
+          teamB:teamById(f.teamBId)?.name || 'Unknown team',
+          played:!!(m&&agg&&agg.legs.length),
+          score:agg&&agg.legs.length?agg.a+' - '+agg.b:'VS',
+          legs:agg?agg.legs.map(leg=>({number:leg.n,score:leg.a+' - '+leg.b})):[]
+        };
+      }),
+      players:tournamentPlayerStats(t).map(row => ({
+        name:row.name,team:teamById(row.teamId)?.name || 'Unknown team',
+        matches:row.matches,appearances:row.appearances,goals:row.goals,
+        assists:row.assists,saves:row.saves,tackles:row.tackles,mvp:row.mvp,motm:row.motm
+      })),
+      records:{
+        tournament:JSON.parse(JSON.stringify(t)),
+        fixtures:JSON.parse(JSON.stringify(fixtures)),
+        matches:JSON.parse(JSON.stringify(matches))
+      }
+    };
+  });
+
   const archive = {
     id: uuid(),
     leagueName: app.state.leagueName, seasonName: app.state.seasonName,
@@ -6370,6 +6445,7 @@ async function archiveSeason(){
     standings: table.map(r => ({ name: r.name, mp:r.mp, w:r.w, d:r.d, l:r.l, gf:r.gf, ga:r.ga, gd:r.gd, pts:r.pts, value:r.value })),
     topPlayers,
     ballonTop5: bd.map(r => ({ name: r.player.name, team: teamById(r.player.teamId).name, pts: Math.round(r.pts) })),
+    tournaments:tournamentHistory,
     goldenBoot: topPlayers[0] ? topPlayers[0].name : null,
     matchCount: app.state.matches.length, playerCount: app.state.players.length
   };
