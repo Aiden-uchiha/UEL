@@ -562,6 +562,11 @@ const app = {
 window.app = app;
 const econ = () => app.state.settings.economy;
 
+function getActiveTournament(){
+  const list=(app.state&&app.state.tournaments)||[];
+  if(!list.length)return null;
+  return list.find(t=>!t.completed)||list.slice().sort((a,b)=>(b.started||b.created||0)-(a.started||a.created||0))[0];
+}
 function normalizeCompetitionData(data){
   const d=data||{};
   return {matches:Array.isArray(d.matches)?d.matches.slice():[],fixtures:Array.isArray(d.fixtures)?d.fixtures.slice():[],tournaments:Array.isArray(d.tournaments)?d.tournaments.slice():[]};
@@ -590,6 +595,8 @@ function switchCompetitionMode(mode){
   app.state.competitionMode=mode;
   app.state.matches=next.matches;app.state.fixtures=next.fixtures;app.state.tournaments=next.tournaments;
   app.currentView=mode==='league'?'standings':'tournament';app._tourId=null;app._tourTab='matchdays';
+  const activeTournament=mode==='tournament'?getActiveTournament():null;
+  app._tourViewId=activeTournament?activeTournament.id:null;
   saveState().then(ok=>{render();toast(ok?'Competition mode changed to '+(mode==='league'?'League':'Tournament')+'.':'Mode changed locally, but cloud save failed. Do not reload until connection is restored.',ok?'ok':'err');});
 }
 function hydrate(raw){
@@ -2539,8 +2546,11 @@ function moveFixture(id, dir){
 
 VIEWS.fixtures = () => {
   const s = app.state;
-  const upcoming = sortedFixtures(s.fixtures.filter(f => !f.played && !f.tournamentId));
-  const done = sortedFixtures(s.fixtures.filter(f => f.played && !f.tournamentId)).reverse();
+  const tournamentMode=s.competitionMode==='tournament';
+  const activeTournament=tournamentMode?getActiveTournament():null;
+  const visibleFixtures=tournamentMode?s.fixtures.filter(f=>!activeTournament||f.tournamentId===activeTournament.id):s.fixtures.filter(f=>!f.tournamentId);
+  const upcoming = sortedFixtures(visibleFixtures.filter(f => !f.played));
+  const done = sortedFixtures(visibleFixtures.filter(f => f.played)).reverse();
 
   const fxRow = (f, i, list) => {
     const A = teamById(f.teamAId), B = teamById(f.teamBId);
@@ -2604,12 +2614,11 @@ VIEWS.fixtures = () => {
   return `<div class="view-head">
     <h2><span class="emoji float">📅</span> Fixtures</h2>
     <div class="head-actions">
-      ${app.isAdmin ? `
+      ${app.isAdmin && !tournamentMode ? `
         <button class="btn lime" data-act="fixture:create"><span class="emoji">➕</span> Fixture</button>
         <button class="btn" data-act="fixture:autogen"><span class="emoji">🔁</span> Auto Fixtures</button>
         <button class="btn" data-act="report:open"><span class="emoji">📋</span> Paste Report</button>
-        <button class="btn magenta" data-act="tournament:create"><span class="emoji">🏆</span> Tournament</button>
-      ` : ''}
+      ` : (tournamentMode ? '<span class="pill cy">🏆 '+esc(activeTournament?activeTournament.name:'Tournament')+' · Tournament fixtures</span>' : '')}
     </div>
   </div>
 
@@ -3202,8 +3211,14 @@ VIEWS.teamprofile = () => {
 VIEWS.tournament = () => {
   const s = app.state;
   if(app.state.competitionMode!=='tournament'){
-    return '<div class="view-head"><h2><span class="emoji float">🥇</span> Tournaments</h2></div><div class="empty"><span class="big">🔁</span>Tournament management is available in Tournament Mode.<p class="muted">The League and Tournament datasets are kept separate.</p>'+(app.isAdmin?'<button class="btn lime" data-act="competition:mode" data-mode="tournament">Switch to Tournament Mode</button>':'')+'</div>';
+    return '<div class="view-head"><h2><span class="emoji float">🥇</span> Tournament</h2></div><div class="empty"><span class="big">🔁</span>Tournament content is available in Tournament Mode.</div>';
   }
+  const onlyTournament=getActiveTournament();
+  if(onlyTournament){app._tourViewId=onlyTournament.id;return tournamentDetail(onlyTournament);}
+  if(app.isAdmin){
+    return '<div class="view-head"><h2><span class="emoji float">🏆</span>Tournament Setup</h2></div><div class="empty"><span class="big">🏁</span>No tournament has been configured for this mode yet.<p>Select teams and create the season tournament to get started.</p><button class="btn lime" data-act="tournament:create">Create Tournament</button></div>';
+  }
+  return '<div class="view-head"><h2><span class="emoji float">🏆</span>Tournament</h2></div><div class="empty">The tournament has not been configured yet.</div>';
   if (app._tourViewId){
     const t = tourById(app._tourViewId);
     if (t) return tournamentDetail(t);
@@ -3715,9 +3730,12 @@ function renderNav(){
     : app.currentView === 'teamprofile' ? 'teams'
     : app.currentView === 'playerprofile' ? 'players'
     : (app.currentView === 'ballonDor'||app.currentView === 'awarddetail') ? 'awards' : app.currentView;
-  let html = NAV_ITEMS.map(([v, ic, label]) =>
-    `<button class="navbtn ${activeView === v ? 'active' : ''}" data-act="goto" data-view="${v}">
-      <span class="emoji">${ic}</span>${label}</button>`).join('');
+  let html = NAV_ITEMS.map(([v, ic, originalLabel]) => {
+    const label=v==='tournament'&&app.state.competitionMode==='tournament'
+      ? ((getActiveTournament()&&getActiveTournament().name)||'Tournament Setup') : originalLabel;
+    return `<button class="navbtn ${activeView === v ? 'active' : ''}" data-act="goto" data-view="${v}">
+      <span class="emoji">${ic}</span>${esc(label)}</button>`;
+  }).join('');
 
   if (!ARCHIVE_MODE && app.isAdmin){
     html += `<button class="navbtn admin ${app.currentView === 'logs' ? 'active' : ''}" data-act="goto" data-view="logs"><span class="emoji">🧾</span>Logs</button>`;
@@ -5568,6 +5586,8 @@ document.addEventListener('click', async e => {
 
   if (act === 'tournament:create'){
     if (!app.isAdmin) return;
+    if(app.state.competitionMode!=='tournament')return toast('Switch to Tournament Mode first.','err');
+    if(getActiveTournament())return toast('This mode already has its season tournament.','err');
     if (app.state.teams.length < 4) return toast('⚠️ Need at least 4 teams', 'err');
     openTournamentCreator();
     return;
@@ -5581,6 +5601,7 @@ document.addEventListener('click', async e => {
     if (ids.length > 12) return toast('⚠️ Maximum 12 teams', 'err');
     if (gc < 2 || gc > 3) return toast('⚠️ 2 or 3 groups', 'err');
     if (gc === 3 && ids.length < 6) return toast('⚠️ Three groups need at least 6 teams (2 per group)', 'err');
+    if(getActiveTournament())return toast('Only one tournament is allowed in this mode.','err');
     const created = createTournament(name, ids, gc, ko);
     await logAdmin('Created tournament "' + name + '" with ' + ids.length + ' teams');
     const cloudSaved = await saveState({suppressErrorToast:true});
