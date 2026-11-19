@@ -5143,6 +5143,7 @@ document.addEventListener('click', async e => {
     const pid = id || app._marketSelectedPlayerId;
     const buyerId = $('#m_buyer') ? $('#m_buyer').value : '';
     const type = $('#m_type') ? $('#m_type').value : 'transfer';
+    if (app.state.competitionMode === 'tournament' && type === 'loan') return toast('🏆 Loans are disabled in Tournament Mode. Use a full transfer instead.', 'err');
     const p = playerById(pid);
     const buyer = app.state.teams.find(t => t.id === buyerId);
     if (!p || !buyer) return toast('⚠️ Select a player and destination team', 'err');
@@ -6265,6 +6266,7 @@ function marketDealPanelHTML(p){
     </div>`;
   }
   const value = computePlayerStats()[p.id]?.playerValue || p.startingValue || econ().playerStart;
+  const tournamentMode = app.state.competitionMode === 'tournament';
   const duration = Math.max(1, Number(econ().loanLegs) || 2);
   const totalFee = Math.max(0, Math.round(value * (Math.max(0, Number(econ().loanPct) || 0) / 100)));
   return `<div class="market-deal-card">
@@ -6273,13 +6275,13 @@ function marketDealPanelHTML(p){
     <div class="kv"><span>Estimated player value</span><b>${money(value)}</b></div>
     <label class="fl">Destination team</label>
     <select id="m_buyer">${teamOptions((app.state.teams.find(t => t.id !== p.teamId) || {}).id)}</select>
-    <label class="fl">Deal type</label>
+    ${tournamentMode ? `<div class="hint" style="margin-top:8px">🏆 Tournament Mode: only full transfers are allowed. Player loans are disabled for this competition.</div>` : `<label class="fl">Deal type</label>
     <select id="m_type">
       <option value="transfer">Full transfer — ${money(value)}</option>
       <option value="loan">Loan — up to ${money(totalFee)} across ${duration} played legs</option>
     </select>
-    <div class="hint" style="margin-top:8px">Full transfers move the player's value immediately. Loans have no upfront charge: the borrowing team pays one share only when the player actually appears in a leg. Unplayed legs cost nothing, and the player automatically returns after ${duration} played legs unless you end the loan earlier.</div>
-    <button class="btn lime" style="margin-top:12px" data-act="market:do" data-id="${esc(p.id)}">Execute Transfer / Loan</button>
+    <div class="hint" style="margin-top:8px">Full transfers move the player's value immediately. Loans have no upfront charge: the borrowing team pays one share only when the player actually appears in a leg. Unplayed legs cost nothing, and the player automatically returns after ${duration} played legs unless you end the loan earlier.</div>`}
+    <button class="btn lime" style="margin-top:12px" data-act="market:do" data-id="${esc(p.id)}">${tournamentMode ? 'Execute Transfer' : 'Execute Transfer / Loan'}</button>
   </div>`;
 }
 
