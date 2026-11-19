@@ -3546,7 +3546,7 @@ VIEWS.awards = () => {
 
   return `<div class="view-head"><h2><span class="emoji wig">🎖️</span> Awards</h2></div>
   ${ballonPodium}
-  <div class="section-title">Team of the ' + (app.state.competitionMode==='tournament'?'Tournament':'Season') + '</div>
+  <div class="section-title">Team of the ${app.state.competitionMode==='tournament'?'Tournament':'Season'}</div>
   <div class="tos-grid">${tos.map(tosCard).join('')}</div>
   <div class="section-title">Team Awards</div>
   <div class="grid g3">${teamAwards.map(card).join('')}</div>
