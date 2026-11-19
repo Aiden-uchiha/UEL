@@ -23,7 +23,12 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;bac
 .wrap{max-width:1400px;margin:0 auto;padding:0 14px 90px}
 header.top{position:sticky;top:0;z-index:60;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:linear-gradient(180deg,rgba(11,13,23,.96),rgba(11,13,23,.72));border-bottom:1px solid var(--line);box-shadow:0 0 30px rgba(0,240,255,.10)}
 .brandbar{display:flex;align-items:center;gap:12px;padding:12px 16px 6px;flex-wrap:wrap}
-.brand{font-weight:900;font-size:20px;letter-spacing:2.5px;text-transform:uppercase;background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 12px rgba(0,240,255,.55));cursor:pointer;user-select:none;white-space:nowrap}
+.brand{display:inline-flex;align-items:center;gap:9px;font-weight:900;font-size:20px;letter-spacing:2.5px;text-transform:uppercase;background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 12px rgba(0,240,255,.55));cursor:pointer;user-select:none;white-space:nowrap}
+.brand-logo{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:0 0 42px;width:42px;height:42px;border-radius:50%;overflow:hidden;border:2px solid rgba(0,240,255,.65);background:rgba(255,255,255,.035);color:var(--gold);-webkit-text-fill-color:initial;font-size:21px;line-height:1;box-shadow:0 0 0 3px rgba(0,240,255,.07),0 0 18px rgba(0,240,255,.12)}
+.brand-logo img{display:block;width:100%;height:100%;border-radius:50%;object-fit:contain;background:transparent!important}
+.brand-logo.editable{cursor:pointer}
+.brand-logo.editable::after{content:'✎';position:absolute;right:-1px;bottom:-1px;width:17px;height:17px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.75);border-radius:50%;background:var(--cyan);color:#0b0d17;font-size:11px;font-weight:900;opacity:0;transform:scale(.8);transition:opacity .16s ease,transform .16s ease}
+.brand-logo.editable:hover::after,.brand-logo.editable:focus-visible::after{opacity:1;transform:scale(1)}
 
 @keyframes spinball{to{transform:rotate(360deg)}}
 .season-chip{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);border:1px solid var(--line);padding:4px 10px;border-radius:999px;background:rgba(0,240,255,.05)}
@@ -373,7 +378,7 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 <header class="top">
   <div class="wrap" style="padding-bottom:0">
     <div class="brandbar">
-      <div class="brand" data-act="goto" data-view="registry"><span class="ball">⚽</span> <span id="brandName">My League</span></div>
+      <div class="brand" data-act="goto" data-view="registry"><div class="brand-logo" id="brandLogo" data-act="logo:edit" title="League logo">👑</div> <span id="brandName">My League</span></div>
       <span class="season-chip" id="seasonChip">2026 Season</span>
       <div class="spacer"></div>
       <a class="discord-header-btn" href="https://discord.gg/GmDqVtmzRA" target="_blank" rel="noopener noreferrer" aria-label="Join the UEL Discord server">💬 Discord</a>
@@ -432,6 +437,11 @@ const num = n => (Number(n)||0).toLocaleString('en-US');
 const pct = (a,b) => b ? ((a/b)*100).toFixed(1) + '%' : '0%';
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 function isImageUrl(v){return typeof v==='string'&&(/^https?:\/\//i.test(v)||v.startsWith('data:image')||v.startsWith('blob:'));}
+function renderLeagueLogo(){
+  const logo=String((app.state&&app.state.leagueLogo)||'').trim();
+  if(logo&&isImageUrl(logo))return '<img src="'+esc(logo)+'" alt="League logo" loading="eager" referrerpolicy="no-referrer">';
+  return esc(logo||'👑');
+}
 
 function teamLogo(team, size){
   size = Number(size) || 26;
@@ -530,6 +540,7 @@ function awardEmoji(key, fallback){
 function defaultState(){
   return {
     leagueName: 'My League',
+    leagueLogo: '',
     seasonName: '2026 Season',
     hypeCycleId: uuid(),
     competitionMode: 'league',
@@ -3772,6 +3783,10 @@ function renderNav(){
     html += '<button class="navbtn admin" data-act="competition:mode" data-mode="'+(mode==='league'?'tournament':'league')+'">⇄ Switch to '+(mode==='league'?'Tournament':'League')+'</button>';
   }
   nav.innerHTML = html;
+  const brandLogo=$('#brandLogo');
+  brandLogo.innerHTML=renderLeagueLogo();
+  brandLogo.classList.toggle('editable',!!app.isAdmin&&!ARCHIVE_MODE);
+  brandLogo.title=app.isAdmin&&!ARCHIVE_MODE?'Change league logo':'League logo';
   const activeCompetitionName=app.state.competitionMode==='tournament'
     ? ((getActiveTournament()&&getActiveTournament().name)||app.state.leagueName)
     : app.state.leagueName;
@@ -4791,6 +4806,55 @@ document.addEventListener('click', async e => {
   if (act === 'goto'){ go(el.dataset.view); return; }
   if (act === 'competition:mode'){ switchCompetitionMode(el.dataset.mode); return; }
   if (act === 'modal:close'){ closeModal(); return; }
+
+  if (act === 'logo:edit'){
+    if(!app.isAdmin||ARCHIVE_MODE)return;
+    const current=String(app.state.leagueLogo||'').trim();
+    const currentIsUrl=!!(current&&isImageUrl(current));
+    openModal('🏆 League Logo', `
+      <div class="center" style="margin-bottom:14px">
+        <div class="brand-logo" style="margin:0 auto">${renderLeagueLogo()}</div>
+        <div class="hint" style="margin-top:8px">Choose an image URL or an emoji for the league badge.</div>
+      </div>
+      <label class="fl" for="leagueLogoUrl">Image URL</label>
+      <input id="leagueLogoUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://example.com/league-logo.gif" value="${currentIsUrl?esc(current):''}">
+      <label class="fl" for="leagueLogoEmoji">Emoji</label>
+      <input id="leagueLogoEmoji" type="text" maxlength="8" autocomplete="off" placeholder="👑" value="${current&&!currentIsUrl?esc(current):''}">
+      <div class="hint" style="margin-top:8px">An image URL takes priority over an emoji. Leave both empty to use the default crown.</div>
+    `, `
+      <button class="btn danger" data-act="logo:remove">Remove</button>
+      <button class="btn" data-act="modal:close">Cancel</button>
+      <button class="btn lime" data-act="logo:save">Save Logo</button>
+    `);
+    return;
+  }
+  if (act === 'logo:save'){
+    if(!app.isAdmin||ARCHIVE_MODE)return;
+    const url=($('#leagueLogoUrl')?.value||'').trim();
+    const emoji=($('#leagueLogoEmoji')?.value||'').trim().slice(0,8);
+    let final='';
+    if(url){
+      if(!/^https?:\/\//i.test(url))return toast('Enter a valid http or https image URL.','err');
+      final=url;
+    }else if(emoji)final=emoji;
+    app.state.leagueLogo=final;
+    logAdmin('Updated league logo');
+    await saveState();
+    closeModal();
+    render();
+    toast(final?'✅ League logo updated.':'✅ Default crown restored.','ok');
+    return;
+  }
+  if (act === 'logo:remove'){
+    if(!app.isAdmin||ARCHIVE_MODE)return;
+    app.state.leagueLogo='';
+    logAdmin('Removed league logo');
+    await saveState();
+    closeModal();
+    render();
+    toast('✅ Default crown restored.','ok');
+    return;
+  }
 
   if (act === 'login'){
     if (!firebaseReady){
