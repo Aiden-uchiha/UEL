@@ -1034,12 +1034,9 @@ function stateFromCloudSnapshot(snapshot){
     const items = [];
     for (let index=0; index<count; index++){
       const chunkDoc = byId.get(CLOUD_CHUNK_PREFIX + field + '_' + index);
-      if (!chunkDoc){
-        console.warn('Missing cloud data chunk:', field, index);
-        continue;
-      }
+      if (!chunkDoc) throw new Error('Missing cloud data chunk: '+field+' '+index+'. Cloud data was not loaded to avoid losing records.');
       const data = chunkDoc.data() || {};
-      if (!Array.isArray(data.items)) continue;
+      if (!Array.isArray(data.items)) throw new Error('Invalid cloud data chunk for '+field+' '+index+'.');
       data.items.forEach(item => {
         if (item && typeof item === 'object' && item[CLOUD_LARGE_MARKER] !== undefined){
           const recordId = String(item[CLOUD_LARGE_MARKER]);
@@ -1064,49 +1061,47 @@ function stateFromCloudSnapshot(snapshot){
 }
 
 async function saveState(opts){
-  if (ARCHIVE_MODE) return;
-  opts = opts || {};
-  if (firebaseReady && app.db && !app._cloudLoaded && !opts.force){
-    toast('⏳ Still loading the cloud save, wait a second and try again', 'err');
+  if(ARCHIVE_MODE)return true;
+  opts=opts||{};
+  if(firebaseReady&&app.db&&!app._cloudLoaded&&!opts.force){
+    if(!opts.suppressErrorToast)setTimeout(()=>toast('⏳ Cloud data is not ready, so this change was not saved. Try again after loading finishes.','err'),0);
     return false;
   }
-  let cloudSaved = !(firebaseReady && app.db);
-  if (!opts.silent) app._suppress = true;
-  try { localStorage.setItem(LS_KEY, JSON.stringify(app.state)); } catch(e){ console.warn('LS save failed', e); }
-  try { localStorage.setItem(LS_LOGS, JSON.stringify(app.state.logs.slice(-200))); } catch(e){}
-  if (firebaseReady && app.db){
-    try {
-      const packed = splitStateForCloud(app.state);
-      const collection = app.db.collection('usl');
-      const existing = await collection.get();
-      const batch = app.db.batch();
-      batch.set(collection.doc('state'), packed.core);
-      Object.keys(packed.docs).forEach(id => batch.set(collection.doc(id), packed.docs[id]));
-      const keep = new Set(Object.keys(packed.docs));
-      existing.docs.forEach(doc => {
-        if ((doc.id.startsWith(CLOUD_CHUNK_PREFIX) || doc.id.startsWith(CLOUD_LARGE_PREFIX)) && !keep.has(doc.id)) batch.delete(doc.ref);
+  let cloudSaved=!(firebaseReady&&app.db),localSaved=false;
+  if(!opts.silent)app._suppress=true;
+  try{localStorage.setItem(LS_KEY,JSON.stringify(app.state));localSaved=true;}
+  catch(e){console.warn('LS save failed',e);}
+  try{localStorage.setItem(LS_LOGS,JSON.stringify(app.state.logs.slice(-200)));}catch(e){}
+  if(firebaseReady&&app.db){
+    try{
+      const packed=splitStateForCloud(app.state),collection=app.db.collection('usl');
+      const existing=await collection.get(),batch=app.db.batch();
+      batch.set(collection.doc('state'),packed.core);
+      Object.keys(packed.docs).forEach(id=>batch.set(collection.doc(id),packed.docs[id]));
+      const keep=new Set(Object.keys(packed.docs));
+      existing.docs.forEach(doc=>{
+        if((doc.id.startsWith(CLOUD_CHUNK_PREFIX)||doc.id.startsWith(CLOUD_LARGE_PREFIX))&&!keep.has(doc.id))batch.delete(doc.ref);
       });
-      const obsoleteCount = existing.docs.filter(doc =>
-        (doc.id.startsWith(CLOUD_CHUNK_PREFIX) || doc.id.startsWith(CLOUD_LARGE_PREFIX)) && !keep.has(doc.id)
+      const obsoleteCount=existing.docs.filter(doc=>
+        (doc.id.startsWith(CLOUD_CHUNK_PREFIX)||doc.id.startsWith(CLOUD_LARGE_PREFIX))&&!keep.has(doc.id)
       ).length;
-      if (Object.keys(packed.docs).length + obsoleteCount + 1 > 450){
+      if(Object.keys(packed.docs).length+obsoleteCount+1>450)
         throw new Error('The league has too many separate data chunks for one safe cloud save.');
-      }
-      await batch.commit();
-      cloudSaved = true;
-    } catch(e){
-      cloudSaved = false;
-      console.warn('Firestore save failed', e);
-      const why = e.code === 'permission-denied'
-        ? 'Firestore rules blocked the cloud save. Check the /usl/{documentId} admin write rule.'
-        : e.code === 'invalid-argument'
-          ? 'Firestore rejected the write: ' + (e.message || e.code)
-          : (e.message || e.code || 'Unknown cloud save error');
-      toast('☁️ Cloud save failed, saved locally only: ' + why, 'err');
+      await batch.commit();cloudSaved=true;app._cloudSaveError=null;
+    }catch(e){
+      cloudSaved=false;console.warn('Firestore save failed',e);
+      const why=e.code==='permission-denied'
+        ?'Firestore rules blocked the cloud save. Check the /usl/{documentId} admin write rule.'
+        :e.code==='invalid-argument'
+          ?'Firestore rejected the write: '+(e.message||e.code)
+          :(e.message||e.code||'Unknown cloud save error');
+      app._cloudSaveError=why;
+      if(!opts.suppressErrorToast&&!opts.silent)
+        setTimeout(()=>toast('☁️ Cloud save failed, saved locally only: '+why,'err'),0);
     }
   }
-  setTimeout(() => { app._suppress = false; }, 400);
-  return cloudSaved;
+  setTimeout(()=>{app._suppress=false;},400);
+  return (firebaseReady&&app.db)?cloudSaved:localSaved;
 }
 
 async function logAdmin(action, before, after){
@@ -1131,11 +1126,21 @@ function initFirebase(){
 
     app.db.collection('usl').onSnapshot(snapshot => {
       const firstCloudSnapshot = !app._cloudLoaded;
-      app._cloudLoaded = true;
       if (snapshot.metadata && snapshot.metadata.hasPendingWrites) return;
       if (app._suppress) return;
-      app.state = stateFromCloudSnapshot(snapshot);
-      if (migrate()) saveState({ silent:true, force:true });
+      let cloudState;
+      try {
+        cloudState=stateFromCloudSnapshot(snapshot);
+      } catch(error) {
+        app._cloudLoaded=false;
+        app._cloudError=error.message||'Cloud save could not be read safely';
+        console.error('Cloud snapshot rejected:',error);
+        render();
+        toast('☁️ Cloud data could not be loaded completely. Current local data was left untouched.','err');
+        return;
+      }
+      app._cloudLoaded=true;app._cloudError=null;app.state=cloudState;
+      if (migrate()) saveState({silent:true,force:true});
       if (firstCloudSnapshot && location.hash) applyHashRoute();
       else render();
     }, err => {
@@ -1276,69 +1281,46 @@ function teamForMatch(m, pid){
 }
 
 function computePlayerStats(){
-  const E = econ();
-  const st = {};
-  const get = id => st[id] || (st[id] = {
-    goals:0, assists:0, saves:0, tackles:0, legsPlayed:0, legs:0,
-    mvp:0, motm:0, matches:0, growth:0, playerValue:0, marketValue:0,
-    legLog: []
+  const E=econ(), st={};
+  const get=id=>st[id]||(st[id]={
+    goals:0,assists:0,saves:0,tackles:0,legsPlayed:0,legs:0,
+    mvp:0,motm:0,matches:0,growth:0,playerValue:0,marketValue:0,legLog:[]
   });
-
-  app.state.players.forEach(p => get(p.id));
-
-  app.state.matches.forEach(m => {
-    if (isTournamentMatch(m)) return;
-    const agg = matchAggregate(m);
-    if (!agg.legs.length) return;
-    const ps = m.playerStats || {};
-    const playedSet = new Set();
-
-    Object.keys(ps).forEach(pid => {
-      if (!playerById(pid)) return;
-      const legs = ps[pid];
-      if (!Array.isArray(legs)) return;
-      const s = get(pid);
-      let playedAny = false;
-      legs.forEach((lg, i) => {
-        if (!lg || !lg.played) return;
-        if (i >= agg.legs.length) return;
-        playedAny = true;
-        s.legsPlayed++;
-        const g = +lg.goals || 0, a = +lg.assists || 0, sv = +lg.saves || 0, tk = +lg.tackles || 0;
-        s.goals += g; s.assists += a; s.saves += sv; s.tackles += tk;
-        s.legLog.push({ matchId: m.id, leg: i + 1, g, a, s: sv, t: tk });
+  app.state.players.forEach(p=>get(p.id));
+  app.state.matches.forEach(m=>{
+    if(isTournamentMatch(m))return;
+    const agg=matchAggregate(m);if(!agg.legs.length)return;
+    const ps=m.playerStats||{},playedSet=new Set();
+    agg.legs.forEach(matchLeg=>{
+      Object.keys(ps).forEach(pid=>{
+        if(!playerById(pid))return;
+        const playerLegs=ps[pid],lg=Array.isArray(playerLegs)?playerLegs[matchLeg.n-1]:null;
+        if(!lg||!lg.played)return;
+        const s=get(pid),g=Number(lg.goals)||0,a=Number(lg.assists)||0;
+        const sv=Number(lg.saves)||0,tk=Number(lg.tackles)||0;
+        s.legsPlayed++;s.goals+=g;s.assists+=a;s.saves+=sv;s.tackles+=tk;
+        s.legLog.push({matchId:m.id,leg:matchLeg.n,g,a,s:sv,t:tk});playedSet.add(pid);
       });
-      if (playedAny) playedSet.add(pid);
     });
-
-    playedSet.forEach(pid => get(pid).matches++);
-    if (m.mvpId && playerById(m.mvpId))  get(m.mvpId).mvp++;
-    if (m.motmId && playerById(m.motmId)) get(m.motmId).motm++;
+    playedSet.forEach(pid=>get(pid).matches++);
+    if(m.mvpId&&playerById(m.mvpId))get(m.mvpId).mvp++;
+    if(m.motmId&&playerById(m.motmId))get(m.motmId).motm++;
   });
-
-  app.state.players.forEach(p => {
-    const s = get(p.id);
-    const en = E.enabled;
-    let growth = 0;
-    if (en.goal)   growth += s.goals   * E.goal;
-    if (en.assist) growth += s.assists * E.assist;
-    if (en.save)   growth += s.saves   * E.save;
-    if (en.tackle) growth += s.tackles * E.tackle;
-    if (en.mvp)    growth += s.mvp     * E.mvp;
-    if (en.motm)   growth += s.motm    * E.motm;
-    const hypeCount = getHypeCount(p.id);
-    const hypeReward = Math.max(0, Number((app.state.settings.hype || HYPE_DEFAULT).valuePerHype) || 0);
-    const hypeGrowth = hypeCount * hypeReward;
-    growth += hypeGrowth;
-    s.hypeCount = hypeCount;
-    s.hypeValueBonus = hypeGrowth;
-    s.growth = growth;
-    const start = (p.startingValue === undefined || p.startingValue === null) ? E.playerStart : p.startingValue;
-    s.startingValue = start;
-    s.playerValue = Math.min(E.cap, start + growth);
-    s.marketValue = s.playerValue;
+  app.state.players.forEach(p=>{
+    const s=get(p.id),en=E.enabled;let growth=0;
+    if(en.goal)growth+=s.goals*E.goal;
+    if(en.assist)growth+=s.assists*E.assist;
+    if(en.save)growth+=s.saves*E.save;
+    if(en.tackle)growth+=s.tackles*E.tackle;
+    if(en.mvp)growth+=s.mvp*E.mvp;
+    if(en.motm)growth+=s.motm*E.motm;
+    const hypeCount=getHypeCount(p.id);
+    const hypeReward=Math.max(0,Number((app.state.settings.hype||HYPE_DEFAULT).valuePerHype)||0);
+    const hypeGrowth=hypeCount*hypeReward;growth+=hypeGrowth;
+    s.hypeCount=hypeCount;s.hypeValueBonus=hypeGrowth;s.growth=growth;
+    const start=(p.startingValue===undefined||p.startingValue===null)?E.playerStart:p.startingValue;
+    s.startingValue=start;s.playerValue=Math.min(E.cap,start+growth);s.marketValue=s.playerValue;
   });
-
   return st;
 }
 
@@ -1393,65 +1375,44 @@ function isTournamentMatch(m){
 }
 
 function computeStandings(){
-  const map = {};
-  app.state.teams.forEach(t => {
-    map[t.id] = { id:t.id, name:t.name, color:t.color, value:t.value || 0,
-      mp:0, w:0, d:0, l:0, gf:0, ga:0, gd:0, pts:0,
-      form:[], comebacks:0, streak:0, best:0, wall:0 };
+  const map={};
+  app.state.teams.forEach(t=>map[t.id]={
+    id:t.id,name:t.name,color:t.color,value:t.value||0,mp:0,w:0,d:0,l:0,
+    gf:0,ga:0,gd:0,pts:0,form:[],comebacks:0,streak:0,best:0,wall:0
   });
-
-  const ms = app.state.matches.slice().sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
-  ms.forEach(m => {
-    if (isTournamentMatch(m)) return;
-    const agg = matchAggregate(m);
-    if (!agg.legs.length) return;
-    const A = map[m.teamAId], B = map[m.teamBId];
-    if (!A || !B) return;
-
-    A.mp++; B.mp++;
-    A.gf += agg.a; A.ga += agg.b;
-    B.gf += agg.b; B.ga += agg.a;
-
-    if (agg.res === 'A'){
-      A.w++; B.l++; A.pts += 3;
-      A.form.push('W'); B.form.push('L');
-      A.streak++; B.streak = 0;
-      if (A.streak > A.best) A.best = A.streak;
-      const l1 = agg.legs[0];
-      if (l1 && l1.a <= l1.b) A.comebacks++;
-    } else if (agg.res === 'B'){
-      B.w++; A.l++; B.pts += 3;
-      B.form.push('W'); A.form.push('L');
-      B.streak++; A.streak = 0;
-      if (B.streak > B.best) B.best = B.streak;
-      const l1 = agg.legs[0];
-      if (l1 && l1.b <= l1.a) B.comebacks++;
-    } else {
-      A.d++; B.d++; A.pts++; B.pts++;
-      A.form.push('D'); B.form.push('D');
-      A.streak = 0; B.streak = 0;
+  app.state.matches.slice().sort((a,b)=>(a.timestamp||0)-(b.timestamp||0)).forEach(m=>{
+    if(isTournamentMatch(m))return;
+    const agg=matchAggregate(m);if(!agg.legs.length)return;
+    const A=map[m.teamAId],B=map[m.teamBId];if(!A||!B)return;
+    A.mp++;B.mp++;A.gf+=agg.a;A.ga+=agg.b;B.gf+=agg.b;B.ga+=agg.a;
+    if(agg.res==='A'){
+      A.w++;B.l++;A.pts+=3;A.form.push('W');B.form.push('L');
+      A.streak++;B.streak=0;if(A.streak>A.best)A.best=A.streak;
+      const first=agg.legs[0];if(first&&first.a<=first.b)A.comebacks++;
+    }else if(agg.res==='B'){
+      B.w++;A.l++;B.pts+=3;B.form.push('W');A.form.push('L');
+      B.streak++;A.streak=0;if(B.streak>B.best)B.best=B.streak;
+      const first=agg.legs[0];if(first&&first.b<=first.a)B.comebacks++;
+    }else{
+      A.d++;B.d++;A.pts++;B.pts++;A.form.push('D');B.form.push('D');A.streak=0;B.streak=0;
     }
   });
-
-  /* Wall — attribute to snapshot team */
-  app.state.matches.forEach(m => {
-    const agg = matchAggregate(m);
-    if (!agg.legs.length) return;
-    const ps = m.playerStats || {};
-    Object.keys(ps).forEach(pid => {
-      if (!playerById(pid)) return;
-      const tid = teamForMatch(m, pid);
-      if (!tid || !map[tid]) return;
-      const legs = ps[pid];
-      if (!Array.isArray(legs)) return;
-      legs.forEach((lg, i) => {
-        if (!lg || !lg.played || i >= agg.legs.length) return;
-        map[tid].wall += (+lg.tackles||0) + (+lg.saves||0);
+  /* Cup performances must not affect league-only defensive awards. */
+  app.state.matches.forEach(m=>{
+    if(isTournamentMatch(m))return;
+    const agg=matchAggregate(m);if(!agg.legs.length)return;
+    const ps=m.playerStats||{};
+    agg.legs.forEach(matchLeg=>{
+      Object.keys(ps).forEach(pid=>{
+        if(!playerById(pid))return;
+        const tid=teamForMatch(m,pid);if(!tid||!map[tid])return;
+        const playerLegs=ps[pid],lg=Array.isArray(playerLegs)?playerLegs[matchLeg.n-1]:null;
+        if(!lg||!lg.played)return;
+        map[tid].wall+=(Number(lg.tackles)||0)+(Number(lg.saves)||0);
       });
     });
   });
-
-  Object.values(map).forEach(r => { r.gd = r.gf - r.ga; });
+  Object.values(map).forEach(r=>r.gd=r.gf-r.ga);
   return map;
 }
 
@@ -1461,45 +1422,42 @@ function standingsSorted(){
   return arr;
 }
 
-function headToHead(teamA, teamB){
-  let aGoals = 0, bGoals = 0, aWins = 0, bWins = 0, draws = 0;
-  app.state.matches.forEach(m => {
-    const agg = matchAggregate(m);
-    if (!agg.legs.length) return;
-    const isA = m.teamAId === teamA && m.teamBId === teamB;
-    const isB = m.teamAId === teamB && m.teamBId === teamA;
-    if (!isA && !isB) return;
-    const ga = isA ? agg.a : agg.b;
-    const gb = isA ? agg.b : agg.a;
-    aGoals += ga; bGoals += gb;
-    if (ga > gb) aWins++; else if (gb > ga) bWins++; else draws++;
+function headToHead(teamA,teamB){
+  let aGoals=0,bGoals=0,aWins=0,bWins=0,draws=0;
+  app.state.matches.forEach(m=>{
+    if(isTournamentMatch(m))return;
+    const agg=matchAggregate(m);if(!agg.legs.length)return;
+    const isA=m.teamAId===teamA&&m.teamBId===teamB;
+    const isB=m.teamAId===teamB&&m.teamBId===teamA;
+    if(!isA&&!isB)return;
+    const ga=isA?agg.a:agg.b,gb=isA?agg.b:agg.a;
+    aGoals+=ga;bGoals+=gb;
+    if(ga>gb)aWins++;else if(gb>ga)bWins++;else draws++;
   });
-  return { aGoals, bGoals, aWins, bWins, draws };
+  return {aGoals,bGoals,aWins,bWins,draws};
 }
 
 function topContributorsPerLeg(){
-  const out = [];
-  app.state.matches.forEach(m => {
-    const agg = matchAggregate(m);
-    if (!agg.legs.length) return;
-    const ps = m.playerStats || {};
-    for (let i = 0; i < agg.legs.length; i++){
-      const byTeam = {};
-      Object.keys(ps).forEach(pid => {
-        const p = playerById(pid);
-        if (!p) return;
-        const lg = (ps[pid] || [])[i];
-        if (!lg || !lg.played) return;
-        const tid = teamForMatch(m, pid);
-        if (!tid) return;
-        const score = (+lg.goals||0)*5 + (+lg.assists||0)*3 + (+lg.saves||0)*1 + (+lg.tackles||0)*0.5;
-        (byTeam[tid] = byTeam[tid] || []).push({ pid, score, g:+lg.goals||0, a:+lg.assists||0 });
+  const out=[];
+  app.state.matches.forEach(m=>{
+    if(isTournamentMatch(m))return;
+    const agg=matchAggregate(m);if(!agg.legs.length)return;
+    const ps=m.playerStats||{};
+    agg.legs.forEach(matchLeg=>{
+      const byTeam={};
+      Object.keys(ps).forEach(pid=>{
+        if(!playerById(pid))return;
+        const playerLegs=ps[pid],lg=Array.isArray(playerLegs)?playerLegs[matchLeg.n-1]:null;
+        if(!lg||!lg.played)return;
+        const tid=teamForMatch(m,pid);if(!tid)return;
+        const score=(Number(lg.goals)||0)*5+(Number(lg.assists)||0)*3+(Number(lg.saves)||0)+(Number(lg.tackles)||0)*.5;
+        (byTeam[tid]=byTeam[tid]||[]).push({pid,score,g:Number(lg.goals)||0,a:Number(lg.assists)||0});
       });
-      Object.keys(byTeam).forEach(tid => {
-        byTeam[tid].sort((x,y) => y.score - x.score);
-        out.push({ matchId:m.id, leg:i+1, teamId:tid, players: byTeam[tid] });
+      Object.keys(byTeam).forEach(tid=>{
+        byTeam[tid].sort((a,b)=>b.score-a.score);
+        out.push({matchId:m.id,leg:matchLeg.n,teamId:tid,players:byTeam[tid]});
       });
-    }
+    });
   });
   return out;
 }
@@ -1516,84 +1474,55 @@ function oneManArmy(){
 }
 
 function bestDuo(){
-  const pairs = new Map();
-  app.state.matches.forEach(m => {
-    const agg = matchAggregate(m);
-    if (!agg.legs.length) return;
-    const ps = m.playerStats || {};
-    for (let i = 0; i < agg.legs.length; i++){
-      const players = Object.keys(ps).map(pid => {
-        const lg = (ps[pid] || [])[i];
-        if (!lg || !lg.played || !playerById(pid)) return null;
-        const teamId = teamForMatch(m, pid);
-        if (!teamId) return null;
-        return { pid, teamId, g: Math.max(0, +lg.goals||0), a: Math.max(0, +lg.assists||0) };
+  const pairs=new Map();
+  app.state.matches.forEach(m=>{
+    if(isTournamentMatch(m))return;
+    const agg=matchAggregate(m);if(!agg.legs.length)return;
+    const ps=m.playerStats||{};
+    agg.legs.forEach(matchLeg=>{
+      const players=Object.keys(ps).map(pid=>{
+        const playerLegs=ps[pid],lg=Array.isArray(playerLegs)?playerLegs[matchLeg.n-1]:null;
+        if(!lg||!lg.played||!playerById(pid))return null;
+        const teamId=teamForMatch(m,pid);if(!teamId)return null;
+        return {pid,teamId,g:Math.max(0,Number(lg.goals)||0),a:Math.max(0,Number(lg.assists)||0)};
       }).filter(Boolean);
-      for (let x = 0; x < players.length; x++){
-        for (let y = x + 1; y < players.length; y++){
-          const a = players[x], b = players[y];
-          if (a.teamId !== b.teamId) continue;
-          const key = [a.pid,b.pid].sort().join('|');
-          const p1 = playerById(a.pid), p2 = playerById(b.pid);
-          if (!p1 || !p2) continue;
-          const aToB = Math.min(a.g, b.a);
-          const bToA = Math.min(b.g, a.a);
-          const sharedGoals = aToB + bToA;
-          if (!pairs.has(key)){
-            pairs.set(key, {
-              a: a.pid < b.pid ? a : b,
-              b: a.pid < b.pid ? b : a,
-              teamId: a.teamId,
-              total: 0,
-              aToB: 0,
-              bToA: 0,
-              sharedLegs: 0
-            });
-          }
-          const pair = pairs.get(key);
-          pair.total += sharedGoals;
-          pair.aToB += a.pid < b.pid ? aToB : bToA;
-          pair.bToA += a.pid < b.pid ? bToA : aToB;
-          if (sharedGoals > 0) pair.sharedLegs++;
-        }
+      for(let x=0;x<players.length;x++)for(let y=x+1;y<players.length;y++){
+        const a=players[x],b=players[y];if(a.teamId!==b.teamId)continue;
+        const key=[a.pid,b.pid].sort().join('|'),p1=playerById(a.pid),p2=playerById(b.pid);
+        if(!p1||!p2)continue;
+        const aToB=Math.min(a.g,b.a),bToA=Math.min(b.g,a.a),sharedGoals=aToB+bToA;
+        if(!pairs.has(key))pairs.set(key,{
+          a:a.pid<b.pid?a:b,b:a.pid<b.pid?b:a,teamId:a.teamId,
+          total:0,aToB:0,bToA:0,sharedLegs:0
+        });
+        const pair=pairs.get(key);pair.total+=sharedGoals;
+        pair.aToB+=a.pid<b.pid?aToB:bToA;pair.bToA+=a.pid<b.pid?bToA:aToB;
+        if(sharedGoals>0)pair.sharedLegs++;
       }
-    }
+    });
   });
-  return Array.from(pairs.values())
-    .filter(pair => pair.total > 0)
-    .map(pair => {
-      const p1 = playerById(pair.a.pid), p2 = playerById(pair.b.pid);
-      return {
-        ...pair,
-        label: p1 && p2 ? `${p1.name} & ${p2.name}` : 'Unknown Duo',
-        sub: pair.total + ' shared goals • ' + pair.sharedLegs + ' productive legs'
-      };
-    })
-    .sort((a,b) => b.total - a.total || b.sharedLegs - a.sharedLegs );
+  return Array.from(pairs.values()).filter(pair=>pair.total>0).map(pair=>{
+    const p1=playerById(pair.a.pid),p2=playerById(pair.b.pid);
+    return {...pair,label:p1&&p2?`${p1.name} & ${p2.name}`:'Unknown Duo',
+      sub:pair.total+' shared goals • '+pair.sharedLegs+' productive legs'};
+  }).sort((a,b)=>b.total-a.total||b.sharedLegs-a.sharedLegs);
 }
 
 function teamGoalDistribution(){
-  const dist = {};
-  app.state.teams.forEach(t => dist[t.id] = { total: 0, top: 0, topName: '-' });
-  app.state.matches.forEach(m => {
-    const agg = matchAggregate(m);
-    if (!agg.legs.length) return;
-    const ps = m.playerStats || {};
-    Object.keys(ps).forEach(pid => {
-      const p = playerById(pid);
-      if (!p) return;
-      const tid = teamForMatch(m, pid);
-      if (!tid || !dist[tid]) return;
-      const legs = ps[pid];
-      if (!Array.isArray(legs)) return;
-      legs.forEach((l, i) => {
-        if (!l || !l.played || i >= agg.legs.length) return;
-        const goals = +l.goals || 0;
-        dist[tid].total += goals;
-        if (goals > dist[tid].top){
-          dist[tid].top = goals;
-          dist[tid].topName = p.name;
-        }
+  const dist={};
+  app.state.teams.forEach(t=>dist[t.id]={total:0,top:0,topName:'-'});
+  app.state.matches.forEach(m=>{
+    if(isTournamentMatch(m))return;
+    const agg=matchAggregate(m);if(!agg.legs.length)return;
+    const ps=m.playerStats||{};
+    agg.legs.forEach(matchLeg=>{
+      Object.keys(ps).forEach(pid=>{
+        const p=playerById(pid);if(!p)return;
+        const tid=teamForMatch(m,pid);if(!tid||!dist[tid])return;
+        const playerLegs=ps[pid],lg=Array.isArray(playerLegs)?playerLegs[matchLeg.n-1]:null;
+        if(!lg||!lg.played)return;
+        const goals=Number(lg.goals)||0;dist[tid].total+=goals;
+        if(goals>dist[tid].top){dist[tid].top=goals;dist[tid].topName=p.name;}
       });
     });
   });
@@ -1662,7 +1591,7 @@ function buildAwards(){
   app.state.teams.forEach(t => rawGoalsForByTeam[t.id] = 0);
   app.state.matches.forEach(m => {
     const agg = matchAggregate(m);
-    if (!agg.legs.length) return;
+    if (isTournamentMatch(m) || !agg.legs.length) return;
     if (rawGoalsForByTeam[m.teamAId] !== undefined) rawGoalsForByTeam[m.teamAId] += agg.rawA;
     if (rawGoalsForByTeam[m.teamBId] !== undefined) rawGoalsForByTeam[m.teamBId] += agg.rawB;
   });
@@ -2178,21 +2107,35 @@ function advanceToKnockout(tid){
 }
 
 function materializeKO(t){
-  if (!t.ko) return;
-  t.ko.rounds.forEach((round, ri) => {
-    round.ties.forEach((tie, ti) => {
-      if (tie.fixtureIds && tie.fixtureIds.length) return;
-      if (!tie.a || !tie.b) return;
-      tie.fixtureIds = [];
-      const isFinal = String(round.name || '').toLowerCase() === 'final';
-      const f = {
-        id: uuid(), teamAId: tie.a, teamBId: tie.b,
-        competition: 'Tournament', round: round.name, date: '',
-        legs: isFinal ? 4 : 2, played: false, stage: 'ko',
-        tournamentId: t.id, koRound: ri, koTie: ti
+  if(!t.ko)return;
+  const discardFixture=fixture=>{
+    if(!fixture)return;
+    const linked=app.state.matches.filter(m=>m.fixtureId===fixture.id||m.id===fixture.matchId);
+    linked.forEach(m=>{revertLoanSettlements(m);revertMatch(m);});
+    const linkedIds=new Set(linked.map(m=>m.id));
+    app.state.matches=app.state.matches.filter(m=>!linkedIds.has(m.id));
+    app.state.fixtures=app.state.fixtures.filter(f=>f.id!==fixture.id);
+  };
+  t.ko.rounds.forEach((round,ri)=>{
+    round.ties.forEach((tie,ti)=>{
+      const existing=(tie.fixtureIds||[]).map(fixtureById).filter(Boolean);
+      if(!tie.a||!tie.b){
+        existing.forEach(discardFixture);tie.fixtureIds=[];tie.winner=null;return;
+      }
+      const keep=existing.find(f=>f.teamAId===tie.a&&f.teamBId===tie.b);
+      if(keep){
+        existing.filter(f=>f.id!==keep.id).forEach(discardFixture);
+        tie.fixtureIds=[keep.id];return;
+      }
+      existing.forEach(discardFixture);tie.fixtureIds=[];
+      const isFinal=String(round.name||'').toLowerCase()==='final';
+      const configuredLegs=Math.max(isFinal?4:2,Number(t.koLegs)||2);
+      const fixture={
+        id:uuid(),teamAId:tie.a,teamBId:tie.b,competition:'Tournament',
+        round:round.name,date:'',legs:configuredLegs,played:false,stage:'ko',
+        tournamentId:t.id,koRound:ri,koTie:ti
       };
-      app.state.fixtures.push(f);
-      tie.fixtureIds = [f.id];
+      app.state.fixtures.push(fixture);tie.fixtureIds=[fixture.id];
     });
   });
 }
@@ -2234,23 +2177,17 @@ function progressTournament(tid){
   });
 }
 
-function rebuildTournamentKO(tid) {
-  const t = tourById(tid);
-  if (!t || !t.ko) return;
-  t.ko.rounds.forEach(r => r.ties.forEach(tie => { tie.winner = null; }));
-  if (t.ko.rounds.length === 2) {
-    t.ko.rounds[1].ties[0].a = null;
-    t.ko.rounds[1].ties[0].b = null;
-  } else if (t.ko.rounds.length === 3) {
-    t.ko.rounds[1].ties[0].b = null;
-    t.ko.rounds[1].ties[1].b = null;
-    t.ko.rounds[2].ties[0].a = null;
-    t.ko.rounds[2].ties[0].b = null;
+function rebuildTournamentKO(tid){
+  const t=tourById(tid);if(!t||!t.ko)return;
+  t.ko.rounds.forEach(round=>round.ties.forEach(tie=>{tie.winner=null;}));
+  if(t.ko.rounds.length===2){
+    t.ko.rounds[1].ties[0].a=null;t.ko.rounds[1].ties[0].b=null;
+  }else if(t.ko.rounds.length===3){
+    t.ko.rounds[1].ties[0].b=null;t.ko.rounds[1].ties[1].b=null;
+    t.ko.rounds[2].ties[0].a=null;t.ko.rounds[2].ties[0].b=null;
   }
-  t.completed = false;
-  t.phase = 'knockout';
-  t.winner = null;
-  progressTournament(tid);
+  t.completed=false;t.phase='knockout';t.winner=null;
+  materializeKO(t);progressTournament(tid);
 }
 
 const VIEWS = {};
@@ -3237,31 +3174,29 @@ function tournamentMatches(t){
 }
 
 function tournamentPlayerStats(t){
-  const map = {};
-  tournamentMatches(t).forEach(m => {
-    Object.keys(m.playerStats || {}).forEach(pid => {
-      const p = playerById(pid);
-      if (!p) return;
-      const row = map[pid] || (map[pid] = {
-        id:pid, name:p.name, teamId:(m.playerTeams && m.playerTeams[pid]) || p.teamId,
-        matchIds:{}, matches:0, appearances:0, goals:0, assists:0, saves:0, tackles:0, mvp:0, motm:0
+  const map={};
+  tournamentMatches(t).forEach(m=>{
+    const scoredLegNumbers=new Set(matchLegs(m).map(leg=>leg.n));
+    Object.keys(m.playerStats||{}).forEach(pid=>{
+      const p=playerById(pid),playerLegs=m.playerStats[pid];
+      if(!p||!Array.isArray(playerLegs))return;
+      const appeared=playerLegs.some((leg,i)=>!!(leg&&leg.played&&scoredLegNumbers.has(i+1)));
+      if(!appeared)return;
+      const row=map[pid]||(map[pid]={
+        id:pid,name:p.name,teamId:(m.playerTeams&&m.playerTeams[pid])||p.teamId,
+        matchIds:{},matches:0,appearances:0,goals:0,assists:0,saves:0,tackles:0,mvp:0,motm:0
       });
-      if (!row.matchIds[m.id]) { row.matchIds[m.id] = true; row.matches++; }
-      if (m.mvpId === pid) row.mvp++;
-      if (m.motmId === pid) row.motm++;
-      (m.playerStats[pid] || []).forEach(leg => {
-        if (!leg || !leg.played) return;
-        row.appearances++;
-        row.goals += Number(leg.goals) || 0;
-        row.assists += Number(leg.assists) || 0;
-        row.saves += Number(leg.saves) || 0;
-        row.tackles += Number(leg.tackles) || 0;
+      if(!row.matchIds[m.id]){row.matchIds[m.id]=true;row.matches++;}
+      if(m.mvpId===pid)row.mvp++;if(m.motmId===pid)row.motm++;
+      playerLegs.forEach((leg,i)=>{
+        if(!leg||!leg.played||!scoredLegNumbers.has(i+1))return;
+        row.appearances++;row.goals+=Number(leg.goals)||0;row.assists+=Number(leg.assists)||0;
+        row.saves+=Number(leg.saves)||0;row.tackles+=Number(leg.tackles)||0;
       });
     });
   });
-  return Object.values(map).sort((a,b) =>
-    b.goals-a.goals || b.assists-a.assists || b.saves-a.saves || b.tackles-a.tackles || a.name.localeCompare(b.name)
-  );
+  return Object.values(map).sort((a,b)=>b.goals-a.goals||b.assists-a.assists||
+    b.saves-a.saves||b.tackles-a.tackles||a.name.localeCompare(b.name));
 }
 
 function tournamentFixtureCard(f){
@@ -4431,6 +4366,7 @@ async function trackSave(){
   const m = {
     id: uuid(),
     teamAId: f.teamAId, teamBId: f.teamBId, fixtureId: f.id,
+    tournamentId: f.tournamentId || null, legs: usedLegs,
     timestamp: Date.now(),
     mvpId, motmId,
     mvpSnapshot: mvpId ? (() => { const p = playerById(mvpId); return p ? { name: p.name, teamId: p.teamId } : null; })() : null,
@@ -4455,8 +4391,12 @@ async function trackSave(){
   app._track = null;
   app._trackUndo = [];
   await logAdmin('Tracked a match result');
-  await saveState(); closeModal(); render();
-  toast('✅ Match saved', 'ok');
+  const saved=await saveState({suppressErrorToast:true});
+  closeModal();render();
+  if(!saved)toast(firebaseReady&&app.db
+    ?'⚠️ Match saved on this device only. Cloud write failed; fix the cloud error before refreshing.'
+    :'⚠️ Match changed, but browser storage could not confirm the save.','err');
+  else toast('✅ Match saved','ok');
 }
 
 function teamOptions(selected){
@@ -4768,11 +4708,18 @@ document.addEventListener('click', async e => {
   if (act === 'team:del'){
     if (!app.isAdmin) return;
     const t = teamById(id);
+    const activeTournament=app.state.tournaments.find(tour=>
+      (tour.teams||[]).includes(id)||(tour.groups||[]).some(group=>(group||[]).includes(id))
+    );
+    if(activeTournament)return toast('⚠️ Delete tournament "'+activeTournament.name+'" before deleting one of its teams.','err');
     if (!confirm('Permanently delete "' + t.name + '"?\n\nThis will also delete all players belonging to this team, all of its fixtures, and all of its match results. Any loan records linked to this team will be removed too.\n\nThis action cannot be undone.')) return;
-    app.state.players = app.state.players.filter(p => p.teamId !== id);
-    app.state.teams = app.state.teams.filter(x => x.id !== id);
-    app.state.fixtures = app.state.fixtures.filter(f => f.teamAId !== id && f.teamBId !== id);
-    app.state.matches = app.state.matches.filter(m => m.teamAId !== id && m.teamBId !== id);
+    const teamMatches=app.state.matches.filter(m=>m.teamAId===id||m.teamBId===id);
+    teamMatches.forEach(m=>{revertLoanSettlements(m);revertMatch(m);});
+    app.state.players=app.state.players.filter(p=>p.teamId!==id);
+    app.state.teams=app.state.teams.filter(x=>x.id!==id);
+    app.state.fixtures=app.state.fixtures.filter(f=>f.teamAId!==id&&f.teamBId!==id);
+    const removedMatchIds=new Set(teamMatches.map(m=>m.id));
+    app.state.matches=app.state.matches.filter(m=>!removedMatchIds.has(m.id));
     /* cancel any loans referencing the deleted team */
     app.state.players.forEach(p => {
       if (p.loanStatus && p.loanStatus.from === id) p.loanStatus = null;
@@ -5500,9 +5447,10 @@ document.addEventListener('click', async e => {
     if (ids.length < 4) return toast('⚠️ Select at least 4 teams', 'err');
     if (ids.length > 12) return toast('⚠️ Maximum 12 teams', 'err');
     if (gc < 2 || gc > 3) return toast('⚠️ 2 or 3 groups', 'err');
+    if (gc === 3 && ids.length < 6) return toast('⚠️ Three groups need at least 6 teams (2 per group)', 'err');
     const created = createTournament(name, ids, gc, ko);
     await logAdmin('Created tournament "' + name + '" with ' + ids.length + ' teams');
-    const cloudSaved = await saveState();
+    const cloudSaved = await saveState({suppressErrorToast:true});
     closeModal();
     app._tourViewId = created.id; app._tourTab = 'matchdays';
     navigateToRoute('tournament/' + encodeURIComponent(created.id) + '/matchdays');
@@ -5538,6 +5486,7 @@ document.addEventListener('click', async e => {
     if (!app.isAdmin) return;
     const t = tourById(id);
     if (!t || !confirm('Delete tournament "' + t.name + '" and its fixtures?')) return;
+    tournamentMatches(t).forEach(m => { m.tournamentId=id; });
     app.state.fixtures = app.state.fixtures.filter(f => f.tournamentId !== id);
     app.state.tournaments = app.state.tournaments.filter(x => x.id !== id);
     app._tourViewId = null;
@@ -5815,6 +5764,23 @@ async function saveMatch(){
   const f = fixtureById(d.fixtureId);
   if (!f) return toast('❌ Fixture no longer exists', 'err');
   const isEdit = !!d.matchId;
+  const tournamentMinimum=f.tournamentId
+    ?(f.stage==='ko'&&String(f.round||'').toLowerCase()==='final'?4:2):1;
+  if(d.legs<tournamentMinimum)return toast('⚠️ This tournament match needs at least '+tournamentMinimum+' legs','err');
+  let blankSeen=false,completeLegs=0;
+  for(let i=0;i<d.legs;i++){
+    const score=d.scores[i]||{};
+    const hasA=score.a!==''&&score.a!==null&&score.a!==undefined;
+    const hasB=score.b!==''&&score.b!==null&&score.b!==undefined;
+    if(hasA!==hasB)return toast('⚠️ Enter both teams’ scores for each leg','err');
+    if(!hasA){blankSeen=true;continue;}
+    if(blankSeen)return toast('⚠️ Record legs in order. Fill earlier legs before later ones.','err');
+    const a=Number(score.a),b=Number(score.b);
+    if(!Number.isFinite(a)||!Number.isFinite(b)||a<0||b<0)
+      return toast('⚠️ Scores must be valid non-negative numbers','err');
+    completeLegs++;
+  }
+  if(!completeLegs)return toast('⚠️ Enter at least one completed leg score','err');
 
   const ps = {};
   Object.keys(d.stats).forEach(pid => {
@@ -5872,8 +5838,12 @@ async function saveMatch(){
   if (isEdit && f.tournamentId) rebuildTournamentKO(f.tournamentId);
 
   await logAdmin(isEdit ? 'Edited match result' : 'Recorded match result');
-  await saveState(); closeModal(); render();
-  toast(isEdit ? '✅ Match updated' : '✅ Match recorded', 'ok');
+  const saved=await saveState({suppressErrorToast:true});
+  closeModal();render();
+  if(!saved)toast(firebaseReady&&app.db
+    ?'⚠️ Match saved on this device only. Cloud write failed; fix the cloud error before refreshing.'
+    :'⚠️ Match changed, but browser storage could not confirm the save.','err');
+  else toast(isEdit?'✅ Match updated':'✅ Match recorded','ok');
 }
 
 function playerProfileHTML(pid){
@@ -5884,8 +5854,12 @@ function playerProfileHTML(pid){
   const tm = teamById(p.teamId);
   const avg = playerAverages(s);
 
-  const myMatches = app.state.matches.filter(m => m.playerStats && m.playerStats[p.id])
-    .sort((a,b) => (b.timestamp||0) - (a.timestamp||0));
+  const myMatches = app.state.matches.filter(m => {
+    const playerLegs=m.playerStats&&m.playerStats[p.id];
+    if(!Array.isArray(playerLegs))return false;
+    const scoredLegNumbers=new Set(matchLegs(m).map(leg=>leg.n));
+    return playerLegs.some((leg,i)=>!!(leg&&leg.played&&scoredLegNumbers.has(i+1)));
+  }).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
 
   const legGrades = (s.legLog || []).map(l => legGrade(l)).reduce((acc,g) => { acc[g] = (acc[g]||0)+1; return acc; }, {});
   const hypeCount = getHypeCount(p.id);
@@ -5989,7 +5963,8 @@ function playerProfileHTML(pid){
         const agg = matchAggregate(m);
         const legs = m.playerStats[p.id] || [];
         let g=0,a=0,sv=0,t=0;
-        legs.forEach(l => { if(l && l.played){ g+=+l.goals||0; a+=+l.assists||0; sv+=+l.saves||0; t+=+l.tackles||0; } });
+        const scoredLegNumbers=new Set(matchLegs(m).map(leg=>leg.n));
+        legs.forEach((l,i)=>{if(l&&l.played&&scoredLegNumbers.has(i+1)){g+=Number(l.goals)||0;a+=Number(l.assists)||0;sv+=Number(l.saves)||0;t+=Number(l.tackles)||0;}});
         return `<tr>
           <td class="tiny">${new Date(m.timestamp||0).toLocaleDateString()}</td>
           <td class="nowrap">${teamLink(A, 18)} ${agg.a}-${agg.b} ${teamLink(B, 18)}</td>
