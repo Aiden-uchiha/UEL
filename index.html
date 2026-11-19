@@ -4301,7 +4301,7 @@ function trackStart(fixtureId){
     fixtureId: f.id, legs, leg: 1,
     scores: Array.from({ length: legs }, () => ({ a: 0, b: 0 })),
     touched: Array.from({ length: legs }, () => false),
-    sel: {}, mvpId: '', motmId: '', stats: {}, fouls: []
+    regions:Array.from({length:legs},()=>''), sel: {}, mvpId: '', motmId: '', stats: {}, fouls: []
   };
   app.state.players
     .filter(p => (p.teamId === f.teamAId || p.teamId === f.teamBId) && isActivePlayer(p))
@@ -4376,6 +4376,7 @@ function trackBodyHTML(){
   ${st.legs > 1 ? `<div class="center tiny muted" style="margin-bottom:8px">Raw aggregate ${all.a} - ${all.b}</div>
   <div class="legtab" style="justify-content:center">${Array.from({ length: st.legs }, (_, n) =>
     `<button class="${st.leg === n + 1 ? 'on' : ''}" data-act="track:leg" data-leg="${n + 1}">Leg ${n + 1}</button>`).join('')}</div>` : ''}
+  <div class="field-row" style="margin:10px 0"><div><label class="fl">🌍 Region for Leg ${st.leg}</label><select data-trk-region="${i}">${legRegionOptions(st.regions[i])}</select></div></div>
   ${(penaltyA || penaltyB) ? `<div class="center tiny" style="color:var(--red);margin:0 0 8px">Final score after foul penalties: <b>${adjustedA} - ${adjustedB}</b></div>` : ''}
   <div class="trk-cols">${side(A)}${side(B)}</div>
   <div class="field-row" style="margin-top:12px">
@@ -4507,6 +4508,7 @@ function trackResultText(){
   const finalA = Math.max(0, all.a - penaltyA);
   const finalB = Math.max(0, all.b - penaltyB);
   const lines = [`${A.name} ${finalA} - ${finalB} ${B.name}`];
+  st.scores.forEach((score,i)=>lines.push(`Leg ${i+1} (${legRegionLabel(st.regions[i])}): ${score.a} - ${score.b}`));
   if (fouls.length){
     lines.push(`Raw score before fouls: ${all.a} - ${all.b}`);
     fouls.forEach(foul => lines.push(`FOUL — ${teamById(foul.teamId)?.name || 'Unknown team'}: ${foul.description} (-${foul.points})`));
@@ -4580,6 +4582,7 @@ async function trackSave(){
     id: uuid(),
     teamAId: f.teamAId, teamBId: f.teamBId, fixtureId: f.id,
     tournamentId: f.tournamentId || null, legs: usedLegs,
+    legRegions:Array.from({length:usedLegs},(_,i)=>normalizeLegRegion(st.regions&&st.regions[i])),
     timestamp: Date.now(),
     mvpId, motmId,
     mvpSnapshot: mvpId ? (() => { const p = playerById(mvpId); return p ? { name: p.name, teamId: p.teamId } : null; })() : null,
@@ -5967,6 +5970,12 @@ document.addEventListener('change', e => {
   if (play){
     if (!app.isAdmin || !app._track) return;
     trackSetSelected(play.dataset.trkPlay, play.checked);
+    return;
+  }
+  const region = e.target.closest('[data-trk-region]');
+  if (region){
+    if (!app.isAdmin || !app._track) return;
+    app._track.regions[Number(region.dataset.trkRegion)] = normalizeLegRegion(region.value);
     return;
   }
   const award = e.target.closest('[data-trk-award]');
