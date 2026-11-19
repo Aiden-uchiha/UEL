@@ -2171,7 +2171,7 @@ function materializeKO(t){
       const keep=existing.find(f=>f.teamAId===third.a&&f.teamBId===third.b);
       if(keep){existing.filter(f=>f.id!==keep.id).forEach(discardFixture);third.fixtureIds=[keep.id];}
       else{
-        existing.forEach(discardFixture);third.fixtureIds=[];
+        existing.forEach(discardFixture);third.fixtureIds=[];third.winner=null;
         const fixture={id:uuid(),teamAId:third.a,teamBId:third.b,competition:'Tournament',round:'Third-place match',date:'',legs:Math.max(2,Number(t.koLegs)||2),played:false,stage:'ko',tournamentId:t.id,koThirdPlace:true};
         app.state.fixtures.push(fixture);third.fixtureIds=[fixture.id];
       }
@@ -3710,7 +3710,7 @@ function renderNav(){
   }
   nav.innerHTML = html;
   $('#brandName').textContent = app.state.leagueName;
-  $('#seasonChip').textContent = app.state.seasonName;
+  $('#seasonChip').textContent = app.state.seasonName + ' · ' + (app.state.competitionMode==='tournament'?'TOURNAMENT MODE':'LEAGUE MODE');
   if (ARCHIVE_MODE){
     const badge = $('#cloudBadge');
     badge.textContent = 'ARCHIVE';
