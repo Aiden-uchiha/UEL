@@ -571,6 +571,10 @@ function snapshotActiveCompetition(state){
   state.competitions=state.competitions||{league:{matches:[],fixtures:[],tournaments:[]},tournament:{matches:[],fixtures:[],tournaments:[]}};
   const mode=state.competitionMode==='tournament'?'tournament':'league';
   state.competitions[mode]={matches:(state.matches||[]).slice(),fixtures:(state.fixtures||[]).slice(),tournaments:(state.tournaments||[]).slice()};
+  (state.teams||[]).forEach(team=>{
+    team.competitionValues=team.competitionValues||{league:team.value||0,tournament:team.value||0};
+    team.competitionValues[mode]=Number(team.value)||0;
+  });
 }
 function switchCompetitionMode(mode){
   if(!app.isAdmin)return toast('Only an admin can change the competition mode.','err');
@@ -578,6 +582,11 @@ function switchCompetitionMode(mode){
   if(mode===app.state.competitionMode)return;
   snapshotActiveCompetition(app.state);
   const next=normalizeCompetitionData(app.state.competitions[mode]);
+  app.state.teams.forEach(team=>{
+    team.competitionValues=team.competitionValues||{league:Number(team.value)||0,tournament:Number(team.value)||0};
+    team.competitionValues[mode]=Number(team.competitionValues[mode]!==undefined?team.competitionValues[mode]:team.value)||0;
+    team.value=team.competitionValues[mode];
+  });
   app.state.competitionMode=mode;
   app.state.matches=next.matches;app.state.fixtures=next.fixtures;app.state.tournaments=next.tournaments;
   app.currentView=mode==='league'?'standings':'tournament';app._tourId=null;app._tourTab='matchdays';
@@ -623,6 +632,13 @@ function hydrate(raw){
     s._needsCompetitionPersist=true;
   }
   s.competitionMode=mode;
+  s.teams.forEach(team=>{
+    const base=Number(team.value)||0;
+    team.competitionValues=team.competitionValues||{league:base,tournament:base};
+    if(team.competitionValues.league===undefined)team.competitionValues.league=base;
+    if(team.competitionValues.tournament===undefined)team.competitionValues.tournament=base;
+    team.value=Number(team.competitionValues[mode])||0;
+  });
   const active=s.competitions[mode];
   s.matches=active.matches.slice();s.fixtures=active.fixtures.slice();s.tournaments=active.tournaments.slice();
   return s;
@@ -4762,6 +4778,7 @@ document.addEventListener('click', async e => {
     if (!name) return toast('⚠️ Name required', 'err');
     const t = {
       id: uuid(), name,
+      competitionValues:{league:Number($('#f_teamValue').value)||econ().teamStart,tournament:Number($('#f_teamValue').value)||econ().teamStart},
       color: $('#f_teamColor').value,
       logo: ($('#f_teamLogo') ? $('#f_teamLogo').value.trim() : ''),
       value: Number($('#f_teamValue').value) || econ().teamStart,
