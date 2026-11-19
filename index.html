@@ -4603,6 +4603,9 @@ async function trackSave(){
   let usedLegs = tournamentMinimum;
   touched.forEach((t, i) => { if (t) usedLegs = Math.max(usedLegs, i + 1); });
   usedLegs = Math.max(tournamentMinimum, Math.min(st.legs, usedLegs));
+  for(let i=0;i<usedLegs;i++){
+    if(!normalizeLegRegion(st.regions&&st.regions[i]))return toast('🌍 Choose Europe or Asia for Leg '+(i+1),'err');
+  }
 
   if (!Object.values(st.sel || {}).some(arr=>Array.isArray(arr)&&arr.some(Boolean))){
     return toast('⚠️ Tick at least one player in at least one leg first', 'err');
@@ -6106,6 +6109,11 @@ async function saveMatch(){
     completeLegs++;
   }
   if(!completeLegs)return toast('⚠️ Enter at least one completed leg score','err');
+  for(let i=0;i<d.legs;i++){
+    const score=d.scores[i]||{};
+    const complete=score.a!==''&&score.a!==null&&score.a!==undefined&&score.b!==''&&score.b!==null&&score.b!==undefined;
+    if(complete&&!normalizeLegRegion(d.legRegions&&d.legRegions[i]))return toast('🌍 Choose Europe or Asia for Leg '+(i+1),'err');
+  }
   if(f.tournamentId&&completeLegs<tournamentMinimum)
     return toast('⚠️ This tournament match needs '+tournamentMinimum+' completed legs before it can be saved','err');
 
