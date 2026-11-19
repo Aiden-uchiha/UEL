@@ -3182,6 +3182,9 @@ VIEWS.teamprofile = () => {
 
 VIEWS.tournament = () => {
   const s = app.state;
+  if(app.state.competitionMode!=='tournament'){
+    return '<div class="view-head"><h2><span class="emoji float">🥇</span> Tournaments</h2></div><div class="empty"><span class="big">🔁</span>Tournament management is available in Tournament Mode.<p class="muted">The League and Tournament datasets are kept separate.</p>'+(app.isAdmin?'<button class="btn lime" data-act="competition:mode" data-mode="tournament">Switch to Tournament Mode</button>':'')+'</div>';
+  }
   if (app._tourViewId){
     const t = tourById(app._tourViewId);
     if (t) return tournamentDetail(t);
