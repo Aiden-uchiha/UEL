@@ -678,13 +678,13 @@ function loadFixturePredictionVote(fixtureId){
       app._predictionVotes[fixtureId] = data.choice;
     }
     app._predictionVoteStatus[fixtureId] = 'loaded';
-    if (app.currentView === 'fixtures') render();
+    if (app.currentView === 'fixtures' || app.currentView === 'tournament') render();
   }).catch(error => {
     console.warn('Could not check this fixture prediction', error);
     if (app._predictionVoteStatus[fixtureId] !== 'loading') return;
     app._predictionVoteStatus[fixtureId] = 'failed';
     app._predictionVoteError = error.code || error.message || 'Prediction status unavailable';
-    if (app.currentView === 'fixtures') render();
+    if (app.currentView === 'fixtures' || app.currentView === 'tournament') render();
   });
 }
 
@@ -1803,6 +1803,7 @@ function simulateFixture(fixtureId){
   const m = {
     id: uuid(),
     teamAId: f.teamAId, teamBId: f.teamBId, fixtureId: f.id,
+    tournamentId: f.tournamentId || null, legs:usedLegs,
     timestamp: Date.now(),
     mvpId: null, motmId: null, mvpSnapshot: null, motmSnapshot: null,
     playerStats: {}, playerTeams: {}
@@ -2032,17 +2033,17 @@ function createTournament(name, teamIds, groupCount, koLegs){
   app.state.tournaments.push(t);
 
   t.groups.forEach((g, gi) => {
-    for (let i = 0; i < g.length; i++){
-      for (let j = i + 1; j < g.length; j++){
+    roundRobinRounds(g).forEach((pairs, roundIndex) => {
+      pairs.forEach(([teamAId, teamBId]) => {
         app.state.fixtures.push({
-          id: uuid(), teamAId:g[i], teamBId:g[j],
+          id: uuid(), teamAId, teamBId,
           competition:'Tournament',
-          round:'Group ' + String.fromCharCode(65 + gi),
+          round:'Matchday ' + (roundIndex + 1), matchday:roundIndex + 1,
           date:'', legs:2, played:false, stage:'group',
           tournamentId:t.id, group:gi
         });
-      }
-    }
+      });
+    });
   });
   return t;
 }
@@ -4231,9 +4232,12 @@ async function trackSave(){
   if (!f){ closeModal(); return; }
 
   const touched = st.touched || [];
-  let usedLegs = 1;
+  const tournamentMinimum = f.tournamentId
+    ? (f.stage === 'ko' && String(f.round || '').toLowerCase() === 'final' ? 4 : 2)
+    : 1;
+  let usedLegs = tournamentMinimum;
   touched.forEach((t, i) => { if (t) usedLegs = Math.max(usedLegs, i + 1); });
-  usedLegs = Math.max(1, Math.min(st.legs, usedLegs));
+  usedLegs = Math.max(tournamentMinimum, Math.min(st.legs, usedLegs));
 
   if (!Object.keys(st.sel || {}).length){
     return toast('⚠️ Tick at least one player first', 'err');
