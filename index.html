@@ -4349,6 +4349,7 @@ function trackStart(fixtureId){
     .filter(p => (p.teamId === f.teamAId || p.teamId === f.teamBId) && isActivePlayer(p))
     .forEach(p => {
       st.stats[p.id] = Array.from({ length: legs }, () => ({ g: 0, a: 0, s: 0, t: 0 }));
+      st.sel[p.id] = Array.from({length:legs},()=>false);
     });
   app._track = st;
   app._trackUndo = [];
@@ -4384,7 +4385,7 @@ function trackBodyHTML(){
 
   const row = p => {
     const s = st.stats[p.id] && st.stats[p.id][i] || { g:0, a:0, s:0, t:0 };
-    const picked = !!(st.sel && st.sel[p.id]);
+    const picked = !!(st.sel && st.sel[p.id] && st.sel[p.id][i]);
     const chip = (k, icon, label) =>
       `<button class="trk-chip ${s[k] ? 'on' : ''} ${picked ? '' : 'off'}" data-act="track:inc" data-pid="${p.id}" data-k="${k}" title="${label}">${icon} ${s[k]}</button>`;
     return `<div class="trk-row">
@@ -4406,7 +4407,7 @@ function trackBodyHTML(){
     </div>`;
   };
 
-  const pool = app.state.players.filter(p => (p.teamId === f.teamAId || p.teamId === f.teamBId) && isActivePlayer(p) && st.sel[p.id]);
+  const pool = app.state.players.filter(p => (p.teamId === f.teamAId || p.teamId === f.teamBId) && isActivePlayer(p) && st.sel[p.id] && st.sel[p.id].some(Boolean));
   const awardOpts = sel => `<option value="">auto</option>` + pool.map(p =>
     `<option value="${p.id}" ${sel === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 
@@ -4440,8 +4441,9 @@ function renderTrack(){
 function trackIncrement(pid, k){
   const st = app._track;
   if (!st || !st.stats[pid]) return;
-  st.sel[pid] = true;
   const i = st.leg - 1;
+  st.sel[pid] = Array.isArray(st.sel[pid])?st.sel[pid]:Array.from({length:st.legs},()=>false);
+  st.sel[pid][i] = true;
   st.touched[i] = true;
   const l = st.stats[pid][i];
   l[k] = (l[k] || 0) + 1;
@@ -4478,7 +4480,7 @@ function trackResetLeg(){
   const st = app._track;
   if (!st) return;
   const i = st.leg - 1;
-  Object.keys(st.stats).forEach(pid => { st.stats[pid][i] = { g:0, a:0, s:0, t:0 }; });
+  Object.keys(st.stats).forEach(pid => { st.stats[pid][i] = { g:0, a:0, s:0, t:0 }; if(st.sel[pid])st.sel[pid][i]=false; });
   st.scores[i] = { a: 0, b: 0 };
   st.touched[i] = false;
   app._trackUndo = (app._trackUndo || []).filter(u => u.leg !== st.leg);
@@ -4488,36 +4490,38 @@ function trackResetLeg(){
 function trackSetSelected(pid, picked){
   const st = app._track;
   if (!st) return;
-  st.sel = st.sel || {};
-  if (picked){
-    st.sel[pid] = true;
-  } else {
-    delete st.sel[pid];
-    if (st.stats[pid]) st.stats[pid] = st.stats[pid].map(() => ({ g:0, a:0, s:0, t:0 }));
-    app._trackUndo = (app._trackUndo || []).filter(u => u.pid !== pid);
-    if (st.mvpId === pid) st.mvpId = '';
-    if (st.motmId === pid) st.motmId = '';
+  const i=st.leg-1;
+  st.sel=st.sel||{};
+  st.sel[pid]=Array.isArray(st.sel[pid])?st.sel[pid]:Array.from({length:st.legs},()=>false);
+  st.sel[pid][i]=!!picked;
+  if(!picked){
+    if(st.stats[pid])st.stats[pid][i]={g:0,a:0,s:0,t:0};
+    app._trackUndo=(app._trackUndo||[]).filter(u=>!(u.pid===pid&&u.leg===st.leg));
+    if(st.mvpId===pid&&!st.sel[pid].some(Boolean))st.mvpId='';
+    if(st.motmId===pid&&!st.sel[pid].some(Boolean))st.motmId='';
     trackRecomputeScores();
   }
+  st.touched[i]=Object.values(st.sel).some(arr=>Array.isArray(arr)&&arr[i]);
   renderTrack();
 }
 
 function trackSelectTeam(teamId, mode){
   const st = app._track;
   if (!st) return;
+  const i=st.leg-1;
   const roster = app.state.players.filter(p => p.teamId === teamId && isActivePlayer(p));
-  if (mode === 'all'){
-    roster.forEach(p => { st.sel[p.id] = true; });
-  } else {
-    roster.forEach(p => {
-      delete st.sel[p.id];
-      if (st.stats[p.id]) st.stats[p.id] = st.stats[p.id].map(() => ({ g:0, a:0, s:0, t:0 }));
-      if (st.mvpId === p.id) st.mvpId = '';
-      if (st.motmId === p.id) st.motmId = '';
-    });
-    app._trackUndo = (app._trackUndo || []).filter(u => !roster.some(p => p.id === u.pid));
+  roster.forEach(p=>{
+    st.sel[p.id]=Array.isArray(st.sel[p.id])?st.sel[p.id]:Array.from({length:st.legs},()=>false);
+    st.sel[p.id][i]=mode==='all';
+    if(mode!=='all'&&st.stats[p.id])st.stats[p.id][i]={g:0,a:0,s:0,t:0};
+  });
+  if(mode!=='all'){
+    app._trackUndo=(app._trackUndo||[]).filter(u=>!(u.leg===st.leg&&roster.some(p=>p.id===u.pid)));
+    if(st.mvpId&&roster.some(p=>p.id===st.mvpId)&&!(st.sel[st.mvpId]||[]).some(Boolean))st.mvpId='';
+    if(st.motmId&&roster.some(p=>p.id===st.motmId)&&!(st.sel[st.motmId]||[]).some(Boolean))st.motmId='';
     trackRecomputeScores();
   }
+  st.touched[i]=Object.values(st.sel).some(arr=>Array.isArray(arr)&&arr[i]);
   renderTrack();
 }
 
@@ -4600,15 +4604,14 @@ async function trackSave(){
   touched.forEach((t, i) => { if (t) usedLegs = Math.max(usedLegs, i + 1); });
   usedLegs = Math.max(tournamentMinimum, Math.min(st.legs, usedLegs));
 
-  if (!Object.keys(st.sel || {}).length){
-    return toast('⚠️ Tick at least one player first', 'err');
+  if (!Object.values(st.sel || {}).some(arr=>Array.isArray(arr)&&arr.some(Boolean))){
+    return toast('⚠️ Tick at least one player in at least one leg first', 'err');
   }
 
   const stats = {};
   Object.keys(st.stats).forEach(pid => {
-    const picked = !!(st.sel && st.sel[pid]);
-    stats[pid] = st.stats[pid].slice(0, usedLegs).map(l => ({
-      played: picked, goals: l.g || 0, assists: l.a || 0, saves: l.s || 0, tackles: l.t || 0
+    stats[pid] = st.stats[pid].slice(0, usedLegs).map((l,i) => ({
+      played: !!(st.sel && st.sel[pid] && st.sel[pid][i]), goals: l.g || 0, assists: l.a || 0, saves: l.s || 0, tackles: l.t || 0
     }));
   });
 
