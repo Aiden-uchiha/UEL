@@ -2566,7 +2566,7 @@ VIEWS.fixtures = () => {
       });
       html+='</div></section>';
     });
-    const ko=all.filter(f=>f.stage==='knockout'||f.stage==='third-place');
+    const ko=all.filter(f=>f.stage==='ko'||f.stage==='knockout'||f.stage==='third-place');
     if(ko.length)html+='<div class="tour-content-heading" style="margin-top:24px"><div><span>ELIMINATION STAGE</span><h2>Knockout Fixtures</h2></div><p>The bracket and group tables are on Standings.</p></div><div class="grid g2">'+ko.map(tournamentFixtureCard).join('')+'</div>';
     return html;
   }
