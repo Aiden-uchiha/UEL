@@ -437,6 +437,20 @@ const num = n => (Number(n)||0).toLocaleString('en-US');
 const pct = (a,b) => b ? ((a/b)*100).toFixed(1) + '%' : '0%';
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 function isImageUrl(v){return typeof v==='string'&&(/^https?:\/\//i.test(v)||v.startsWith('data:image')||v.startsWith('blob:'));}
+function normalizeLegRegion(value){
+  const region=String(value||'').trim().toLowerCase();
+  return region==='europe'?'europe':region==='asia'?'asia':'';
+}
+function legRegionLabel(value){
+  const region=normalizeLegRegion(value);
+  return region ? (region==='europe'?'Europe':'Asia') : 'Unassigned';
+}
+function legRegionOptions(selected){
+  const region=normalizeLegRegion(selected);
+  return '<option value="" '+(!region?'selected':'')+'>Choose region</option>'+
+    '<option value="europe" '+(region==='europe'?'selected':'')+'>Europe</option>'+
+    '<option value="asia" '+(region==='asia'?'selected':'')+'>Asia</option>';
+}
 function renderLeagueLogo(){
   const logo=String((app.state&&app.state.leagueLogo)||'').trim();
   if(logo&&isImageUrl(logo)){
@@ -520,6 +534,7 @@ const HYPE_DEFAULT = { valuePerHype: 100000 };
 const BALLONDOR_DEFAULT = {
   goals: 5, assists: 5, saves: 1, tackles: 0.2,
   mvpMotm: 10,
+  regionalBestBonus: 25,
   teamRank1: 20, teamRank2: 10, teamRank3: 5,
   topScorerBonus: 15, topPlaymakerBonus: 15,
   topSavesBonus: 15, topTacklesBonus: 15,
@@ -1380,7 +1395,8 @@ function computePlayerStats(){
   const E=econ(), st={};
   const get=id=>st[id]||(st[id]={
     goals:0,assists:0,saves:0,tackles:0,legsPlayed:0,legs:0,
-    mvp:0,motm:0,matches:0,growth:0,playerValue:0,marketValue:0,legLog:[]
+    mvp:0,motm:0,matches:0,growth:0,playerValue:0,marketValue:0,legLog:[],
+    regions:{europe:{legsPlayed:0,goals:0,assists:0,saves:0,tackles:0},asia:{legsPlayed:0,goals:0,assists:0,saves:0,tackles:0}}
   });
   app.state.players.forEach(p=>get(p.id));
   app.state.matches.forEach(m=>{
@@ -1395,7 +1411,9 @@ function computePlayerStats(){
         const s=get(pid),g=Number(lg.goals)||0,a=Number(lg.assists)||0;
         const sv=Number(lg.saves)||0,tk=Number(lg.tackles)||0;
         s.legsPlayed++;s.goals+=g;s.assists+=a;s.saves+=sv;s.tackles+=tk;
-        s.legLog.push({matchId:m.id,leg:matchLeg.n,g,a,s:sv,t:tk});playedSet.add(pid);
+        const region=normalizeLegRegion(m.legRegions&&m.legRegions[matchLeg.n-1]);
+        if(region){const regional=s.regions[region];regional.legsPlayed++;regional.goals+=g;regional.assists+=a;regional.saves+=sv;regional.tackles+=tk;}
+        s.legLog.push({matchId:m.id,leg:matchLeg.n,g,a,s:sv,t:tk,region});playedSet.add(pid);
       });
     });
     playedSet.forEach(pid=>get(pid).matches++);
