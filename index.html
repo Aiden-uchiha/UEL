@@ -1303,8 +1303,8 @@ function computePlayerStats(){
       });
     });
     playedSet.forEach(pid=>get(pid).matches++);
-    if(m.mvpId&&playerById(m.mvpId))get(m.mvpId).mvp++;
-    if(m.motmId&&playerById(m.motmId))get(m.motmId).motm++;
+    if(m.mvpId&&playedSet.has(m.mvpId))get(m.mvpId).mvp++;
+    if(m.motmId&&playedSet.has(m.motmId))get(m.motmId).motm++;
   });
   app.state.players.forEach(p=>{
     const s=get(p.id),en=E.enabled;let growth=0;
@@ -1959,40 +1959,31 @@ function revertLoanSettlements(m){
   m.loanSettlements = [];
 }
 
-function applyMatchToState(m, fixture){
-  if (!m.playerTeams){
-    m.playerTeams = {};
-    Object.keys(m.playerStats || {}).forEach(pid => {
-      const p = playerById(pid);
-      if (p && p.teamId) m.playerTeams[pid] = p.teamId;
+function applyMatchToState(m,fixture){
+  if(!m.playerTeams){
+    m.playerTeams={};
+    Object.keys(m.playerStats||{}).forEach(pid=>{
+      const p=playerById(pid);if(p&&p.teamId)m.playerTeams[pid]=p.teamId;
     });
   }
-
-  const E = econ();
-  const agg = matchAggregate(m);
-  const A = app.state.teams.find(t => t.id === m.teamAId);
-  const B = app.state.teams.find(t => t.id === m.teamBId);
-
-  if (A && B){
-    if (agg.res === 'A'){
-      if (E.enabled.win)  A.value += E.win;
-      if (E.enabled.loss) B.value += E.loss;
-    } else if (agg.res === 'B'){
-      if (E.enabled.win)  B.value += E.win;
-      if (E.enabled.loss) A.value += E.loss;
-    } else {
-      if (E.enabled.draw){ A.value += E.draw; B.value += E.draw; }
-    }
+  const E=econ(),agg=matchAggregate(m);
+  const A=app.state.teams.find(t=>t.id===m.teamAId);
+  const B=app.state.teams.find(t=>t.id===m.teamBId);
+  const isCupMatch=isTournamentMatch(m)||!!(fixture&&fixture.tournamentId);
+  m.economyApplied=!isCupMatch;
+  if(!isCupMatch&&A&&B){
+    if(agg.res==='A'){
+      if(E.enabled.win)A.value+=E.win;
+      if(E.enabled.loss)B.value+=E.loss;
+    }else if(agg.res==='B'){
+      if(E.enabled.win)B.value+=E.win;
+      if(E.enabled.loss)A.value+=E.loss;
+    }else if(E.enabled.draw){A.value+=E.draw;B.value+=E.draw;}
   }
-
   app.state.matches.push(m);
-
-  if (fixture){ fixture.played = true; fixture.matchId = m.id; }
-
-  /* Loan duration and billing advance only for legs this loanee actually played. */
+  if(fixture){fixture.played=true;fixture.matchId=m.id;}
   applyLoanLegsForMatch(m);
-
-  if (fixture && fixture.tournamentId) progressTournament(fixture.tournamentId);
+  if(fixture&&fixture.tournamentId)progressTournament(fixture.tournamentId);
 }
 
 function createTournament(name, teamIds, groupCount, koLegs){
@@ -5742,20 +5733,18 @@ document.addEventListener('change', e => {
 });
 
 function revertMatch(m){
-  const E = econ();
-  const agg = matchAggregate(m);
-  const A = app.state.teams.find(t => t.id === m.teamAId);
-  const B = app.state.teams.find(t => t.id === m.teamBId);
-  if (!A || !B) return;
-  if (agg.res === 'A'){
-    if (E.enabled.win)  A.value -= E.win;
-    if (E.enabled.loss) B.value -= E.loss;
-  } else if (agg.res === 'B'){
-    if (E.enabled.win)  B.value -= E.win;
-    if (E.enabled.loss) A.value -= E.loss;
-  } else {
-    if (E.enabled.draw){ A.value -= E.draw; B.value -= E.draw; }
-  }
+  if(m&&m.economyApplied===false)return;
+  const E=econ(),agg=matchAggregate(m);
+  const A=app.state.teams.find(t=>t.id===m.teamAId);
+  const B=app.state.teams.find(t=>t.id===m.teamBId);
+  if(!A||!B)return;
+  if(agg.res==='A'){
+    if(E.enabled.win)A.value-=E.win;
+    if(E.enabled.loss)B.value-=E.loss;
+  }else if(agg.res==='B'){
+    if(E.enabled.win)B.value-=E.win;
+    if(E.enabled.loss)A.value-=E.loss;
+  }else if(E.enabled.draw){A.value-=E.draw;B.value-=E.draw;}
 }
 
 async function saveMatch(){
@@ -5781,6 +5770,8 @@ async function saveMatch(){
     completeLegs++;
   }
   if(!completeLegs)return toast('⚠️ Enter at least one completed leg score','err');
+  if(f.tournamentId&&completeLegs<tournamentMinimum)
+    return toast('⚠️ This tournament match needs '+tournamentMinimum+' completed legs before it can be saved','err');
 
   const ps = {};
   Object.keys(d.stats).forEach(pid => {
@@ -5855,6 +5846,7 @@ function playerProfileHTML(pid){
   const avg = playerAverages(s);
 
   const myMatches = app.state.matches.filter(m => {
+    if(isTournamentMatch(m))return false;
     const playerLegs=m.playerStats&&m.playerStats[p.id];
     if(!Array.isArray(playerLegs))return false;
     const scoredLegNumbers=new Set(matchLegs(m).map(leg=>leg.n));
@@ -6127,7 +6119,7 @@ function openTournamentCreator(){
       <div><label class="fl">Groups</label>
         <select id="t_groups"><option value="2">2 groups</option><option value="3">3 groups</option></select></div>
       <div><label class="fl">Knockout legs</label>
-        <select id="t_kolegs"><option value="1">1 leg</option><option value="2" selected>2 legs</option><option value="4">4 legs</option></select></div>
+        <select id="t_kolegs"><option value="2" selected>2 legs</option><option value="4">4 legs</option></select></div>
     </div>
     <label class="fl">Select teams (4–12)</label>
     <div id="t_teams" class="grid g3" style="max-height:260px;overflow-y:auto;padding:6px;border:1px solid var(--line);border-radius:10px">
