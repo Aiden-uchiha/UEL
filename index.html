@@ -6180,7 +6180,7 @@ function playerProfileHTML(pid){
   const avg = playerAverages(s);
 
   const myMatches = app.state.matches.filter(m => {
-    if(isTournamentMatch(m))return false;
+    if(isTournamentMatch(m)&&app.state.competitionMode!=='tournament')return false;
     const playerLegs=m.playerStats&&m.playerStats[p.id];
     if(!Array.isArray(playerLegs))return false;
     const scoredLegNumbers=new Set(matchLegs(m).map(leg=>leg.n));
@@ -6249,6 +6249,20 @@ function playerProfileHTML(pid){
       <div class="statbox"><div class="v">${p.transferCount||0}</div><div class="l">Transfers</div></div>
       <div class="statbox"><div class="v">🔥 ${num(hypeCount)}</div><div class="l">Hype</div></div>
       <div class="statbox"><div class="v"><span class="rk rk-${avgGrade(avg)}">${avgGrade(avg)}</span></div><div class="l">EGOIST Rank</div></div>
+    </div>
+
+    <div class="section-title" style="margin-top:16px">Regional Performance</div>
+    <div class="grid g2">
+      <section class="card"><div class="section-title" style="margin-top:0">🇪🇺 Europe</div><div class="grid g4">
+        <div class="statbox"><div class="v">${s.regions.europe.goals}</div><div class="l">Goals</div></div>
+        <div class="statbox"><div class="v">${s.regions.europe.assists}</div><div class="l">Assists</div></div>
+        <div class="statbox"><div class="v">${s.regions.europe.saves}</div><div class="l">Saves</div></div>
+        <div class="statbox"><div class="v">${s.regions.europe.tackles}</div><div class="l">Tackles</div></div></div><div class="tiny muted">${s.regions.europe.legsPlayed} Europe legs</div></section>
+      <section class="card"><div class="section-title" style="margin-top:0">🌏 Asia</div><div class="grid g4">
+        <div class="statbox"><div class="v">${s.regions.asia.goals}</div><div class="l">Goals</div></div>
+        <div class="statbox"><div class="v">${s.regions.asia.assists}</div><div class="l">Assists</div></div>
+        <div class="statbox"><div class="v">${s.regions.asia.saves}</div><div class="l">Saves</div></div>
+        <div class="statbox"><div class="v">${s.regions.asia.tackles}</div><div class="l">Tackles</div></div></div><div class="tiny muted">${s.regions.asia.legsPlayed} Asia legs</div></section>
     </div>
 
     <div class="section-title" style="margin-top:16px">Leg Analysis (averages)</div>
