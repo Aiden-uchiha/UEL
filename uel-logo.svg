@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+<title id="title">UEL crest</title>
+<defs>
+  <radialGradient id="purple" cx="50%" cy="38%" r="72%">
+    <stop offset="0" stop-color="#4a0a66"/>
+    <stop offset=".62" stop-color="#20002f"/>
+    <stop offset="1" stop-color="#0b0d17"/>
+  </radialGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#fff1a6"/>
+    <stop offset=".28" stop-color="#ffd53d"/>
+    <stop offset=".62" stop-color="#f2a900"/>
+    <stop offset="1" stop-color="#fff0a0"/>
+  </linearGradient>
+  <linearGradient id="pink" x1="0" y1="0" x2="1" y2="0">
+    <stop stop-color="#ff2bd6"/>
+    <stop offset="1" stop-color="#8a2be2"/>
+  </linearGradient>
+  <linearGradient id="cyan" x1="0" y1="0" x2="0" y2="1">
+    <stop stop-color="#04f5ff"/>
+    <stop offset="1" stop-color="#0088bb"/>
+  </linearGradient>
+  <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+    <feGaussianBlur stdDeviation="2.2" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
+<circle cx="64" cy="66" r="59" fill="#12001d" stroke="#8b4ab0" stroke-width="2"/>
+<circle cx="64" cy="66" r="55" fill="url(#purple)" stroke="url(#gold)" stroke-width="3.6"/>
+<circle cx="64" cy="66" r="49" fill="none" stroke="#9d54ba" stroke-opacity=".65" stroke-width="1.2"/>
+<path d="M25 58 Q34 49 43 54 M103 58 Q94 49 85 54" fill="none" stroke="url(#pink)" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M19 78 Q23 91 33 98 M109 78 Q105 91 95 98" fill="none" stroke="url(#cyan)" stroke-width="2.7" stroke-linecap="round"/>
+<path d="M30 43 25 17 44 31 54 8 64 29 76 8 84 31 103 17 98 43 87 49 41 49Z" fill="url(#gold)" stroke="#8b5700" stroke-width="2" stroke-linejoin="round" filter="url(#glow)"/>
+<path d="M30 42 Q64 50 98 42 L96 51 Q64 59 32 51Z" fill="url(#gold)" stroke="#6d4300" stroke-width="1.5"/>
+<path d="M54 18 64 34 76 18" fill="none" stroke="#fff4bd" stroke-width="2" opacity=".8"/>
+<text x="64" y="84" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="27" font-weight="1000" letter-spacing="-1.4" fill="url(#gold)" stroke="#6e3900" stroke-width="1.4" paint-order="stroke">UEL</text>
+<circle cx="64" cy="104" r="12.4" fill="url(#gold)" stroke="#6e3900" stroke-width="2"/>
+<path d="M64 96 69 99 67 105 61 105 59 99Z M64 96 64 92 M69 99 75 98 M67 105 71 111 M61 105 57 111 M59 99 53 98" fill="none" stroke="#32103d" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M52 113 Q64 120 76 113" fill="none" stroke="#fff0a0" stroke-width="1.4" opacity=".8"/>
+</svg>
