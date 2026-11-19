@@ -2567,7 +2567,7 @@ VIEWS.results = () => {
 
     html += `<div class="match-card anim">
       <div class="mc-header">
-        <span>${new Date(m.timestamp || Date.now()).toLocaleDateString()}</span>
+        <span>${isTournamentMatch(m) ? '🏆 Tournament' : 'League'} · ${new Date(m.timestamp || Date.now()).toLocaleDateString()}</span>
         <span>${agg.legs.length} Leg${agg.legs.length > 1 ? 's' : ''}</span>
       </div>
       <div class="mc-body">
@@ -2612,7 +2612,7 @@ function matchPageContext(){
   const fixture=(match&&fixtureById(match.fixtureId))||(match&&app.state.fixtures.find(item=>item.matchId===match.id))||requestedFixture||null;
   const teamAId=match?match.teamAId:(fixture&&fixture.teamAId),teamBId=match?match.teamBId:(fixture&&fixture.teamBId);
   if(!teamAId||!teamBId)return null;
-  const fallback={id:id,teamAId:teamAId,teamBId:teamBId,competition:(match&&isTournamentMatch(match))?'Tournament':'League',round:'',legs:match?(legCount(match)||1):1,date:'',played:!!match};
+  const fallback={id:id,teamAId:teamAId,teamBId:teamBId,competition:(match&&isTournamentMatch(match))?'Tournament':'League',tournamentId:match&&match.tournamentId||null,round:'',legs:match?(legCount(match)||1):1,date:'',played:!!match};
   return {match:match,fixture:fixture||fallback,A:teamById(teamAId),B:teamById(teamBId)};
 }
 function matchPagePlayerStats(match,teamAId,teamBId){
@@ -2644,13 +2644,28 @@ function matchPagePlayerStats(match,teamAId,teamBId){
   });
   return rows;
 }
-function matchPageSeasonPlayers(teamAId,teamBId){
+function matchPageSeasonPlayers(teamAId,teamBId,fixture){
+  if(fixture&&fixture.tournamentId){
+    const tournament=tourById(fixture.tournamentId);
+    if(!tournament)return [];
+    return tournamentPlayerStats(tournament)
+      .filter(row=>row.teamId===teamAId||row.teamId===teamBId)
+      .map(row=>({
+        id:row.id,player:playerById(row.id),teamId:row.teamId,
+        goals:row.goals,assists:row.assists,saves:row.saves,tackles:row.tackles,
+        legsPlayed:row.appearances
+      }));
+  }
   const stats=computePlayerStats();
   return app.state.players.filter(player=>!player.freeAgent&&(player.teamId===teamAId||player.teamId===teamBId)).map(player=>{
     const row=stats[player.id]||{};
-    return {id:player.id,player:player,teamId:player.teamId,goals:Number(row.goals)||0,assists:Number(row.assists)||0,saves:Number(row.saves)||0,tackles:Number(row.tackles)||0,legsPlayed:Number(row.legsPlayed)||0};
+    return {id:player.id,player:player,teamId:player.teamId,
+      goals:Number(row.goals)||0,assists:Number(row.assists)||0,
+      saves:Number(row.saves)||0,tackles:Number(row.tackles)||0,
+      legsPlayed:Number(row.legsPlayed)||0};
   });
 }
+
 function matchLeaderCards(rows,scopeLabel){
   const metrics=[{key:'goals',label:'Top scorer',icon:'⚽'},{key:'assists',label:'Top assister',icon:'🅰️'},{key:'tackles',label:'Top tackler',icon:'🛡️'},{key:'saves',label:'Top saver',icon:'🧤'}];
   let html='<div class="md-leaders-head"><div><span>PLAYER LEADERS</span><h3>'+esc(scopeLabel)+'</h3></div></div><div class="md-leader-grid">';
@@ -2723,7 +2738,7 @@ function renderMatchDetailPage(){
   const context=matchPageContext();
   if(!context)return '<div class="empty"><span class="big">🔎</span>Match not found. <button class="btn" data-act="match:back">Back to fixtures</button></div>';
   const match=context.match,fixture=context.fixture,A=context.A,B=context.B,aggregate=match?matchAggregate(match):null;
-  const matchRows=matchPagePlayerStats(match,A.id,B.id),seasonRows=matchPageSeasonPlayers(A.id,B.id),useSeason=matchRows.length===0;
+  const matchRows=matchPagePlayerStats(match,A.id,B.id),seasonRows=matchPageSeasonPlayers(A.id,B.id,fixture),useSeason=matchRows.length===0;
   const activeTab=app._matchTab==='lineups'?'lineups':'overview';
   const score=aggregate&&aggregate.legs.length?'<b>'+aggregate.a+'</b><i>-</i><b>'+aggregate.b+'</b>':'<b class="md-vs">VS</b>';
   const status=match?(aggregate&&aggregate.legs.length?'FULL TIME':'RESULT RECORDED'):'UPCOMING';
