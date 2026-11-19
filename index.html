@@ -1643,6 +1643,30 @@ function teamGoalDistribution(){
   return dist;
 }
 
+function regionalBestPlayerScore(stats, weights){
+  const R=Object.assign({},BALLONDOR_DEFAULT,weights||{});
+  return (Number(stats.goals)||0)*Number(R.goals)+(Number(stats.assists)||0)*Number(R.assists)+(Number(stats.saves)||0)*Number(R.saves)+(Number(stats.tackles)||0)*Number(R.tackles);
+}
+function regionalBestPlayerLeaders(stats, weights){
+  const result={europe:new Set(),asia:new Set()};
+  ['europe','asia'].forEach(region=>{
+    const entries=Object.keys(stats||{}).filter(pid=>playerById(pid)&&stats[pid].regions&&stats[pid].regions[region]&&stats[pid].regions[region].legsPlayed>0);
+    if(!entries.length)return;
+    const scored=entries.map(pid=>({pid,score:regionalBestPlayerScore(stats[pid].regions[region],weights)}));
+    const maximum=Math.max(...scored.map(x=>x.score));
+    if(maximum<=0)return;
+    scored.filter(x=>Math.abs(x.score-maximum)<1e-9).forEach(x=>result[region].add(x.pid));
+  });
+  return result;
+}
+function regionalBestPlayerRows(region, stats, weights){
+  return Object.keys(stats||{}).filter(pid=>playerById(pid)&&stats[pid].regions&&stats[pid].regions[region]&&stats[pid].regions[region].legsPlayed>0)
+    .map(pid=>{
+      const p=playerById(pid),s=stats[pid].regions[region],team=teamById(p.teamId);
+      return {id:pid,label:p.name,color:team?team.color:'#666',sub:(team?team.name:'No team')+' · '+s.goals+'G '+s.assists+'A '+s.saves+'S '+s.tackles+'T · '+s.legsPlayed+' legs',value:regionalBestPlayerScore(s,weights),fmt:v=>Number(v).toFixed(1)};
+    }).sort((a,b)=>b.value-a.value||a.label.localeCompare(b.label));
+}
+
 function ballonDor(){
   const st = computePlayerStats();
   const R = Object.assign({}, BALLONDOR_DEFAULT, app.state.settings.ballondor || {});
@@ -1661,6 +1685,8 @@ function ballonDor(){
   const playIds = leaders('assists');
   const gloveIds = leaders('saves');
   const defenderIds = leaders('tackles');
+  const regionalLeaders=regionalBestPlayerLeaders(st,R);
+  const regionalBonus=Math.max(0,Number(R.regionalBestBonus)||0);
   const oma = oneManArmy();
   const omaMaximum = Object.keys(oma).reduce((m, pid) => Math.max(m, Number(oma[pid]) || 0), 0);
   const omaLeaders = new Set(omaMaximum > 0
@@ -1690,8 +1716,13 @@ function ballonDor(){
       (gloveIds.has(p.id) ? Number(R.topSavesBonus) : 0) +
       (defenderIds.has(p.id) ? Number(R.topTacklesBonus) : 0) +
       (omaLeaders.has(p.id) ? Number(R.oneManArmy) : 0) +
+      (regionalLeaders.europe.has(p.id) ? regionalBonus : 0) +
+      (regionalLeaders.asia.has(p.id) ? regionalBonus : 0) +
       (getHypeCount(p.id) * Number(R.hype));
-    return { player: p, pts, s, rank, teamBonus, hypeCount: getHypeCount(p.id) };
+    const regionalAwards=[];
+    if(regionalLeaders.europe.has(p.id))regionalAwards.push('Europe');
+    if(regionalLeaders.asia.has(p.id))regionalAwards.push('Asia');
+    return { player:p, pts, s, rank, teamBonus, hypeCount:getHypeCount(p.id), regionalAwards, regionalBestPoints:regionalAwards.length*regionalBonus };
   });
   rows.sort((a,b) => b.pts - a.pts || a.player.name.localeCompare(b.player.name));
   return rows;
@@ -1815,6 +1846,16 @@ function buildAwards(){
         sub: teamById(r.player.teamId).name + ' • ' + (r.s.goals||0) + 'G ' + (r.s.assists||0) + 'A',
         value: Math.round(r.pts)
       }))
+    },
+    {
+      key:'regional-europe', icon:'🇪🇺', title:'Regional Best Player — Europe',
+      desc:'Highest weighted performance from legs assigned to Europe. Every leg is counted only in its selected region.',
+      rows:regionalBestPlayerRows('europe',st,R)
+    },
+    {
+      key:'regional-asia', icon:'🌏', title:'Regional Best Player — Asia',
+      desc:'Highest weighted performance from legs assigned to Asia. Every leg is counted only in its selected region.',
+      rows:regionalBestPlayerRows('asia',st,R)
     },
     {
       key:'mvp-value', icon:'💎', title:'Most Valuable Player',
@@ -2498,6 +2539,7 @@ VIEWS.matchcenter = () => {
         <div><label class="fl">Top saves (Golden Gloves)</label><input type="number" min="0" step="1" data-ballon="topSavesBonus" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).topSavesBonus}"></div>
         <div><label class="fl">Top tackles (Best Defender)</label><input type="number" min="0" step="1" data-ballon="topTacklesBonus" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).topTacklesBonus}"></div>
         <div><label class="fl">One Man Army leader</label><input type="number" min="0" step="1" data-ballon="oneManArmy" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).oneManArmy}"></div>
+        <div><label class="fl">Regional Best Player (each region)</label><input type="number" min="0" max="100" step="1" data-ballon="regionalBestBonus" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).regionalBestBonus}"></div>
         <div><label class="fl">Points per Hype</label><input type="number" min="0" step="0.1" data-ballon="hype" value="${(app.state.settings.ballondor || BALLONDOR_DEFAULT).hype}"></div>
         <div><label class="fl">Player value per Hype ($)</label><input type="number" min="0" step="1000" data-hype="valuePerHype" value="${(app.state.settings.hype || HYPE_DEFAULT).valuePerHype}"></div>
       </div>
