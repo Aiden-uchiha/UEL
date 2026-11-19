@@ -3162,94 +3162,204 @@ VIEWS.tournament = () => {
   return html;
 };
 
-function tournamentDetail(t){
-  let html = `<div class="view-head">
-    <h2><span class="emoji float">🏆</span> ${esc(t.name)}</h2>
-    <div class="head-actions">
-      <button class="btn sm" data-act="tournament:back">← All</button>
-      ${app.isAdmin && t.phase === 'group' ? `<button class="btn sm lime" data-act="tournament:advance" data-id="${t.id}">➡️ Advance to Knockout</button>` : ''}
-      ${app.isAdmin ? `<button class="btn sm danger" data-act="tournament:del" data-id="${t.id}">🗑️ Delete</button>` : ''}
-    </div>
-  </div>`;
-
-  t.groups.forEach((g, gi) => {
-    const tbl = groupStandings(t, gi);
-    html += `<div class="section-title">Group ${String.fromCharCode(65+gi)}</div><div class="tblwrap"><table>
-      <thead><tr><th>#</th><th>Team</th><th class="num">MP</th><th class="num">W</th><th class="num">D</th><th class="num">L</th>
-      <th class="num">GF</th><th class="num">GA</th><th class="num">GD</th><th class="num">PTS</th></tr></thead>
-      <tbody>${tbl.map((r,i) => `<tr>
-        <td><span class="rk ${i<2?'rank1':'rk-D'}">${i+1}</span></td>
-        <td>${teamLink(teamById(r.id), 20)}</td>
-        <td class="num">${r.mp}</td><td class="num">${r.w}</td><td class="num">${r.d}</td><td class="num">${r.l}</td>
-        <td class="num">${r.gf}</td><td class="num">${r.ga}</td><td class="num">${r.gd>0?'+':''}${r.gd}</td>
-        <td class="num" style="color:var(--gold);font-weight:900">${r.pts}</td>
-      </tr>`).join('')}</tbody></table></div>`;
-  });
-
-  const gfx = app.state.fixtures.filter(f => f.tournamentId === t.id && f.stage === 'group');
-  html += `<div class="section-title">Group Fixtures (${gfx.filter(f=>f.played).length}/${gfx.length})</div>
-    <div class="hint" style="margin-bottom:10px">Each pairing is ONE match containing two legs (home and away). If the aggregate is level after Leg 2 or any later leg, admins can add another leg inside that same match. There is no fixed limit.</div>
-    <div class="grid g2">`;
-  gfx.forEach(f => {
-    const A = teamById(f.teamAId), B = teamById(f.teamBId);
-    const m = f.matchId ? matchById(f.matchId) : null;
-    const agg = m ? matchAggregate(m) : null;
-    const sc = agg ? agg.a + ' - ' + agg.b : '';
-    const minLegs = f.stage === 'ko' && String(f.round || '').toLowerCase() === 'final' ? 4 : 2;
-    const currentLegs = m ? legCount(m) : Math.max(minLegs, Number(f.legs) || minLegs);
-    const canManageLegs = !!(app.isAdmin && f.played && m);
-    html += `<div class="match-card anim">
-      <div class="mc-header"><span>${f.round} · ${Math.max(2, Number(f.legs) || 2)} LEGS</span><span>${f.played ? 'FINISHED' : 'PENDING'}</span></div>
-      <div class="mc-body" style="padding:4px 0">
-        ${teamSide(A, 24)}
-        <div class="mc-score" style="font-size:16px;padding:2px 10px">${sc || 'VS'}</div>
-        ${teamSide(B, 24, true)}
-      </div>
-      <div class="mc-footer" style="margin-top:6px;padding-top:6px;justify-content:center">
-        ${app.isAdmin ? `
-          ${f.played
-            ? `<button class="btn sm" data-act="match:edit" data-id="${f.matchId}">📊 Edit Match</button>`
-            : `<button class="btn sm lime" data-act="match:record" data-id="${f.id}">📝 Record Match</button>`}
-          ${canManageLegs ? `<button class="btn sm gold" data-act="match:add-leg" data-id="${f.id}">➕ Add Leg</button>${currentLegs > minLegs ? `<button class="btn sm danger" data-act="match:remove-leg" data-id="${f.id}">➖ Remove Leg</button>` : ''}` : ''}
-        ` : ''}
-      </div>
-    </div>`;
-  });
-  if (!gfx.length) html += `<div class="empty">No group fixtures</div>`;
-  html += `</div>`;
-
-  if (t.ko){
-    html += `<div class="section-title">Knockout Bracket</div><div class="kobracket">`;
-    t.ko.rounds.forEach(round => {
-      html += `<div class="kocol"><div class="pill cy center">${esc(round.name)}</div>`;
-      round.ties.forEach((tie, ti) => {
-        const fxs = (tie.fixtureIds||[]).map(fixtureById).filter(Boolean);
-        const f = fxs[0];
-        const m = f && f.matchId ? matchById(f.matchId) : null;
-        const minLegs = String(round.name || '').toLowerCase() === 'final' ? 4 : 2;
-        const count = m ? legCount(m) : (f ? Math.max(minLegs, Number(f.legs) || minLegs) : minLegs);
-        html += `<div class="ko-tie">
-          <div class="tm ${tie.winner === tie.a && tie.a ? 'win' : ''}"><span>${tie.a ? teamLink(teamById(tie.a), 20) : '<span class="muted">TBD</span>'}</span></div>
-          <div class="tm ${tie.winner === tie.b && tie.b ? 'win' : ''}"><span>${tie.b ? teamLink(teamById(tie.b), 20) : '<span class="muted">TBD</span>'}</span></div>
-          ${f && app.isAdmin ? `<div class="row" style="margin-top:7px;gap:5px">
-            ${f.played ? `<button class="btn sm" data-act="match:edit" data-id="${f.matchId}">📊 Edit Match</button>` : `<button class="btn sm lime" data-act="match:record" data-id="${f.id}">📝 Record Match</button>`}
-            ${f.played ? `<button class="btn sm gold" data-act="match:add-leg" data-id="${f.id}">➕ Add Leg</button>${count > minLegs ? `<button class="btn sm danger" data-act="match:remove-leg" data-id="${f.id}">➖ Remove Leg</button>` : ''}` : ''}
-          </div>` : ''}
-        </div>`;
-      });
-      html += `</div>`;
+function tournamentGroupMatchdays(t){
+  const fixtures = app.state.fixtures.filter(f => f.tournamentId === t.id && f.stage === 'group');
+  const rounds = [];
+  (t.groups || []).forEach((teamIds, gi) => {
+    roundRobinRounds(teamIds || []).forEach((pairs, roundIndex) => {
+      if (!rounds[roundIndex]) rounds[roundIndex] = [];
+      const matches = pairs.map(pair => fixtures.find(f =>
+        Number(f.group) === gi &&
+        ((f.teamAId === pair[0] && f.teamBId === pair[1]) || (f.teamAId === pair[1] && f.teamBId === pair[0]))
+      )).filter(Boolean);
+      rounds[roundIndex].push({ groupIndex:gi, fixtures:matches });
     });
-    html += `</div>`;
-  }
+  });
+  return rounds.map((groups, i) => ({ number:i + 1, groups:groups.filter(g => g.fixtures.length) }));
+}
 
-  if (t.completed && t.winner){
-    html += `<div class="card anim" style="margin-top:16px;text-align:center;border-color:var(--gold);box-shadow:0 0 34px rgba(255,213,61,.3)">
-      <div style="font-size:38px" class="emoji pop">🏆</div>
-      <h3 style="color:var(--gold);margin-top:6px;display:flex;align-items:center;justify-content:center;gap:10px">Champion: ${teamLink(teamById(t.winner), 30)}</h3>
-    </div>`;
-  }
+function tournamentMatches(t){
+  return app.state.matches.filter(m => {
+    if (m.tournamentId === t.id) return true;
+    const f = m.fixtureId ? fixtureById(m.fixtureId) : null;
+    return !!(f && f.tournamentId === t.id);
+  });
+}
 
+function tournamentPlayerStats(t){
+  const map = {};
+  tournamentMatches(t).forEach(m => {
+    Object.keys(m.playerStats || {}).forEach(pid => {
+      const p = playerById(pid);
+      if (!p) return;
+      const row = map[pid] || (map[pid] = {
+        id:pid, name:p.name, teamId:(m.playerTeams && m.playerTeams[pid]) || p.teamId,
+        matchIds:{}, matches:0, appearances:0, goals:0, assists:0, saves:0, tackles:0, mvp:0, motm:0
+      });
+      if (!row.matchIds[m.id]) { row.matchIds[m.id] = true; row.matches++; }
+      if (m.mvpId === pid) row.mvp++;
+      if (m.motmId === pid) row.motm++;
+      (m.playerStats[pid] || []).forEach(leg => {
+        if (!leg || !leg.played) return;
+        row.appearances++;
+        row.goals += Number(leg.goals) || 0;
+        row.assists += Number(leg.assists) || 0;
+        row.saves += Number(leg.saves) || 0;
+        row.tackles += Number(leg.tackles) || 0;
+      });
+    });
+  });
+  return Object.values(map).sort((a,b) =>
+    b.goals-a.goals || b.assists-a.assists || b.saves-a.saves || b.tackles-a.tackles || a.name.localeCompare(b.name)
+  );
+}
+
+function tournamentFixtureCard(f){
+  const A = teamById(f.teamAId), B = teamById(f.teamBId);
+  const m = f.matchId ? matchById(f.matchId) : null;
+  const agg = m ? matchAggregate(m) : null;
+  const minLegs = f.stage === 'ko' && String(f.round || '').toLowerCase() === 'final' ? 4 : 2;
+  const currentLegs = m ? legCount(m) : Math.max(minLegs, Number(f.legs) || minLegs);
+  let actions = '';
+  if (app.isAdmin){
+    if (f.played){
+      actions += '<button class="btn sm" data-act="match:view" data-id="' + f.matchId + '">📊 Result</button>';
+      actions += '<button class="btn sm" data-act="match:edit" data-id="' + f.matchId + '">✏️ Edit</button>';
+      if (m){
+        actions += '<button class="btn sm gold" data-act="match:add-leg" data-id="' + f.id + '">➕ Add Leg</button>';
+        if (currentLegs > minLegs) actions += '<button class="btn sm danger" data-act="match:remove-leg" data-id="' + f.id + '">➖ Remove Leg</button>';
+      }
+    } else {
+      actions += '<button class="btn sm lime" data-act="track:open" data-id="' + f.id + '">⚡ Match Tracker</button>';
+      actions += '<button class="btn sm" data-act="match:record" data-id="' + f.id + '">📝 Record Match</button>';
+    }
+  } else if (f.played){
+    actions += '<button class="btn sm" data-act="match:view" data-id="' + f.matchId + '">📊 View Result</button>';
+  } else {
+    actions += '<button class="btn sm" data-act="match:view" data-id="' + f.id + '">ℹ️ Match Details</button>';
+  }
+  const meta = f.stage === 'ko' ? (f.round || 'Knockout') : ('Group ' + String.fromCharCode(65 + (Number(f.group) || 0)));
+  const score = agg && agg.legs.length ? (agg.a + ' - ' + agg.b) : 'VS';
+  const legScores = agg && agg.legs.length
+    ? '<div class="tour-leg-scores">' + agg.legs.map((leg,i) => '<span>LEG ' + (i+1) + ': ' + leg.a + '-' + leg.b + '</span>').join('') + '</div>'
+    : '';
+  return '<article class="tour-match-card">' +
+    '<div class="tour-match-meta"><span>' + esc(meta) + '</span><span>' + (f.played ? 'FINISHED' : 'UPCOMING') + ' · ' + currentLegs + ' LEGS</span></div>' +
+    '<div class="tour-match-teams"><div>' + teamSide(A,34) + '</div><b class="tour-match-score">' + score + '</b><div>' + teamSide(B,34,true) + '</div></div>' +
+    legScores + fixturePredictionsHTML(f) +
+    '<div class="tour-match-actions">' + actions + '</div></article>';
+}
+
+function tournamentStandingsHTML(t){
+  let html = '';
+  (t.groups || []).forEach((group, gi) => {
+    const table = groupStandings(t, gi);
+    html += '<section class="tour-panel"><div class="tour-panel-head"><div><span>GROUP ' + String.fromCharCode(65+gi) + '</span><h3>Group ' + String.fromCharCode(65+gi) + ' Table</h3></div></div>' +
+      '<div class="tblwrap"><table><thead><tr><th>#</th><th>Team</th><th class="num">MP</th><th class="num">W</th><th class="num">D</th><th class="num">L</th><th class="num">GF</th><th class="num">GA</th><th class="num">GD</th><th class="num">PTS</th></tr></thead><tbody>';
+    table.forEach((row,i) => {
+      html += '<tr><td><span class="rk ' + (i<2 ? 'rank'+(i+1) : 'rk-D') + '">' + (i+1) + '</span></td>' +
+        '<td>' + teamLink(teamById(row.id),20) + '</td><td class="num">' + row.mp + '</td><td class="num">' + row.w + '</td>' +
+        '<td class="num">' + row.d + '</td><td class="num">' + row.l + '</td><td class="num">' + row.gf + '</td><td class="num">' + row.ga +
+        '</td><td class="num">' + (row.gd>0?'+':'') + row.gd + '</td><td class="num" style="color:var(--gold);font-weight:900">' + row.pts + '</td></tr>';
+    });
+    html += '</tbody></table></div></section>';
+  });
   return html;
+}
+
+function tournamentStatsHTML(t){
+  const rows = tournamentPlayerStats(t);
+  if (!rows.length) return '<div class="empty"><span class="big">📊</span>Player statistics will appear after tournament matches are recorded.</div>';
+  const leaders = [
+    ['⚽','Golden Boot','goals'],['🅰️','Top Playmaker','assists'],['🧤','Golden Gloves','saves'],['🛡️','Best Defender','tackles']
+  ];
+  let html = '<div class="tour-leaders">';
+  leaders.forEach(entry => {
+    const leader = rows.find(row => Number(row[entry[2]]) > 0);
+    html += '<div class="tour-leader"><span>' + entry[0] + ' ' + entry[1] + '</span><b>' +
+      (leader ? leader[entry[2]] : '—') + '</b><small>' +
+      (leader ? playerLink(playerById(leader.id)) + ' · ' + esc(teamById(leader.teamId).name) : 'No leader yet') + '</small></div>';
+  });
+  html += '</div><section class="tour-panel"><div class="tour-panel-head"><div><span>TOURNAMENT PERFORMANCE</span><h3>Player Statistics</h3></div><b>' + rows.length + ' players</b></div>';
+  html += '<div class="tblwrap"><table><thead><tr><th>#</th><th>Player</th><th>Team</th><th class="num">MP</th><th class="num">Apps</th><th class="num">G</th><th class="num">A</th><th class="num">S</th><th class="num">T</th><th class="num">MVP</th><th class="num">MOTM</th></tr></thead><tbody>';
+  rows.forEach((row,i) => {
+    html += '<tr><td>' + (i+1) + '</td><td>' + playerLink(playerById(row.id),'var(--cyan)') + '</td><td>' + teamLink(teamById(row.teamId),20) +
+      '</td><td class="num">' + row.matches + '</td><td class="num">' + row.appearances + '</td><td class="num">' + row.goals +
+      '</td><td class="num">' + row.assists + '</td><td class="num">' + row.saves + '</td><td class="num">' + row.tackles +
+      '</td><td class="num">' + row.mvp + '</td><td class="num">' + row.motm + '</td></tr>';
+  });
+  return html + '</tbody></table></div></section>';
+}
+
+function tournamentKnockoutHTML(t){
+  if (!t.ko) return '<div class="empty"><span class="big">🏁</span>Knockout bracket will appear when the group stage is complete.</div>';
+  let html = '<section class="tour-panel"><div class="tour-panel-head"><div><span>ELIMINATION STAGE</span><h3>Knockout Bracket</h3></div><b>' + t.ko.rounds.length + ' rounds</b></div><div class="kobracket">';
+  t.ko.rounds.forEach(round => {
+    html += '<div class="kocol"><div class="pill cy center">' + esc(round.name) + '</div>';
+    round.ties.forEach(tie => {
+      const f = (tie.fixtureIds || []).map(fixtureById).find(Boolean);
+      html += '<div class="ko-tie"><div class="tm ' + (tie.winner === tie.a && tie.a ? 'win' : '') + '">' +
+        (tie.a ? teamLink(teamById(tie.a),20) : '<span class="muted">TBD</span>') + '</div><div class="tm ' +
+        (tie.winner === tie.b && tie.b ? 'win' : '') + '">' + (tie.b ? teamLink(teamById(tie.b),20) : '<span class="muted">TBD</span>') + '</div>' +
+        (f ? tournamentFixtureCard(f) : '') + '</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div></section>';
+  if (t.completed && t.winner) html += '<div class="tour-champion"><div>🏆</div><span>TOURNAMENT CHAMPION</span><h2>' + teamLink(teamById(t.winner),34) + '</h2></div>';
+  return html;
+}
+
+function tournamentDetail(t){
+  const groupFixtures = app.state.fixtures.filter(f=>f.tournamentId===t.id && f.stage==='group');
+  const allFixtures = app.state.fixtures.filter(f=>f.tournamentId===t.id);
+  const schedule = tournamentGroupMatchdays(t);
+  const playedCount = allFixtures.filter(f=>f.played).length;
+  const tab = ['matchdays','standings','stats','knockout'].includes(app._tourTab) ? app._tourTab : 'matchdays';
+  const tabs = [['matchdays','📅','Matchdays'],['standings','🏆','Group Tables'],['stats','📊','Player Stats'],['knockout','🥇','Knockout']];
+  let html = '<div class="tour-page"><section class="tour-hero">' +
+    '<div class="tour-hero-top"><span>UNMATCHED EGO LEAGUE · CUP COMPETITION</span><span class="pill ' + (t.completed?'li':'cy') + '">' +
+    (t.completed?'COMPLETED':esc((t.phase||'group').toUpperCase())) + '</span></div>' +
+    '<h1>🏆 ' + esc(t.name) + '</h1><p>' + esc(app.state.leagueName || 'UEL') + ' · Independent tournament season</p>' +
+    '<div class="tour-hero-stats"><div><b>' + t.teams.length + '</b><span>TEAMS</span></div><div><b>' + t.groups.length +
+    '</b><span>GROUPS</span></div><div><b>' + schedule.length + '</b><span>GROUP MATCHDAYS</span></div><div><b>' +
+    playedCount + '/' + allFixtures.length + '</b><span>MATCHES PLAYED</span></div></div>' +
+    (t.completed && t.winner ? '<div class="tour-hero-champion">🏆 Champion: ' + teamLink(teamById(t.winner),28) + '</div>' : '') +
+    '</section><div class="tour-page-actions"><button class="btn sm" data-act="tournament:back">← Tournament Directory</button><div class="head-actions">' +
+    (app.isAdmin && t.phase==='group' ? '<button class="btn sm lime" data-act="tournament:advance" data-id="' + t.id + '" ' + (groupComplete(t)?'':'disabled') + '>➡️ Advance to Knockout</button>' : '') +
+    (app.isAdmin ? '<button class="btn sm danger" data-act="tournament:del" data-id="' + t.id + '">🗑️ Delete Tournament</button>' : '') +
+    '</div></div><nav class="tour-tabs">';
+  tabs.forEach(item => {
+    html += '<button class="' + (tab===item[0]?'active':'') + '" data-act="tournament:tab" data-tab="' + item[0] + '">' + item[1] + ' ' + item[2] + '</button>';
+  });
+  html += '</nav>';
+
+  if (tab === 'matchdays'){
+    html += '<div class="tour-content-heading"><div><span>GROUP STAGE</span><h2>Matchday Schedule</h2></div><p>Every team plays once per matchday. Four teams in a group means three matchdays.</p></div>' +
+      '<div class="hint" style="margin-bottom:12px">Each pairing is one match containing at least two legs. Extra legs can be added to that same match. Predictions are open until kickoff/result recording.</div>';
+    if (!schedule.length) html += '<div class="empty">No group matchdays generated.</div>';
+    schedule.forEach(day => {
+      const dayFixtures = day.groups.reduce((n,g)=>n+g.fixtures.length,0);
+      const dayPlayed = day.groups.reduce((n,g)=>n+g.fixtures.filter(f=>f.played).length,0);
+      html += '<section class="tour-matchday"><div class="tour-matchday-head"><div><span>ROUND ' +
+        String(day.number).padStart(2,'0') + '</span><h2>Matchday ' + day.number + '</h2></div><b>' +
+        dayPlayed + '/' + dayFixtures + ' COMPLETED</b></div><div class="tour-matchday-groups">';
+      day.groups.forEach(group => {
+        html += '<section class="tour-group-day"><div class="tour-group-day-head"><span>GROUP ' +
+          String.fromCharCode(65+group.groupIndex) + '</span><b>' + group.fixtures.filter(f=>f.played).length + '/' +
+          group.fixtures.length + '</b></div><div class="tour-match-grid">' +
+          group.fixtures.map(tournamentFixtureCard).join('') + '</div></section>';
+      });
+      html += '</div></section>';
+    });
+  } else if (tab === 'standings'){
+    html += '<div class="tour-content-heading"><div><span>GROUP STAGE</span><h2>Group Tables</h2></div><p>Three points for a win, one for a draw.</p></div>' + tournamentStandingsHTML(t);
+  } else if (tab === 'stats'){
+    html += '<div class="tour-content-heading"><div><span>INDIVIDUAL PERFORMANCE</span><h2>Tournament Player Stats</h2></div><p>Only performances from this tournament are counted here.</p></div>' + tournamentStatsHTML(t);
+  } else {
+    html += '<div class="tour-content-heading"><div><span>ELIMINATION STAGE</span><h2>Knockout Stage</h2></div><p>Winners advance only after the required legs and a decisive aggregate.</p></div>' + tournamentKnockoutHTML(t);
+  }
+  return html + '</div>';
 }
 
 function teamOfTheSeason(){
