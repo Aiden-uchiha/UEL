@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover">
 <title>⚡ League Manager</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
+<link rel="icon" type="image/svg+xml" href="./uel-logo.svg">
 <style>
 :root{
   --bg:#0b0d17;--bg2:#15192b;--panel:rgba(21,25,43,.72);--panel2:rgba(11,13,23,.85);
@@ -23,8 +23,8 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;bac
 .wrap{max-width:1400px;margin:0 auto;padding:0 14px 90px}
 header.top{position:sticky;top:0;z-index:60;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:linear-gradient(180deg,rgba(11,13,23,.96),rgba(11,13,23,.72));border-bottom:1px solid var(--line);box-shadow:0 0 30px rgba(0,240,255,.10)}
 .brandbar{display:flex;align-items:center;gap:12px;padding:12px 16px 6px;flex-wrap:wrap}
-.brand{font-weight:900;font-size:20px;letter-spacing:2.5px;text-transform:uppercase;background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 12px rgba(0,240,255,.55));cursor:pointer;user-select:none;white-space:nowrap}
-.brand .ball{display:inline-block;animation:spinball 6s linear infinite;filter:none;-webkit-text-fill-color:initial;color:var(--gold)}
+.brand{display:inline-flex;align-items:center;gap:9px;font-weight:900;font-size:20px;letter-spacing:2.5px;text-transform:uppercase;background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 12px rgba(0,240,255,.55));cursor:pointer;user-select:none;white-space:nowrap}
+.brand-logo{width:42px;height:42px;flex:0 0 42px;display:block;object-fit:contain;filter:drop-shadow(0 0 9px rgba(255,213,61,.3))}
 @keyframes spinball{to{transform:rotate(360deg)}}
 .season-chip{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);border:1px solid var(--line);padding:4px 10px;border-radius:999px;background:rgba(0,240,255,.05)}
 .spacer{flex:1}
@@ -373,7 +373,7 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 <header class="top">
   <div class="wrap" style="padding-bottom:0">
     <div class="brandbar">
-      <div class="brand" data-act="goto" data-view="registry"><span class="ball">⚽</span> <span id="brandName">My League</span></div>
+      <div class="brand" data-act="goto" data-view="registry"><img class="brand-logo" src="./uel-logo.svg" alt="UEL crest"> <span id="brandName">My League</span></div>
       <span class="season-chip" id="seasonChip">2026 Season</span>
       <div class="spacer"></div>
       <a class="discord-header-btn" href="https://discord.gg/GmDqVtmzRA" target="_blank" rel="noopener noreferrer" aria-label="Join the UEL Discord server">💬 Discord</a>
