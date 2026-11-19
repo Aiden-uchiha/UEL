@@ -594,7 +594,7 @@ function switchCompetitionMode(mode){
   });
   app.state.competitionMode=mode;
   app.state.matches=next.matches;app.state.fixtures=next.fixtures;app.state.tournaments=next.tournaments;
-  app.currentView=mode==='league'?'standings':'tournament';app._tourId=null;app._tourTab='matchdays';
+  app.currentView=mode==='league'?'standings':'fixtures';app._tourId=null;app._tourTab='matchdays';
   const activeTournament=mode==='tournament'?getActiveTournament():null;
   app._tourViewId=activeTournament?activeTournament.id:null;
   saveState().then(ok=>{render();toast(ok?'Competition mode changed to '+(mode==='league'?'League':'Tournament')+'.':'Mode changed locally, but cloud save failed. Do not reload until connection is restored.',ok?'ok':'err');});
@@ -2549,6 +2549,27 @@ VIEWS.fixtures = () => {
   const tournamentMode=s.competitionMode==='tournament';
   const activeTournament=tournamentMode?getActiveTournament():null;
   const visibleFixtures=tournamentMode?s.fixtures.filter(f=>!activeTournament||f.tournamentId===activeTournament.id):s.fixtures.filter(f=>!f.tournamentId);
+  if(tournamentMode){
+    if(!activeTournament)return '<div class="view-head"><h2><span class="emoji float">📅</span> Tournament Fixtures</h2></div><div class="empty">No tournament has been configured yet.</div>';
+    const schedule=tournamentGroupMatchdays(activeTournament);
+    const all=s.fixtures.filter(f=>f.tournamentId===activeTournament.id);
+    const upcoming=all.filter(f=>!f.played).length,completed=all.length-upcoming;
+    let html='<div class="view-head"><h2><span class="emoji float">📅</span> '+esc(activeTournament.name)+' · Fixtures</h2><span class="pill cy">🏆 TOURNAMENT</span></div>';
+    html+='<div class="tour-hero-stats"><div><b>'+activeTournament.teams.length+'</b><span>TEAMS</span></div><div><b>'+activeTournament.groups.length+'</b><span>GROUPS</span></div><div><b>'+schedule.length+'</b><span>MATCHDAYS</span></div><div><b>'+completed+'/'+all.length+'</b><span>PLAYED</span></div></div>';
+    if(app.isAdmin&&activeTournament.phase==='group')html+='<div class="head-actions" style="margin:12px 0"><button class="btn lime" data-act="tournament:advance" data-id="'+esc(activeTournament.id)+'" '+(groupComplete(activeTournament)?'':'disabled')+'>➡️ Advance to Knockout</button></div>';
+    if(!schedule.length)html+='<div class="empty">No group matchdays generated.</div>';
+    schedule.forEach(day=>{
+      const total=day.groups.reduce((n,g)=>n+g.fixtures.length,0),played=day.groups.reduce((n,g)=>n+g.fixtures.filter(f=>f.played).length,0);
+      html+='<section class="tour-matchday"><div class="tour-matchday-head"><div><span>ROUND '+String(day.number).padStart(2,'0')+'</span><h2>Matchday '+day.number+'</h2></div><b>'+played+'/'+total+' COMPLETED</b></div><div class="tour-matchday-groups">';
+      day.groups.forEach(group=>{
+        html+='<section class="tour-group-day"><div class="tour-group-day-head"><span>GROUP '+String.fromCharCode(65+group.groupIndex)+'</span><b>'+group.fixtures.filter(f=>f.played).length+'/'+group.fixtures.length+'</b></div><div class="tour-match-grid">'+group.fixtures.map(tournamentFixtureCard).join('')+'</div></section>';
+      });
+      html+='</div></section>';
+    });
+    const ko=all.filter(f=>f.stage==='knockout'||f.stage==='third-place');
+    if(ko.length)html+='<div class="tour-content-heading" style="margin-top:24px"><div><span>ELIMINATION STAGE</span><h2>Knockout Fixtures</h2></div><p>The bracket and group tables are on Standings.</p></div><div class="grid g2">'+ko.map(tournamentFixtureCard).join('')+'</div>';
+    return html;
+  }
   const upcoming = sortedFixtures(visibleFixtures.filter(f => !f.played));
   const done = sortedFixtures(visibleFixtures.filter(f => f.played)).reverse();
 
@@ -2840,10 +2861,12 @@ function renderMatchDetailPage(){
 VIEWS.matchdetail=()=>renderMatchDetailPage();
 VIEWS.standings = () => {
   if(app.state.competitionMode==='tournament'){
-    const active=app.state.tournaments.filter(t=>!t.completed||t.ko);
-    let out='<div class="view-head"><h2><span class="emoji float">🏆</span> Tournament Group Standings</h2></div>';
-    if(!active.length)return out+'<div class="empty"><span class="big">🏁</span>Create a tournament to see its group standings.</div>';
-    active.forEach(t=>{out+='<section class="tour-panel"><div class="tour-panel-head"><div><span>TOURNAMENT</span><h3>'+esc(t.name)+'</h3></div><button class="btn sm" data-act="tournament:view" data-id="'+esc(t.id)+'">Open Tournament</button></div>'+tournamentStandingsHTML(t)+'</section>';});
+    const t=getActiveTournament();
+    let out='<div class="view-head"><h2><span class="emoji float">🏆</span> '+esc(t?t.name:'Tournament')+' · Group Tables & Knockout</h2></div>';
+    if(!t)return out+'<div class="empty"><span class="big">🏁</span>No tournament has been configured for this season.</div>';
+    out+='<div class="tour-content-heading"><div><span>GROUP STAGE</span><h2>Group Tables</h2></div><p>Three points for a win, one for a draw.</p></div>'+tournamentStandingsHTML(t);
+    out+='<div class="tour-content-heading" style="margin-top:26px"><div><span>ELIMINATION STAGE</span><h2>Knockout Bracket</h2></div><p>Winners advance after the required legs and a decisive aggregate.</p></div>'+tournamentKnockoutHTML(t);
+    if(app.isAdmin&&t.phase==='group')out+='<div class="head-actions" style="margin-top:14px"><button class="btn lime" data-act="tournament:advance" data-id="'+esc(t.id)+'" '+(groupComplete(t)?'':'disabled')+'>➡️ Advance to Knockout</button></div>';
     return out;
   }
   const table = standingsSorted();
@@ -3720,7 +3743,7 @@ VIEWS.logs = () => {
 const NAV_ITEMS = [
   ['registry','🏛️','Registry'],['matchcenter','⚡','Match Center'],['fixtures','📅','Fixtures'],
   ['results','📊','Results'],['standings','🏆','Standings'],['players','🌟','Players'],
-  ['teams','🛡️','Teams'],['tournament','🥇','Tournament'],['awards','🎖️','Awards'],
+  ['teams','🛡️','Teams'],['awards','🎖️','Awards'],
   ['archive','🗄️','Archive'],['guide','📖','Guide']
 ];
 
@@ -3749,7 +3772,11 @@ function renderNav(){
     html += '<button class="navbtn admin" data-act="competition:mode" data-mode="'+(mode==='league'?'tournament':'league')+'">⇄ Switch to '+(mode==='league'?'Tournament':'League')+'</button>';
   }
   nav.innerHTML = html;
-  $('#brandName').textContent = app.state.leagueName;
+  const activeCompetitionName=app.state.competitionMode==='tournament'
+    ? ((getActiveTournament()&&getActiveTournament().name)||app.state.leagueName)
+    : app.state.leagueName;
+  $('#brandName').textContent = activeCompetitionName;
+  document.title = activeCompetitionName + ' — ' + app.state.seasonName + ' | UEL';
   $('#seasonChip').textContent = app.state.seasonName + ' · ' + (app.state.competitionMode==='tournament'?'TOURNAMENT MODE':'LEAGUE MODE');
   if (ARCHIVE_MODE){
     const badge = $('#cloudBadge');
