@@ -4732,7 +4732,9 @@ function buildMatchDraft(fixture, existingMatch){
     scores: [],
     mvpId: existingMatch ? existingMatch.mvpId : '',
     motmId: existingMatch ? existingMatch.motmId : '',
-    stats, playerTeams, fouls: normalizeMatchFouls(existingMatch && existingMatch.fouls, fixture.teamAId, fixture.teamBId)
+    stats, playerTeams,
+    legRegions:Array.from({length:legs},(_,i)=>normalizeLegRegion(existingMatch&&existingMatch.legRegions&&existingMatch.legRegions[i])),
+    fouls: normalizeMatchFouls(existingMatch && existingMatch.fouls, fixture.teamAId, fixture.teamBId)
   };
 
   for (let i = 0; i < legs; i++){
@@ -4767,6 +4769,7 @@ function matchFormBody(){
     </tr>`;
   }
   html += `</tbody></table></div>`;
+  html += '<div class="section-title" style="margin-top:12px">🌍 Region for Each Leg</div><div class="field-row">' + d.legRegions.map((region,i)=>'<div><label class="fl">Leg '+(i+1)+'</label><select data-mfield="region" data-leg="'+i+'">'+legRegionOptions(region)+'</select></div>').join('') + '</div>';
   html += `<div class="section-title" style="margin-top:16px">Player Stats — Leg ${leg}</div>
   <div class="legtab">${Array.from({length:d.legs},(_,i) =>
     `<button class="${d.leg===i+1?'on':''}" data-act="matchleg" data-leg="${i+1}">Leg ${i+1}</button>`).join('')}</div>`;
@@ -5614,13 +5617,14 @@ document.addEventListener('click', async e => {
     if (act === 'match:add-leg'){
       d.legs += 1;
       d.scores.push({a:'',b:''});
+      d.legRegions.push('');
       Object.keys(d.stats).forEach(pid => d.stats[pid].push({played:false,goals:0,assists:0,saves:0,tackles:0}));
     } else {
       if (d.legs <= minimumLegs) return toast('⚠️ This match must keep at least ' + minimumLegs + ' legs', 'err');
       const ix = d.legs - 1, score = d.scores[ix] || {};
       const hasData = (score.a !== '' && score.a != null) || (score.b !== '' && score.b != null) || Object.values(d.stats).some(a => a[ix] && a[ix].played);
       if (hasData && !confirm('Remove the last leg and its recorded scores/player stats?')) return;
-      d.legs--; d.scores.pop();
+      d.legs--; d.scores.pop(); d.legRegions.pop();
       Object.keys(d.stats).forEach(pid => d.stats[pid].pop());
     }
     d.leg = d.legs;
@@ -5909,6 +5913,7 @@ function handleInput(e){
   if (ds.mfield === 'score') d.scores[Number(ds.leg)][ds.side] = el.value;
   else if (ds.mfield === 'played') d.stats[ds.pid][Number(ds.leg)].played = el.checked;
   else if (ds.mfield === 'stat') d.stats[ds.pid][Number(ds.leg)][ds.k] = Number(el.value) || 0;
+  else if (ds.mfield === 'region') d.legRegions[Number(ds.leg)] = normalizeLegRegion(el.value);
   else if (ds.mfield === 'mvp') d.mvpId = el.value;
   else if (ds.mfield === 'motm') d.motmId = el.value;
   else if (ds.mfield === 'foul-desc') d.fouls[Number(ds.index)].description = el.value;
@@ -6064,6 +6069,7 @@ async function saveMatch(){
     teamAId: f.teamAId, teamBId: f.teamBId, fixtureId: f.id,
     tournamentId: f.tournamentId || null,
     legs: d.legs,
+    legRegions:Array.from({length:d.legs},(_,i)=>normalizeLegRegion(d.legRegions&&d.legRegions[i])),
     timestamp: Date.now(),
     mvpId: d.mvpId || null, motmId: d.motmId || null,
     mvpSnapshot: d.mvpId ? (() => { const p = playerById(d.mvpId); return p ? { name:p.name, teamId:p.teamId } : null; })() : null,
