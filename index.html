@@ -565,7 +565,7 @@ const econ = () => app.state.settings.economy;
 function getActiveTournament(){
   const list=(app.state&&app.state.tournaments)||[];
   if(!list.length)return null;
-  return list.find(t=>!t.completed)||list.slice().sort((a,b)=>(b.started||b.created||0)-(a.started||a.created||0))[0];
+  return list.slice().sort((a,b)=>(b.started||b.created||0)-(a.started||a.created||0))[0];
 }
 function normalizeCompetitionData(data){
   const d=data||{};
@@ -5587,7 +5587,7 @@ document.addEventListener('click', async e => {
   if (act === 'tournament:create'){
     if (!app.isAdmin) return;
     if(app.state.competitionMode!=='tournament')return toast('Switch to Tournament Mode first.','err');
-    if(getActiveTournament())return toast('This mode already has its season tournament.','err');
+    if(app.state.tournaments.length)return toast('This season already has its tournament. Start a new season to create another one.','err');
     if (app.state.teams.length < 4) return toast('⚠️ Need at least 4 teams', 'err');
     openTournamentCreator();
     return;
@@ -5601,7 +5601,7 @@ document.addEventListener('click', async e => {
     if (ids.length > 12) return toast('⚠️ Maximum 12 teams', 'err');
     if (gc < 2 || gc > 3) return toast('⚠️ 2 or 3 groups', 'err');
     if (gc === 3 && ids.length < 6) return toast('⚠️ Three groups need at least 6 teams (2 per group)', 'err');
-    if(getActiveTournament())return toast('Only one tournament is allowed in this mode.','err');
+    if(app.state.tournaments.length)return toast('Only one tournament is allowed per season.','err');
     const created = createTournament(name, ids, gc, ko);
     await logAdmin('Created tournament "' + name + '" with ' + ids.length + ' teams');
     const cloudSaved = await saveState({suppressErrorToast:true});
