@@ -316,6 +316,56 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 .prediction-foot{margin-top:8px;color:var(--dim);font-size:9.5px;line-height:1.4;text-align:center}
 @media(max-width:390px){.prediction-choice{padding:7px 3px}.prediction-choice b{font-size:9px}.prediction-choice .pred-caption{font-size:7px}}
 
+
+/* Full-page tournament hub */
+.tour-page{display:flex;flex-direction:column;gap:14px;min-width:0}
+.tour-hero{position:relative;overflow:hidden;padding:24px 26px;border:1px solid rgba(0,240,255,.3);border-radius:18px;background:radial-gradient(circle at 88% 18%,rgba(255,43,214,.22),transparent 32%),linear-gradient(125deg,rgba(0,240,255,.12),rgba(21,25,43,.97) 55%,rgba(11,13,23,.96));box-shadow:0 12px 38px rgba(0,0,0,.24)}
+.tour-hero:after{content:'🏆';position:absolute;right:7%;top:0;font-size:118px;opacity:.08;pointer-events:none}
+.tour-hero-top{position:relative;z-index:1;display:flex;justify-content:space-between;gap:10px;align-items:center;color:var(--cyan);font-size:9px;font-weight:950;letter-spacing:2px}
+.tour-hero h1{position:relative;z-index:1;margin:13px 0 4px;color:#fff;font-size:clamp(25px,4vw,42px);font-weight:1000;letter-spacing:1px;text-transform:uppercase}
+.tour-hero p{position:relative;z-index:1;margin:0;color:var(--dim);font-size:12px}
+.tour-hero-stats{position:relative;z-index:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:22px}
+.tour-hero-stats>div{display:flex;flex-direction:column;padding:10px 12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(0,0,0,.2)}
+.tour-hero-stats b{font-size:23px;color:#fff;font-weight:1000;font-variant-numeric:tabular-nums}
+.tour-hero-stats span{font-size:8px;color:var(--dim);letter-spacing:1.4px;font-weight:900}
+.tour-hero-champion{position:relative;z-index:1;margin-top:14px;color:var(--gold);font-weight:900}
+.tour-page-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.tour-tabs{display:flex;gap:6px;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:none}
+.tour-tabs button{flex:0 0 auto;padding:13px 16px;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--dim);font:inherit;font-size:10px;font-weight:950;letter-spacing:1px;text-transform:uppercase;cursor:pointer}
+.tour-tabs button.active{color:var(--cyan);border-bottom-color:var(--cyan);text-shadow:0 0 12px rgba(0,240,255,.35)}
+.tour-content-heading{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;padding:4px 2px 6px}
+.tour-content-heading span,.tour-panel-head span{display:block;color:var(--magenta);font-size:9px;font-weight:950;letter-spacing:1.6px}
+.tour-content-heading h2{margin-top:3px;color:#fff;font-size:20px}
+.tour-content-heading p{max-width:430px;margin:0;color:var(--dim);font-size:11px}
+.tour-matchday{padding:15px;border:1px solid var(--line);border-radius:15px;background:linear-gradient(145deg,rgba(21,25,43,.82),rgba(11,13,23,.82));margin-bottom:13px}
+.tour-matchday-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:11px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08)}
+.tour-matchday-head span{color:var(--magenta);font-size:8px;letter-spacing:2px;font-weight:950}
+.tour-matchday-head h2{margin-top:2px;color:#fff;font-size:18px}
+.tour-matchday-head>b{font-size:9px;letter-spacing:1px;color:var(--lime)}
+.tour-matchday-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,430px),1fr));gap:12px}
+.tour-group-day{min-width:0;padding:12px;border:1px solid rgba(0,240,255,.12);border-radius:12px;background:rgba(0,240,255,.025)}
+.tour-group-day-head{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:10px;color:var(--cyan);font-size:10px;font-weight:950;letter-spacing:1.5px}
+.tour-group-day-head b{color:var(--dim);font-size:9px}
+.tour-match-grid{display:grid;grid-template-columns:1fr;gap:9px}
+.tour-match-card{min-width:0;padding:11px;border:1px solid rgba(255,255,255,.1);border-radius:11px;background:rgba(0,0,0,.22)}
+.tour-match-meta{display:flex;justify-content:space-between;gap:8px;color:var(--dim);font-size:8px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase}
+.tour-match-teams{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:7px;padding:12px 0 5px}
+.tour-match-score{padding:5px 10px;border:1px solid var(--line);border-radius:8px;color:var(--gold);font-size:18px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tour-leg-scores{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:4px 0;color:var(--dim);font-size:8px}
+.tour-match-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-top:9px}
+.tour-panel{padding:14px;margin-bottom:13px;border:1px solid var(--line);border-radius:14px;background:rgba(21,25,43,.65)}
+.tour-panel-head{display:flex;justify-content:space-between;align-items:end;gap:10px;margin-bottom:10px}
+.tour-panel-head h3{margin-top:3px;color:#fff;font-size:15px}
+.tour-panel-head>b{color:var(--dim);font-size:9px}
+.tour-leaders{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:13px}
+.tour-leader{display:flex;flex-direction:column;gap:5px;padding:12px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(145deg,rgba(0,240,255,.07),rgba(21,25,43,.68));min-width:0}
+.tour-leader>span{color:var(--dim);font-size:9px;font-weight:950;letter-spacing:1px}
+.tour-leader>b{font-size:25px;color:var(--gold);line-height:1}
+.tour-leader>small{font-size:10px;overflow-wrap:anywhere}
+.tour-champion{padding:24px;margin-top:14px;text-align:center;border:1px solid rgba(255,213,61,.5);border-radius:15px;background:radial-gradient(circle,rgba(255,213,61,.14),rgba(21,25,43,.6))}
+.tour-champion>div{font-size:42px}.tour-champion>span{font-size:9px;letter-spacing:2px;color:var(--gold);font-weight:950}.tour-champion h2{margin-top:8px;font-size:22px}
+@media(max-width:650px){.tour-hero{padding:18px 14px}.tour-hero-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.tour-leaders{grid-template-columns:repeat(2,minmax(0,1fr))}.tour-matchday{padding:10px}.tour-group-day{padding:9px}.tour-match-teams{gap:4px}.tour-match-score{font-size:15px;padding:5px 7px}.tour-content-heading h2{font-size:17px}}
+
 </style>
 </head>
 <body>
@@ -3672,6 +3722,7 @@ function routeSlug(value){
   return String(value||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 }
 function routeForCurrentView(view){
+  if(view==='tournament' && app._tourViewId) return 'tournament/'+encodeURIComponent(app._tourViewId)+'/'+(app._tourTab||'matchdays');
   if(view==='teamprofile'){const t=teamById(app._teamViewId);return 'teams/'+(t?routeSlug(t.name):encodeURIComponent(app._teamViewId||''));}
   if(view==='playerprofile'){const p=playerById(app._playerViewId);return 'players/'+(p?routeSlug(p.name):encodeURIComponent(app._playerViewId||''));}
   if(view==='ballonDor')return 'awards/ballon-dor';
@@ -3689,7 +3740,7 @@ function applyHashRoute(){
   const raw=currentHash.startsWith('#/')?currentHash.slice(2):currentHash.replace(/^#/,'');
   const parts=raw.split('/').filter(Boolean), first=parts[0]||'registry';
   app._teamViewId=null;app._playerViewId=null;app._archiveViewId=null;app._awardViewKey=null;
-  app._matchViewId=null;app._matchTab='overview';
+  app._matchViewId=null;app._matchTab='overview';app._tourViewId=null;app._tourTab='matchdays';
   if(first==='teams'&&parts[1]){
     const t=resolveBySlug(app.state.teams,parts.slice(1).join('/'));app.currentView=t?'teamprofile':'teams';app._teamViewId=t?t.id:null;
   }else if(first==='players'&&parts[1]){
@@ -3703,6 +3754,14 @@ function applyHashRoute(){
       app.currentView=available?'awarddetail':'awards';
       app._awardViewKey=available?awardSlug:null;
     }
+  }
+  else if(first==='tournament'&&parts[1]){
+    const tournamentId=decodeURIComponent(parts[1]);
+    const tournament=tourById(tournamentId);
+    if(tournament){
+      app.currentView='tournament';app._tourViewId=tournament.id;
+      app._tourTab=['matchdays','standings','stats','knockout'].includes(parts[2])?parts[2]:'matchdays';
+    }else app.currentView='tournament';
   }
   else if(first==='archive'&&parts[1]){app.currentView='archive';app._archiveViewId=decodeURIComponent(parts[1]);}
   else if(first==='matchdetail'&&parts[1]){
@@ -5441,19 +5500,33 @@ document.addEventListener('click', async e => {
     if (ids.length < 4) return toast('⚠️ Select at least 4 teams', 'err');
     if (ids.length > 12) return toast('⚠️ Maximum 12 teams', 'err');
     if (gc < 2 || gc > 3) return toast('⚠️ 2 or 3 groups', 'err');
-    createTournament(name, ids, gc, ko);
+    const created = createTournament(name, ids, gc, ko);
     await logAdmin('Created tournament "' + name + '" with ' + ids.length + ' teams');
-    await saveState(); closeModal(); render();
-    toast('🏆 Tournament created', 'ok');
+    const cloudSaved = await saveState();
+    closeModal();
+    app._tourViewId = created.id; app._tourTab = 'matchdays';
+    navigateToRoute('tournament/' + encodeURIComponent(created.id) + '/matchdays');
+    if (firebaseReady && app.db && !cloudSaved) toast('⚠️ Tournament created on this device, but cloud save failed. Check the cloud error before refreshing.', 'err');
+    else toast('🏆 Tournament created', 'ok');
     return;
   }
   if (act === 'tournament:view'){
-    app._tourViewId = id;
-    app.currentView = 'tournament';
-    render(); window.scrollTo({top:0,behavior:'smooth'});
+    app._tourViewId = id; app._tourTab = 'matchdays';
+    navigateToRoute('tournament/' + encodeURIComponent(id) + '/matchdays');
     return;
   }
-  if (act === 'tournament:back'){ app._tourViewId = null; render(); return; }
+  if (act === 'tournament:tab'){
+    if (!app._tourViewId) return;
+    const tab = ['matchdays','standings','stats','knockout'].includes(el.dataset.tab) ? el.dataset.tab : 'matchdays';
+    app._tourTab = tab;
+    navigateToRoute('tournament/' + encodeURIComponent(app._tourViewId) + '/' + tab);
+    return;
+  }
+  if (act === 'tournament:back'){
+    app._tourViewId = null; app._tourTab = 'matchdays';
+    navigateToRoute('tournament');
+    return;
+  }
   if (act === 'tournament:advance'){
     if (!app.isAdmin) return;
     advanceToKnockout(id);
