@@ -1021,6 +1021,17 @@ function splitCloudJsonText(value){
 
 function splitStateForCloud(source){
   const core = JSON.parse(JSON.stringify(source));
+  /* Flatten competition arrays into normal chunked fields so Firestore never
+     has to hold the full two-mode history inside its 1 MiB state document. */
+  if(core.competitions){
+    ['league','tournament'].forEach(mode=>{
+      const data=core.competitions[mode]||{};
+      ['matches','fixtures','tournaments'].forEach(kind=>{
+        core['__uel_'+mode+'_'+kind]=Array.isArray(data[kind])?data[kind]:[];
+      });
+    });
+    delete core.competitions;
+  }
   const chunks = {}, largeRecords = {}, docs = {};
   let largeIndex = 0;
   Object.keys(core).forEach(field => {
@@ -1111,6 +1122,14 @@ function stateFromCloudSnapshot(snapshot){
     }
     core[field] = items;
   });
+  if(core.__uel_league_matches||core.__uel_league_fixtures||core.__uel_league_tournaments||
+     core.__uel_tournament_matches||core.__uel_tournament_fixtures||core.__uel_tournament_tournaments){
+    core.competitions={
+      league:{matches:core.__uel_league_matches||[],fixtures:core.__uel_league_fixtures||[],tournaments:core.__uel_league_tournaments||[]},
+      tournament:{matches:core.__uel_tournament_matches||[],fixtures:core.__uel_tournament_fixtures||[],tournaments:core.__uel_tournament_tournaments||[]}
+    };
+    ['__uel_league_matches','__uel_league_fixtures','__uel_league_tournaments','__uel_tournament_matches','__uel_tournament_fixtures','__uel_tournament_tournaments'].forEach(k=>delete core[k]);
+  }
   return hydrate(core);
 }
 
