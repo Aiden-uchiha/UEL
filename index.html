@@ -1664,7 +1664,7 @@ function regionalBestPlayerRows(region, stats, weights){
     .map(pid=>{
       const p=playerById(pid),s=stats[pid].regions[region],team=teamById(p.teamId);
       return {id:pid,label:p.name,color:team?team.color:'#666',sub:(team?team.name:'No team')+' · '+s.goals+'G '+s.assists+'A '+s.saves+'S '+s.tackles+'T · '+s.legsPlayed+' legs',value:regionalBestPlayerScore(s,weights),fmt:v=>Number(v).toFixed(1)};
-    }).sort((a,b)=>b.value-a.value||a.label.localeCompare(b.label));
+    }).filter(row=>row.value>0).sort((a,b)=>b.value-a.value||a.label.localeCompare(b.label));
 }
 
 function ballonDor(){
