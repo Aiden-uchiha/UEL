@@ -1353,7 +1353,7 @@ function matchLegs(m){
   for (let i = 1; i <= max; i++){
     const a = m['leg'+i+'ScoreA'], b = m['leg'+i+'ScoreB'];
     if (a === null || a === undefined || a === '' || b === null || b === undefined || b === '') continue;
-    legs.push({ n:i, a:Number(a), b:Number(b) });
+    legs.push({ n:i, a:Number(a), b:Number(b), region:normalizeLegRegion(m.legRegions&&m.legRegions[i-1]) });
   }
   return legs;
 }
@@ -2882,7 +2882,7 @@ function matchOverviewHTML(context,matchRows,seasonRows){
     html+='<section class="md-panel"><div class="md-panel-heading"><span>MATCH BREAKDOWN</span><h3>Leg-by-leg score</h3></div><div class="md-leg-list">';
     aggregate.legs.forEach(leg=>{
       const result=leg.a>leg.b?esc(A.name)+' won':leg.b>leg.a?esc(B.name)+' won':'Draw';
-      html+='<div class="md-leg-row"><span>LEG '+leg.n+'</span><b>'+leg.a+'<i>-</i>'+leg.b+'</b><em>'+result+'</em></div>';
+      html+='<div class="md-leg-row"><span>LEG '+leg.n+(leg.region?' · '+legRegionLabel(leg.region):'')+'</span><b>'+leg.a+'<i>-</i>'+leg.b+'</b><em>'+result+'</em></div>';
     });
     html+='</div></section>';
   }
@@ -3589,7 +3589,7 @@ VIEWS.awards = () => {
       <div class="bd-player-name">${playerLink(p)}</div>
       <div class="bd-player-team">${teamTag(teamById(p.teamId), 18)}</div>
       <div class="bd-points">${Number(entry.pts).toFixed(1)} <small>POINTS</small></div>
-      <div class="bd-breakdown">${entry.s.goals||0}G · ${entry.s.assists||0}A · ${entry.s.saves||0}S · 🔥 ${getHypeCount(p.id)}</div>
+      <div class="bd-breakdown">${entry.s.goals||0}G · ${entry.s.assists||0}A · ${entry.s.saves||0}S · 🔥 ${getHypeCount(p.id)}${entry.regionalBestPoints ? ' · 🌍 +' + entry.regionalBestPoints + ' regional' : ''}</div>
     </div>`;
   };
   const ballonPodium = `<div class="bd-live card anim">
