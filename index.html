@@ -1362,7 +1362,7 @@ function computePlayerStats(){
   });
   app.state.players.forEach(p=>get(p.id));
   app.state.matches.forEach(m=>{
-    if(isTournamentMatch(m))return;
+    if(isTournamentMatch(m)&&app.state.competitionMode!=='tournament')return;
     const agg=matchAggregate(m);if(!agg.legs.length)return;
     const ps=m.playerStats||{},playedSet=new Set();
     agg.legs.forEach(matchLeg=>{
@@ -1455,7 +1455,7 @@ function computeStandings(){
     gf:0,ga:0,gd:0,pts:0,form:[],comebacks:0,streak:0,best:0,wall:0
   });
   app.state.matches.slice().sort((a,b)=>(a.timestamp||0)-(b.timestamp||0)).forEach(m=>{
-    if(isTournamentMatch(m))return;
+    if(isTournamentMatch(m)&&app.state.competitionMode!=='tournament')return;
     const agg=matchAggregate(m);if(!agg.legs.length)return;
     const A=map[m.teamAId],B=map[m.teamBId];if(!A||!B)return;
     A.mp++;B.mp++;A.gf+=agg.a;A.ga+=agg.b;B.gf+=agg.b;B.ga+=agg.a;
@@ -1473,7 +1473,7 @@ function computeStandings(){
   });
   /* Cup performances must not affect league-only defensive awards. */
   app.state.matches.forEach(m=>{
-    if(isTournamentMatch(m))return;
+    if(isTournamentMatch(m)&&app.state.competitionMode!=='tournament')return;
     const agg=matchAggregate(m);if(!agg.legs.length)return;
     const ps=m.playerStats||{};
     agg.legs.forEach(matchLeg=>{
@@ -1499,7 +1499,7 @@ function standingsSorted(){
 function headToHead(teamA,teamB){
   let aGoals=0,bGoals=0,aWins=0,bWins=0,draws=0;
   app.state.matches.forEach(m=>{
-    if(isTournamentMatch(m))return;
+    if(isTournamentMatch(m)&&app.state.competitionMode!=='tournament')return;
     const agg=matchAggregate(m);if(!agg.legs.length)return;
     const isA=m.teamAId===teamA&&m.teamBId===teamB;
     const isB=m.teamAId===teamB&&m.teamBId===teamA;
@@ -1514,7 +1514,7 @@ function headToHead(teamA,teamB){
 function topContributorsPerLeg(){
   const out=[];
   app.state.matches.forEach(m=>{
-    if(isTournamentMatch(m))return;
+    if(isTournamentMatch(m)&&app.state.competitionMode!=='tournament')return;
     const agg=matchAggregate(m);if(!agg.legs.length)return;
     const ps=m.playerStats||{};
     agg.legs.forEach(matchLeg=>{
@@ -1550,7 +1550,7 @@ function oneManArmy(){
 function bestDuo(){
   const pairs=new Map();
   app.state.matches.forEach(m=>{
-    if(isTournamentMatch(m))return;
+    if(isTournamentMatch(m)&&app.state.competitionMode!=='tournament')return;
     const agg=matchAggregate(m);if(!agg.legs.length)return;
     const ps=m.playerStats||{};
     agg.legs.forEach(matchLeg=>{
@@ -1586,7 +1586,7 @@ function teamGoalDistribution(){
   const dist={};
   app.state.teams.forEach(t=>dist[t.id]={total:0,top:0,topName:'-'});
   app.state.matches.forEach(m=>{
-    if(isTournamentMatch(m))return;
+    if(isTournamentMatch(m)&&app.state.competitionMode!=='tournament')return;
     const agg=matchAggregate(m);if(!agg.legs.length)return;
     const ps=m.playerStats||{};
     agg.legs.forEach(matchLeg=>{
@@ -1665,7 +1665,7 @@ function buildAwards(){
   app.state.teams.forEach(t => rawGoalsForByTeam[t.id] = 0);
   app.state.matches.forEach(m => {
     const agg = matchAggregate(m);
-    if (isTournamentMatch(m) || !agg.legs.length) return;
+    if ((isTournamentMatch(m)&&app.state.competitionMode!=='tournament') || !agg.legs.length) return;
     if (rawGoalsForByTeam[m.teamAId] !== undefined) rawGoalsForByTeam[m.teamAId] += agg.rawA;
     if (rawGoalsForByTeam[m.teamBId] !== undefined) rawGoalsForByTeam[m.teamBId] += agg.rawB;
   });
