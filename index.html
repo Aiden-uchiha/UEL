@@ -2262,14 +2262,14 @@ function materializeKO(t){
     round.ties.forEach((tie,ti)=>{
       const existing=(tie.fixtureIds||[]).map(fixtureById).filter(Boolean);
       if(!tie.a||!tie.b){
-        existing.forEach(discardFixture);tie.fixtureIds=[];tie.winner=null;return;
+        existing.forEach(discardFixture);tie.fixtureIds=[];tie.winner=null;tie.loser=null;return;
       }
       const keep=existing.find(f=>f.teamAId===tie.a&&f.teamBId===tie.b);
       if(keep){
         existing.filter(f=>f.id!==keep.id).forEach(discardFixture);
         tie.fixtureIds=[keep.id];return;
       }
-      existing.forEach(discardFixture);tie.fixtureIds=[];
+      existing.forEach(discardFixture);tie.fixtureIds=[];tie.winner=null;tie.loser=null;
       const isFinal=String(round.name||'').toLowerCase()==='final';
       const configuredLegs=Math.max(isFinal?4:2,Number(t.koLegs)||2);
       const fixture={
@@ -2291,6 +2291,8 @@ function materializeKO(t){
         const fixture={id:uuid(),teamAId:third.a,teamBId:third.b,competition:'Tournament',round:'Third-place match',date:'',legs:Math.max(2,Number(t.koLegs)||2),played:false,stage:'ko',tournamentId:t.id,koThirdPlace:true};
         app.state.fixtures.push(fixture);third.fixtureIds=[fixture.id];
       }
+    }else{
+      existing.forEach(discardFixture);third.fixtureIds=[];third.winner=null;
     }
   }
 }
@@ -2325,9 +2327,12 @@ function progressTournament(tid){
   }
   // Resolve the third-place match whenever its result is recorded; it normally happens before the final.
   const third=t.ko.thirdPlace;
-  if(third&&third.a&&third.b&&third.fixtureIds&&third.fixtureIds.length){
-    const f=third.fixtureIds.map(fixtureById).find(Boolean),m=f&&f.played&&f.matchId?matchById(f.matchId):null;
-    if(m){const a=matchAggregate(m);if(a.legs.length>=2&&a.a!==a.b)third.winner=a.a> a.b?m.teamAId:m.teamBId;}
+  if(third){
+    third.winner=null;
+    if(third.a&&third.b&&third.fixtureIds&&third.fixtureIds.length){
+      const f=third.fixtureIds.map(fixtureById).find(Boolean),m=f&&f.played&&f.matchId?matchById(f.matchId):null;
+      if(m){const a=matchAggregate(m);if(a.legs.length>=2&&a.a!==a.b)third.winner=a.a> a.b?m.teamAId:m.teamBId;}
+    }
   }
   const final=rounds[rounds.length-1].ties[0];
   if(final&&final.winner){
@@ -2337,11 +2342,14 @@ function progressTournament(tid){
     t.completed=thirdDecided;
     t.phase=thirdDecided?'done':'knockout';
     if(thirdDecided&&!wasCompleted)toast('🏆 '+(teamById(t.winner)?.name||'A team')+' wins '+t.name+'!','ok');
+  }else{
+    t.winner=null;t.completed=false;t.phase='knockout';
   }
 }
 function rebuildTournamentKO(tid){
   const t=tourById(tid);if(!t||!t.ko)return;
-  t.ko.rounds.forEach(round=>round.ties.forEach(tie=>{tie.winner=null;}));
+  t.ko.rounds.forEach(round=>round.ties.forEach(tie=>{tie.winner=null;tie.loser=null;}));
+  if(t.ko.thirdPlace)t.ko.thirdPlace.winner=null;
   if(t.ko.rounds.length===2){
     t.ko.rounds[1].ties[0].a=null;t.ko.rounds[1].ties[0].b=null;
   }else if(t.ko.rounds.length===3){
