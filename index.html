@@ -2895,13 +2895,8 @@ function matchLeaderCards(rows,scopeLabel,teamA,teamB){
   const activePlayers=teamId=>app.state.players.filter(p=>p.teamId===teamId&&!p.freeAgent&&isActivePlayer(p));
   const rowScore=row=>(Number(row.goals)||0)*5+(Number(row.assists)||0)*3+(Number(row.saves)||0)+(Number(row.tackles)||0)*.5;
   const teamMVP=team=>{
-    const candidates=rows.filter(row=>row.player&&row.teamId===team.id);
-    candidates.sort((a,b)=>rowScore(b)-rowScore(a)||a.player.name.localeCompare(b.player.name));
-    if(candidates.length){
-      const row=candidates[0],stats=valueStats[row.id]||{};
-      const value=Number(stats.playerValue)||(Number(row.player.startingValue)||econ().playerStart);
-      return {player:row.player,value:value};
-    }
+    // MVP badge here represents the team's highest-valued active player.
+    // The displayed figure is that player's current competition-specific market value.
     const roster=activePlayers(team.id).map(player=>{
       const stats=valueStats[player.id]||{};
       return {player:player,value:Number(stats.playerValue)||(Number(player.startingValue)||econ().playerStart)};
