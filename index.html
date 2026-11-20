@@ -1511,6 +1511,21 @@ function computeStandings(){
       A.d++;B.d++;A.pts++;B.pts++;A.form.push('D');B.form.push('D');A.streak=0;B.streak=0;
     }
   });
+  // Tournament placement bonuses are awarded only after the final AND third-place match are decided.
+  // League mode keeps its existing standings points unchanged.
+  if(app.state.competitionMode==='tournament'){
+    (app.state.tournaments||[]).forEach(t=>{
+      if(!t||!t.completed||!t.winner||!t.ko)return;
+      const finalRound=(t.ko.rounds||[]).find(r=>String(r.name||'').toLowerCase()==='final');
+      const finalTie=finalRound&&finalRound.ties&&finalRound.ties[0];
+      if(!finalTie||!finalTie.winner||!finalTie.loser)return;
+      const third=t.ko.thirdPlace;
+      if(!third||!third.winner)return;
+      if(map[finalTie.winner])map[finalTie.winner].pts+=20;
+      if(map[finalTie.loser])map[finalTie.loser].pts+=10;
+      if(map[third.winner])map[third.winner].pts+=5;
+    });
+  }
   /* Cup performances must not affect league-only defensive awards. */
   app.state.matches.forEach(m=>{
     if(isTournamentMatch(m)&&app.state.competitionMode!=='tournament')return;
@@ -2310,13 +2325,17 @@ function progressTournament(tid){
   }
   const final=rounds[rounds.length-1].ties[0];
   if(final&&final.winner){
-    t.winner=final.winner;t.completed=true;t.phase='done';
+    t.winner=final.winner;
     const third=t.ko.thirdPlace;
     if(third&&third.a&&third.b&&third.fixtureIds&&third.fixtureIds.length){
       const f=third.fixtureIds.map(fixtureById).find(Boolean),m=f&&f.matchId?matchById(f.matchId):null;
-      if(m){const a=matchAggregate(m);if(a.legs.length>=2&&a.a!==a.b)third.winner=a.a>a.b?m.teamAId:m.teamBId;}
+      if(m){const a=matchAggregate(m);if(a.legs.length>=2&&a.a!==a.b)third.winner=a.a> a.b?m.teamAId:m.teamBId;}
     }
-    toast('🏆 '+(teamById(t.winner)?.name||'A team')+' wins '+t.name+'!','ok');
+    const thirdDecided=!!(third&&third.winner);
+    const wasCompleted=!!t.completed;
+    t.completed=thirdDecided;
+    t.phase=thirdDecided?'done':'knockout';
+    if(thirdDecided&&!wasCompleted)toast('🏆 '+(teamById(t.winner)?.name||'A team')+' wins '+t.name+'!','ok');
   }
 }
 function rebuildTournamentKO(tid){
