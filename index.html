@@ -2680,8 +2680,12 @@ VIEWS.fixtures = () => {
   const fxRow = (f, i, list) => {
     const A = teamById(f.teamAId), B = teamById(f.teamBId);
     const m = f.matchId ? matchById(f.matchId) : null;
-    let score = 'VS';
-    if (m) { const agg = matchAggregate(m); score = `${agg.a} - ${agg.b}`; }
+    let score = 'VS', legBreakdown = '';
+    if (m) {
+      const agg = matchAggregate(m);
+      score = `${agg.a} - ${agg.b}`;
+      legBreakdown = '<div class="mc-legs">' + (agg.legs.map(leg => 'LEG ' + leg.n + (leg.region ? ' · ' + legRegionLabel(leg.region) : '') + ': ' + leg.a + '-' + leg.b).join(' · ') || '—') + '</div>';
+    }
 
     const roundFxs = list.filter(x => x.round === f.round && !x.tournamentId);
     const localI = roundFxs.findIndex(x => x.id === f.id);
@@ -2697,6 +2701,7 @@ VIEWS.fixtures = () => {
         <div class="mc-score">${score}</div>
         ${teamSide(B, 42, true)}
       </div>
+      ${legBreakdown}
       ${fixturePredictionsHTML(f)}
       <div class="mc-footer">
         <span class="pill ${f.played ? 'li' : 'cy'}" style="font-size:9.5px">${f.played ? 'FINISHED' : 'PENDING'}</span>
@@ -2765,7 +2770,7 @@ VIEWS.results = () => {
     const agg = matchAggregate(m);
     const mvp = m.mvpId ? playerById(m.mvpId) : null;
     const motm = m.motmId ? playerById(m.motmId) : null;
-    const legsTxt = agg.legs.map(l => `${l.a}-${l.b}`).join(' • ');
+    const legsTxt = agg.legs.map(l => `LEG ${l.n}${l.region ? ' · ' + legRegionLabel(l.region) : ''}: ${l.a}-${l.b}`).join(' • ');
     const scoreColor = agg.res === 'A' ? 'var(--lime)' : agg.res === 'B' ? 'var(--magenta)' : 'var(--gold)';
 
     html += `<div class="match-card anim">
@@ -3458,7 +3463,7 @@ function tournamentFixtureCard(f){
   const meta = f.stage === 'ko' ? (f.round || 'Knockout') : ('Group ' + String.fromCharCode(65 + (Number(f.group) || 0)));
   const score = agg && agg.legs.length ? (agg.a + ' - ' + agg.b) : 'VS';
   const legScores = agg && agg.legs.length
-    ? '<div class="tour-leg-scores">' + agg.legs.map((leg,i) => '<span>LEG ' + (i+1) + ': ' + leg.a + '-' + leg.b + '</span>').join('') + '</div>'
+    ? '<div class="tour-leg-scores">' + agg.legs.map(leg => '<span>LEG ' + leg.n + (leg.region ? ' · ' + legRegionLabel(leg.region) : '') + ': ' + leg.a + '-' + leg.b + '</span>').join('') + '</div>'
     : '';
   return '<article class="tour-match-card">' +
     '<div class="tour-match-meta"><span>' + esc(meta) + '</span><span>' + (f.played ? 'FINISHED' : 'UPCOMING') + ' · ' + currentLegs + ' LEGS</span></div>' +
