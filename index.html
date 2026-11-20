@@ -5825,7 +5825,6 @@ document.addEventListener('click', async e => {
     return;
   }
   if (act === 'award:share'){
-    if (!app.isAdmin || ARCHIVE_MODE) return;
     shareAwardTop5(el.dataset.award||app._awardViewKey||'ballon');
     return;
   }
