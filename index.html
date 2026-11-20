@@ -371,6 +371,22 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 .tour-champion>div{font-size:42px}.tour-champion>span{font-size:9px;letter-spacing:2px;color:var(--gold);font-weight:950}.tour-champion h2{margin-top:8px;font-size:22px}
 @media(max-width:650px){.tour-hero{padding:18px 14px}.tour-hero-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.tour-leaders{grid-template-columns:repeat(2,minmax(0,1fr))}.tour-matchday{padding:10px}.tour-group-day{padding:9px}.tour-match-teams{gap:4px}.tour-match-score{font-size:15px;padding:5px 7px}.tour-content-heading h2{font-size:17px}}
 
+.md-h2h-table{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:rgba(0,0,0,.16)}
+.md-h2h-head,.md-h2h-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(105px,.65fr) minmax(0,1fr);align-items:center;gap:10px;padding:12px}
+.md-h2h-head{background:rgba(0,240,255,.07);font-size:10px;font-weight:950;letter-spacing:.8px;text-align:center;color:var(--cyan)}
+.md-h2h-head>span{display:flex;justify-content:center;align-items:center;gap:6px;min-width:0}
+.md-h2h-head>span:first-child{justify-content:flex-start}.md-h2h-head>span:last-child{justify-content:flex-end}
+.md-h2h-row{border-top:1px solid var(--line);min-height:64px}
+.md-h2h-row>div:first-child{text-align:left}.md-h2h-row>div:last-child{text-align:right}
+.md-h2h-player{display:flex;align-items:center;justify-content:space-between;gap:7px;min-width:0;font-size:12px}
+.md-h2h-player>b{color:var(--gold);white-space:nowrap;font-size:12px}
+.md-h2h-label{display:block;margin-bottom:6px;color:var(--gold);font-size:9px;font-weight:950;letter-spacing:1px}
+.md-h2h-metric{text-align:center;color:var(--dim);font-size:10px;font-weight:900;letter-spacing:.6px}
+.md-h2h-vs{text-align:center;color:var(--magenta);font-size:11px;font-weight:1000;letter-spacing:1px}
+.md-h2h-empty{display:block;color:var(--dim);font-size:10px;font-style:italic}
+.md-h2h-mvp{background:linear-gradient(90deg,rgba(255,213,61,.055),transparent,rgba(255,213,61,.055))}
+@media(max-width:560px){.md-h2h-head,.md-h2h-row{grid-template-columns:minmax(0,1fr) 52px minmax(0,1fr);gap:5px;padding:9px 7px}.md-h2h-head{font-size:8px}.md-h2h-head img{width:18px;height:18px}.md-h2h-player{font-size:10px;flex-wrap:wrap}.md-h2h-player>b{font-size:10px}.md-h2h-metric{font-size:8px}.md-h2h-label{font-size:8px}.md-h2h-empty{font-size:9px}}
+
 </style>
 </head>
 <body>
@@ -2874,17 +2890,50 @@ function matchPageSeasonPlayers(teamAId,teamBId,fixture){
   });
 }
 
-function matchLeaderCards(rows,scopeLabel){
-  const metrics=[{key:'goals',label:'Top scorer',icon:'⚽'},{key:'assists',label:'Top assister',icon:'🅰️'},{key:'tackles',label:'Top tackler',icon:'🛡️'},{key:'saves',label:'Top saver',icon:'🧤'}];
-  let html='<div class="md-leaders-head"><div><span>PLAYER LEADERS</span><h3>'+esc(scopeLabel)+'</h3></div></div><div class="md-leader-grid">';
+function matchLeaderCards(rows,scopeLabel,teamA,teamB){
+  const valueStats=computePlayerStats();
+  const activePlayers=teamId=>app.state.players.filter(p=>p.teamId===teamId&&!p.freeAgent&&isActivePlayer(p));
+  const rowScore=row=>(Number(row.goals)||0)*5+(Number(row.assists)||0)*3+(Number(row.saves)||0)+(Number(row.tackles)||0)*.5;
+  const teamMVP=team=>{
+    const candidates=rows.filter(row=>row.player&&row.teamId===team.id);
+    candidates.sort((a,b)=>rowScore(b)-rowScore(a)||a.player.name.localeCompare(b.player.name));
+    if(candidates.length){
+      const row=candidates[0],stats=valueStats[row.id]||{};
+      const value=Number(stats.playerValue)||(Number(row.player.startingValue)||econ().playerStart);
+      return {player:row.player,value:value};
+    }
+    const roster=activePlayers(team.id).map(player=>{
+      const stats=valueStats[player.id]||{};
+      return {player:player,value:Number(stats.playerValue)||(Number(player.startingValue)||econ().playerStart)};
+    }).sort((a,b)=>b.value-a.value||a.player.name.localeCompare(b.player.name));
+    return roster[0]||null;
+  };
+  const metrics=[
+    {key:'goals',label:'Top scorer',icon:'⚽',suffix:'G'},
+    {key:'assists',label:'Top assister',icon:'🅰️',suffix:'A'},
+    {key:'tackles',label:'Top tackler',icon:'🛡️',suffix:'T'},
+    {key:'saves',label:'Top saver',icon:'🧤',suffix:'SV'}
+  ];
+  const teamCell=(team,content)=>'<div class="md-h2h-team"><span class="md-h2h-team-name">'+teamLogo(team,22)+esc(team.name)+'</span>'+content+'</div>';
+  let html='<div class="md-leaders-head"><div><span>PLAYER LEADERS</span><h3>'+esc(scopeLabel)+'</h3></div></div>';
+  html+='<div class="md-h2h-table">';
+  html+='<div class="md-h2h-head"><span>'+teamLogo(teamA,24)+esc(teamA.name)+'</span><span>COMPARISON</span><span>'+teamLogo(teamB,24)+esc(teamB.name)+'</span></div>';
+  const mvpA=teamMVP(teamA),mvpB=teamMVP(teamB);
+  const mvpCell=item=>item
+    ? '<div class="md-h2h-player">'+playerLink(item.player)+'<b>'+money(item.value)+'</b></div>'
+    : '<span class="md-h2h-empty">No registered player</span>';
+  html+='<div class="md-h2h-row md-h2h-mvp"><div><span class="md-h2h-label">⭐ TEAM MVP</span>'+mvpCell(mvpA)+'</div><div class="md-h2h-vs">VS</div><div><span class="md-h2h-label">⭐ TEAM MVP</span>'+mvpCell(mvpB)+'</div></div>';
   metrics.forEach(metric=>{
-    const sorted=rows.filter(row=>row.player&&row[metric.key]>0).slice().sort((a,b)=>b[metric.key]-a[metric.key]||a.player.name.localeCompare(b.player.name)),best=sorted[0];
-    html+='<article class="md-leader-card"><span class="md-leader-icon">'+metric.icon+'</span><span class="md-leader-label">'+metric.label+'</span>';
-    if(best)html+='<b class="md-leader-value">'+best[metric.key]+'</b><span class="md-leader-player">'+playerLink(best.player)+'</span><span class="md-leader-team">'+esc(teamById(best.teamId).name)+'</span>';
-    else html+='<b class="md-leader-value">—</b><span class="md-leader-player">No stats recorded</span><span class="md-leader-team">'+metric.label.toUpperCase()+'</span>';
-    html+='</article>';
+    const bestFor=(team)=>rows.filter(row=>row.player&&row.teamId===team.id&&Number(row[metric.key])>0)
+      .slice().sort((a,b)=>(Number(b[metric.key])||0)-(Number(a[metric.key])||0)||rowScore(b)-rowScore(a)||a.player.name.localeCompare(b.player.name))[0]||null;
+    const cell=(row)=>row
+      ? '<div class="md-h2h-player">'+playerLink(row.player)+'<b>'+num(row[metric.key])+metric.suffix+'</b></div>'
+      : '<span class="md-h2h-empty">No stats recorded</span>';
+    const left=bestFor(teamA),right=bestFor(teamB);
+    html+='<div class="md-h2h-row"><div>'+cell(left)+'</div><div class="md-h2h-metric">'+metric.icon+' '+metric.label+'</div><div>'+cell(right)+'</div></div>';
   });
-  return html+'</div>';
+  html+='</div>';
+  return html;
 }
 function matchLineupTeamHTML(team,rows,seasonMode,legNumber){
   const teamRows=rows.filter(row=>row.teamId===team.id&&(seasonMode||!!(row.legStats&&row.legStats[legNumber]))).slice().sort((a,b)=>{
@@ -2911,7 +2960,7 @@ function matchOverviewHTML(context,matchRows,seasonRows){
   const hasMatchStats=matchRows.length>0,leaders=hasMatchStats?matchRows:seasonRows;
   const mvp=match&&match.mvpId?playerById(match.mvpId):null,motm=match&&match.motmId?playerById(match.motmId):null;
   let html='<div class="md-overview-grid"><div class="md-main-column">';
-  html+='<section class="md-panel">'+matchLeaderCards(leaders,hasMatchStats?'This match':'Season leaders · both clubs')+'</section>';
+  html+='<section class="md-panel">'+matchLeaderCards(leaders,hasMatchStats?'This match':'Current competition leaders',A,B)+'</section>';
   if(aggregate&&aggregate.legs.length){
     html+='<section class="md-panel"><div class="md-panel-heading"><span>MATCH BREAKDOWN</span><h3>Leg-by-leg score</h3></div><div class="md-leg-list">';
     aggregate.legs.forEach(leg=>{
