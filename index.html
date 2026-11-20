@@ -2326,7 +2326,7 @@ function progressTournament(tid){
   // Resolve the third-place match whenever its result is recorded; it normally happens before the final.
   const third=t.ko.thirdPlace;
   if(third&&third.a&&third.b&&third.fixtureIds&&third.fixtureIds.length){
-    const f=third.fixtureIds.map(fixtureById).find(Boolean),m=f&&f.matchId?matchById(f.matchId):null;
+    const f=third.fixtureIds.map(fixtureById).find(Boolean),m=f&&f.played&&f.matchId?matchById(f.matchId):null;
     if(m){const a=matchAggregate(m);if(a.legs.length>=2&&a.a!==a.b)third.winner=a.a> a.b?m.teamAId:m.teamBId;}
   }
   const final=rounds[rounds.length-1].ties[0];
