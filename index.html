@@ -387,6 +387,53 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 .md-h2h-mvp{background:linear-gradient(90deg,rgba(255,213,61,.055),transparent,rgba(255,213,61,.055))}
 @media(max-width:560px){.md-h2h-head,.md-h2h-row{grid-template-columns:minmax(0,1fr) 52px minmax(0,1fr);gap:5px;padding:9px 7px}.md-h2h-head{font-size:8px}.md-h2h-head img{width:18px;height:18px}.md-h2h-player{font-size:10px;flex-wrap:wrap}.md-h2h-player>b{font-size:10px}.md-h2h-metric{font-size:8px}.md-h2h-label{font-size:8px}.md-h2h-empty{font-size:9px}}
 
+
+/* Tournament bracket: readable match cards on desktop and mobile */
+.kobracket{display:flex;gap:18px;overflow-x:auto;overflow-y:hidden;padding:8px 2px 16px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;align-items:stretch}
+.kocol{flex:0 0 286px;width:286px;min-width:286px;display:flex;flex-direction:column;gap:15px;scroll-snap-align:start;justify-content:flex-start}
+.ko-round-label{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid rgba(0,240,255,.34);border-radius:10px;background:linear-gradient(110deg,rgba(0,240,255,.09),rgba(255,43,214,.06))}
+.ko-round-label span{color:var(--cyan);font-size:12px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase}
+.ko-round-label b{color:var(--dim);font-size:9px;white-space:nowrap}
+.ko-match-card{position:relative;width:100%;min-width:0;padding:13px;border:1px solid rgba(0,240,255,.2);border-radius:14px;background:linear-gradient(145deg,rgba(20,28,47,.96),rgba(10,15,27,.96));box-shadow:0 7px 20px rgba(0,0,0,.2)}
+.ko-match-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;color:var(--dim);font-size:9px;font-weight:900;letter-spacing:1px}
+.ko-match-head span{color:var(--magenta);text-transform:uppercase}
+.ko-match-head b{font-size:8px;color:var(--cyan);text-align:right}
+.ko-team-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:49px;padding:7px 9px;border:1px solid rgba(255,255,255,.07);border-radius:10px;background:rgba(0,0,0,.2)}
+.ko-team-row.winner{border-color:rgba(139,255,60,.42);background:rgba(139,255,60,.07)}
+.ko-team-identity{display:flex;align-items:center;gap:9px;min-width:0;flex:1}
+.ko-team-identity>span:last-child{min-width:0;overflow-wrap:anywhere;font-size:12px;font-weight:800;line-height:1.25}
+.ko-team-identity .team-link,.ko-team-identity a{color:inherit}
+.ko-team-identity img{width:34px;height:34px;object-fit:contain;flex:0 0 34px}
+.ko-team-score{min-width:26px;text-align:center;font-size:17px;color:var(--gold);font-variant-numeric:tabular-nums}
+.ko-tbd-mark{display:flex;align-items:center;justify-content:center;width:34px;height:34px;flex:0 0 34px;border:1px dashed var(--line);border-radius:9px;color:var(--dim);font-weight:900}
+.ko-versus{text-align:center;padding:5px 0;color:var(--dim);font-size:9px;font-weight:900;letter-spacing:2px}
+.ko-match-aggregate{margin-top:8px;text-align:center;color:var(--dim);font-size:9px;font-weight:800;letter-spacing:.8px}
+.ko-match-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:11px}
+.ko-open-match{width:100%;min-height:38px;font-size:10px!important}
+.ko-admin-tools{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:9px;margin:0 0 13px;padding:10px 12px;border:1px solid rgba(255,213,61,.24);border-radius:11px;background:rgba(255,213,61,.045)}
+.ko-admin-tools>span{font-size:9px;font-weight:900;letter-spacing:1.2px;color:var(--gold)}
+.ko-admin-tools>div{display:flex;flex-wrap:wrap;gap:7px}
+.ko-draw-lock{margin:0 0 12px}
+.ko-third-panel .ko-match-card{max-width:420px}
+.ko-draw-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.ko-draw-editor section{min-width:0;padding:12px;border:1px solid var(--line);border-radius:11px;background:rgba(0,240,255,.035)}
+.ko-draw-editor section>b{display:block;margin-bottom:9px;color:var(--cyan);font-size:10px;letter-spacing:1px}
+.ko-draw-editor select{width:100%;margin-bottom:8px}
+.md-voting-panel{margin:14px 0;padding:12px!important}
+.md-voting-panel .prediction-panel{margin:0;border:0;background:transparent;padding:2px}
+.md-voting-panel .prediction-choice{min-height:90px}
+@media(max-width:640px){
+  .kobracket{gap:12px;padding:6px 0 14px}
+  .kocol{flex-basis:min(84vw,310px);width:min(84vw,310px);min-width:min(84vw,310px)}
+  .ko-match-card{padding:11px}
+  .ko-team-identity>span:last-child{font-size:11.5px}
+  .ko-admin-tools{align-items:flex-start}
+  .ko-admin-tools>div{width:100%}
+  .ko-admin-tools .btn{flex:1 1 100%;justify-content:center}
+  .ko-draw-editor{grid-template-columns:1fr}
+  .md-voting-panel .prediction-choice{min-height:82px;padding:7px 4px}
+  .md-voting-panel .prediction-choice b{font-size:10px}
+}
 </style>
 </head>
 <body>
@@ -835,13 +882,13 @@ function loadFixturePredictionVote(fixtureId){
       app._predictionVotes[fixtureId] = data.choice;
     }
     app._predictionVoteStatus[fixtureId] = 'loaded';
-    if (app.currentView === 'fixtures' || app.currentView === 'tournament') render();
+    if (app.currentView === 'fixtures' || app.currentView === 'tournament' || app.currentView === 'matchdetail') render();
   }).catch(error => {
     console.warn('Could not check this fixture prediction', error);
     if (app._predictionVoteStatus[fixtureId] !== 'loading') return;
     app._predictionVoteStatus[fixtureId] = 'failed';
     app._predictionVoteError = error.code || error.message || 'Prediction status unavailable';
-    if (app.currentView === 'fixtures' || app.currentView === 'tournament') render();
+    if (app.currentView === 'fixtures' || app.currentView === 'tournament' || app.currentView === 'matchdetail') render();
   });
 }
 
@@ -3024,11 +3071,13 @@ function renderMatchDetailPage(){
       content='<div class="md-lineups-intro"><b>TEAM SHEETS · PER LEG</b><p>Each leg has its own player list, match stats, and EGOIST rank. Players appear only in the legs they actually played.</p></div>'+legPanels;
     }
   }else content=matchOverviewHTML(context,matchRows,seasonRows);
+  const predictionPanel=fixture&&fixture.tournamentId?fixturePredictionsHTML(fixture):'';
   return '<div class="md-page"><div class="md-breadcrumb"><button type="button" data-act="match:back">← Fixtures &amp; Results</button><span>'+esc(fixture.competition||'League')+' / '+esc(fixture.round||'Match')+'</span></div>'+
     '<section class="md-hero"><div class="md-hero-meta"><span>'+esc(fixture.competition||'LEAGUE')+'</span><span>'+esc(fixture.round||'MATCH')+'</span><span>'+esc(matchDetailDate(fixture,match))+'</span></div>'+
     '<div class="md-hero-teams"><div class="md-club">'+teamLogo(A,58)+'<b>'+esc(A.name)+'</b></div><div class="md-result"><span class="pill '+(match?'li':'cy')+'">'+status+'</span><div class="md-score">'+score+'</div><small>'+
     (match?(aggregate?aggregate.legs.length:0)+' LEGS RECORDED':(Number(fixture.legs)||1)+' LEGS · KICK-OFF TBC')+'</small></div><div class="md-club">'+teamLogo(B,58)+'<b>'+esc(B.name)+'</b></div></div>'+
     '<div class="md-hero-foot"><span>'+esc(app.state.leagueName||'UEL')+'</span><span>'+(match?'MATCH REPORT':'FIXTURE PREVIEW')+'</span></div></section>'+
+    (predictionPanel?'<section class="md-panel md-voting-panel">'+predictionPanel+'</section>':'')+
     '<nav class="md-tabs" data-active="'+activeTab+'" aria-label="Match details"><button type="button" class="'+(activeTab==='overview'?'active':'')+'" data-act="match:tab" data-tab="overview">Overview</button>'+
     '<button type="button" class="'+(activeTab==='lineups'?'active':'')+'" data-act="match:tab" data-tab="lineups">Line-ups &amp; Player Stats</button></nav><section class="md-tab-content">'+content+'</section></div>';
 }
@@ -3507,23 +3556,19 @@ function tournamentFixtureCard(f){
   const agg = m ? matchAggregate(m) : null;
   const minLegs = f.stage === 'ko' && String(f.round || '').toLowerCase() === 'final' ? 4 : 2;
   const currentLegs = m ? legCount(m) : Math.max(minLegs, Number(f.legs) || minLegs);
-  let actions = '';
+  let actions = '<button class="btn sm lime" data-act="match:view" data-id="' + f.id + '">' +
+    (f.played ? '📊 Open Match Report' : '🎯 Open Match & Vote') + '</button>';
   if (app.isAdmin){
     if (f.played){
-      actions += '<button class="btn sm" data-act="match:view" data-id="' + f.matchId + '">📊 Result</button>';
       actions += '<button class="btn sm" data-act="match:edit" data-id="' + f.matchId + '">✏️ Edit</button>';
       if (m){
         actions += '<button class="btn sm gold" data-act="match:add-leg" data-id="' + f.id + '">➕ Add Leg</button>';
         if (currentLegs > minLegs) actions += '<button class="btn sm danger" data-act="match:remove-leg" data-id="' + f.id + '">➖ Remove Leg</button>';
       }
     } else {
-      actions += '<button class="btn sm lime" data-act="track:open" data-id="' + f.id + '">⚡ Match Tracker</button>';
+      actions += '<button class="btn sm" data-act="track:open" data-id="' + f.id + '">⚡ Match Tracker</button>';
       actions += '<button class="btn sm" data-act="match:record" data-id="' + f.id + '">📝 Record Match</button>';
     }
-  } else if (f.played){
-    actions += '<button class="btn sm" data-act="match:view" data-id="' + f.matchId + '">📊 View Result</button>';
-  } else {
-    actions += '<button class="btn sm" data-act="match:view" data-id="' + f.id + '">ℹ️ Match Details</button>';
   }
   const meta = f.stage === 'ko' ? (f.round || 'Knockout') : ('Group ' + String.fromCharCode(65 + (Number(f.group) || 0)));
   const score = agg && agg.legs.length ? (agg.a + ' - ' + agg.b) : 'VS';
@@ -3533,7 +3578,7 @@ function tournamentFixtureCard(f){
   return '<article class="tour-match-card">' +
     '<div class="tour-match-meta"><span>' + esc(meta) + '</span><span>' + (f.played ? 'FINISHED' : 'UPCOMING') + ' · ' + currentLegs + ' LEGS</span></div>' +
     '<div class="tour-match-teams"><div>' + teamSide(A,34) + '</div><b class="tour-match-score">' + score + '</b><div>' + teamSide(B,34,true) + '</div></div>' +
-    legScores + fixturePredictionsHTML(f) +
+    legScores +
     '<div class="tour-match-actions">' + actions + '</div></article>';
 }
 
@@ -3578,27 +3623,108 @@ function tournamentStatsHTML(t){
   return html + '</tbody></table></div></section>';
 }
 
+function tournamentSemiFinalEditState(t){
+  const sf=t&&t.ko&&t.ko.rounds&&t.ko.rounds.find(r=>String(r.name||'').toLowerCase()==='semi-finals');
+  if(!sf||!Array.isArray(sf.ties)||sf.ties.length!==2)return null;
+  const ids=sf.ties.flatMap(tie=>[tie.a,tie.b]).filter(Boolean);
+  if(ids.length!==4||new Set(ids).size!==4)return null;
+  if(sf.ties.some(tie=>tie.winner||tie.loser))return null;
+  const fixtures=sf.ties.flatMap(tie=>(tie.fixtureIds||[]).map(fixtureById).filter(Boolean));
+  if(fixtures.some(f=>f.played||f.matchId))return null;
+  return {sf,ids};
+}
+function applyTournamentSemiFinalDraw(t,pairs){
+  const state=tournamentSemiFinalEditState(t);
+  if(!state||!Array.isArray(pairs)||pairs.length!==2)return false;
+  const ids=pairs.flat();
+  if(ids.length!==4||new Set(ids).size!==4||ids.some(id=>!state.ids.includes(id)||!teamById(id)))return false;
+  state.sf.ties.forEach((tie,i)=>{
+    tie.a=pairs[i][0];tie.b=pairs[i][1];tie.winner=null;tie.loser=null;
+  });
+  const final=t.ko.rounds.find(r=>String(r.name||'').toLowerCase()==='final');
+  if(final)final.ties.forEach(tie=>{tie.a=null;tie.b=null;tie.winner=null;tie.loser=null;});
+  const third=t.ko.thirdPlace||(t.ko.thirdPlace={a:null,b:null,winner:null,fixtureIds:[]});
+  third.a=null;third.b=null;third.winner=null;
+  t.winner=null;t.completed=false;t.phase='knockout';
+  materializeKO(t);
+  return true;
+}
+function openTournamentSemiFinalEditor(tid){
+  if(!app.isAdmin)return;
+  const t=tourById(tid),state=tournamentSemiFinalEditState(t);
+  if(!t||!state)return toast('⚠️ The semi-finals can only be rearranged before either semi-final has been recorded.','err');
+  const optionList=selected=>state.ids.map(id=>{
+    const team=teamById(id);
+    return '<option value="'+esc(id)+'" '+(id===selected?'selected':'')+'>'+esc(team?team.name:'Unknown team')+'</option>';
+  }).join('');
+  const select=(id,label,current)=>'<label class="fl">'+label+'</label><select id="'+id+'">'+optionList(current)+'</select>';
+  const body='<p class="hint">Rearrange the four current semi-finalists. Every team must appear exactly once. Existing unplayed semi-final fixtures will be refreshed automatically.</p>'+
+    '<div class="ko-draw-editor"><section><b>SEMI-FINAL 1</b>'+select('ko_sf_0_a','Team 1',state.sf.ties[0].a)+select('ko_sf_0_b','Team 2',state.sf.ties[0].b)+'</section>'+
+    '<section><b>SEMI-FINAL 2</b>'+select('ko_sf_1_a','Team 1',state.sf.ties[1].a)+select('ko_sf_1_b','Team 2',state.sf.ties[1].b)+'</section></div>';
+  openModal('⚙️ Edit knockout draw',body,
+    '<button class="btn lime" data-act="tournament:draw:save" data-id="'+esc(t.id)+'">Save draw</button><button class="btn" data-act="modal:close">Cancel</button>');
+}
+function tournamentBracketCard(tie,roundName){
+  const f=(tie.fixtureIds||[]).map(fixtureById).find(Boolean);
+  const m=f&&f.matchId?matchById(f.matchId):null;
+  const agg=m?matchAggregate(m):null;
+  const side=(teamId,key)=>{
+    const team=teamId?teamById(teamId):null;
+    const won=!!(teamId&&tie.winner===teamId);
+    const goals=agg&&agg.legs.length?(key==='a'?agg.a:agg.b):'—';
+    return '<div class="ko-team-row '+(won?'winner':'')+'">'+
+      '<div class="ko-team-identity">'+(team?teamLogo(team,34):'<span class="ko-tbd-mark">?</span>')+
+      '<span>'+(team?teamLink(team,18):'<span class="muted">To be decided</span>')+'</span></div>'+
+      '<b class="ko-team-score">'+goals+'</b></div>';
+  };
+  const status=f?(f.played?'FULL TIME':'UPCOMING'):'AWAITING QUALIFIERS';
+  const meta=roundName==='Third-place match'?'🥉 THIRD-PLACE MATCH':esc(roundName||'KNOCKOUT');
+  let actions='';
+  if(f){
+    actions='<button class="btn sm lime ko-open-match" data-act="match:view" data-id="'+esc(f.id)+'">'+
+      (f.played?'📊 Open match report':'🎯 Open match & vote')+'</button>';
+    if(app.isAdmin){
+      if(f.played){
+        actions+='<button class="btn sm" data-act="match:edit" data-id="'+esc(f.matchId||f.id)+'">✏️ Edit result</button>';
+      }else{
+        actions+='<button class="btn sm" data-act="track:open" data-id="'+esc(f.id)+'">⚡ Tracker</button>'+
+          '<button class="btn sm" data-act="match:record" data-id="'+esc(f.id)+'">📝 Record</button>';
+      }
+    }
+  }
+  return '<article class="ko-match-card">'+
+    '<div class="ko-match-head"><span>'+meta+'</span><b>'+status+'</b></div>'+
+    side(tie.a,'a')+'<div class="ko-versus">VS</div>'+side(tie.b,'b')+
+    (f&&agg&&agg.legs.length?'<div class="ko-match-aggregate">AGGREGATE · '+agg.a+' - '+agg.b+' · '+agg.legs.length+' LEGS</div>':'')+
+    '<div class="ko-match-actions">'+actions+'</div></article>';
+}
 function tournamentKnockoutHTML(t){
   if (!t.ko) return '<div class="empty"><span class="big">🏁</span>Knockout bracket will appear when the group stage is complete.</div>';
-  let html = '<section class="tour-panel"><div class="tour-panel-head"><div><span>ELIMINATION STAGE</span><h3>Knockout Bracket</h3></div><b>' + t.ko.rounds.length + ' rounds</b></div><div class="kobracket">';
-  t.ko.rounds.forEach(round => {
-    html += '<div class="kocol"><div class="pill cy center">' + esc(round.name) + '</div>';
-    round.ties.forEach(tie => {
-      const f = (tie.fixtureIds || []).map(fixtureById).find(Boolean);
-      html += '<div class="ko-tie"><div class="tm ' + (tie.winner === tie.a && tie.a ? 'win' : '') + '">' +
-        (tie.a ? teamLink(teamById(tie.a),20) : '<span class="muted">TBD</span>') + '</div><div class="tm ' +
-        (tie.winner === tie.b && tie.b ? 'win' : '') + '">' + (tie.b ? teamLink(teamById(tie.b),20) : '<span class="muted">TBD</span>') + '</div>' +
-        (f ? tournamentFixtureCard(f) : '') + '</div>';
-    });
-    html += '</div>';
+  const editState=tournamentSemiFinalEditState(t);
+  const canCrossOver=!!(editState&&t.groups&&t.groups.length===2&&t.ko.rounds[0]&&String(t.ko.rounds[0].name||'').toLowerCase()==='semi-finals');
+  let html='<section class="tour-panel"><div class="tour-panel-head"><div><span>ELIMINATION STAGE</span><h3>Knockout Bracket</h3></div><b>'+t.ko.rounds.length+' rounds</b></div>';
+  if(app.isAdmin&&editState){
+    html+='<div class="ko-admin-tools"><span>ADMIN DRAW CONTROLS</span><div>'+
+      (canCrossOver?'<button class="btn sm gold" data-act="tournament:draw:cross" data-id="'+esc(t.id)+'">↔ Apply Group A/B cross-over</button>':'')+
+      '<button class="btn sm lime" data-act="tournament:draw:edit" data-id="'+esc(t.id)+'">✏️ Change semi-final opponents</button></div></div>';
+  }else if(app.isAdmin){
+    html+='<p class="hint ko-draw-lock">Draw editing locks after a semi-final is recorded, so existing results cannot be overwritten.</p>';
+  }
+  html+='<div class="kobracket">';
+  t.ko.rounds.forEach(round=>{
+    html+='<div class="kocol"><div class="ko-round-label"><span>'+esc(round.name)+'</span><b>'+round.ties.length+' MATCH'+(round.ties.length===1?'':'ES')+'</b></div>';
+    round.ties.forEach(tie=>{html+=tournamentBracketCard(tie,round.name);});
+    html+='</div>';
   });
-  html += '</div></section>';
+  html+='</div></section>';
   const third=t.ko.thirdPlace;
   if(third){
-    const f=(third.fixtureIds||[]).map(fixtureById).find(Boolean);
-    html += '<section class="tour-panel" style="margin-top:14px"><div class="tour-panel-head"><div><span>PLACEMENT MATCH</span><h3>Third-place match</h3></div>'+(third.winner?'<b>3RD PLACE DECIDED</b>':'<b>3rd place</b>')+'</div><div class="ko-tie"><div class="tm">'+(third.a?teamLink(teamById(third.a),20):'<span class="muted">TBD</span>')+'</div><div class="tm">'+(third.b?teamLink(teamById(third.b),20):'<span class="muted">TBD</span>')+'</div>'+(f?tournamentFixtureCard(f):'')+'</div>'+(third.winner?'<div class="hint">🥉 Third place: '+teamLink(teamById(third.winner),22)+'</div>':'')+'</section>';
+    const thirdTie={a:third.a,b:third.b,winner:third.winner,fixtureIds:third.fixtureIds||[]};
+    html+='<section class="tour-panel ko-third-panel"><div class="tour-panel-head"><div><span>PLACEMENT MATCH</span><h3>Third-place match</h3></div><b>'+(third.winner?'3RD PLACE DECIDED':'BRONZE MEDAL')+'</b></div>'+
+      tournamentBracketCard(thirdTie,'Third-place match')+
+      (third.winner?'<div class="hint" style="margin-top:10px">🥉 Third place: '+teamLink(teamById(third.winner),22)+'</div>':'')+'</section>';
   }
-  if (t.completed && t.winner) html += '<div class="tour-champion"><div>🏆</div><span>TOURNAMENT CHAMPION</span><h2>' + teamLink(teamById(t.winner),34) + '</h2></div>';
+  if(t.completed&&t.winner)html+='<div class="tour-champion"><div>🏆</div><span>TOURNAMENT CHAMPION</span><h2>'+teamLink(teamById(t.winner),34)+'</h2></div>';
   return html;
 }
 
@@ -5907,6 +6033,40 @@ document.addEventListener('click', async e => {
     advanceToKnockout(id);
     await logAdmin('Advanced tournament to knockout');
     await saveState(); render();
+    return;
+  }
+  if (act === 'tournament:draw:edit'){
+    if (!app.isAdmin) return;
+    openTournamentSemiFinalEditor(id);
+    return;
+  }
+  if (act === 'tournament:draw:save'){
+    if (!app.isAdmin) return;
+    const t=tourById(id),state=tournamentSemiFinalEditState(t);
+    if(!state)return toast('⚠️ The semi-final draw is locked because a semi-final has been recorded.','err');
+    const pairs=[
+      [$('#ko_sf_0_a')&&$('#ko_sf_0_a').value,$('#ko_sf_0_b')&&$('#ko_sf_0_b').value],
+      [$('#ko_sf_1_a')&&$('#ko_sf_1_a').value,$('#ko_sf_1_b')&&$('#ko_sf_1_b').value]
+    ];
+    if(pairs.some(pair=>pair.some(value=>!value))||new Set(pairs.flat()).size!==4)
+      return toast('⚠️ Select all four teams exactly once.','err');
+    if(!applyTournamentSemiFinalDraw(t,pairs))return toast('⚠️ Invalid draw. Use the four current semi-finalists exactly once.','err');
+    await logAdmin('Changed tournament semi-final opponents');
+    await saveState();closeModal();render();
+    toast('✅ Semi-final draw updated. Fixtures refreshed.','ok');
+    return;
+  }
+  if (act === 'tournament:draw:cross'){
+    if (!app.isAdmin) return;
+    const t=tourById(id),state=tournamentSemiFinalEditState(t);
+    if(!t||!state||t.groups.length!==2)return toast('⚠️ This cross-over reset is only available for an editable two-group semi-final draw.','err');
+    const a=groupStandings(t,0),b=groupStandings(t,1);
+    if(a.length<2||b.length<2)return toast('⚠️ Each group needs two ranked teams.','err');
+    const pairs=[[a[0].id,b[1].id],[b[0].id,a[1].id]];
+    if(!applyTournamentSemiFinalDraw(t,pairs))return toast('⚠️ Could not rebuild the cross-group draw.','err');
+    await logAdmin('Reset semi-finals to Group A vs Group B cross-over');
+    await saveState();render();
+    toast('✅ Cross-group semi-final draw applied.','ok');
     return;
   }
   if (act === 'tournament:del'){
