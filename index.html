@@ -2245,22 +2245,43 @@ function groupComplete(t){
 function advanceToKnockout(tid){
   const t=tourById(tid);if(!t)return;
   if(!groupComplete(t)){toast('⚠️ Group stage is not finished yet','err');return;}
-  const qualifiers=[];
-  t.groups.forEach((g,gi)=>groupStandings(t,gi).slice(0,2).forEach((r,idx)=>qualifiers.push({teamId:r.id,seed:gi*2+idx+1,pts:r.pts,gd:r.gd})));
-  qualifiers.sort((a,b)=>b.pts-a.pts||b.gd-a.gd);
-  const q=qualifiers.map(x=>x.teamId),rounds=[];
-  if(q.length===4){
-    rounds.push({name:'Semi-finals',ties:[{a:q[0],b:q[3],winner:null,fixtureIds:[]},{a:q[1],b:q[2],winner:null,fixtureIds:[]}]});
-    rounds.push({name:'Final',ties:[{a:null,b:null,winner:null,fixtureIds:[]}]});
-  }else if(q.length===6){
-    rounds.push({name:'Quarter-finals',ties:[{a:q[2],b:q[5],winner:null,fixtureIds:[]},{a:q[3],b:q[4],winner:null,fixtureIds:[]}]});
-    rounds.push({name:'Semi-finals',ties:[{a:q[0],b:null,winner:null,fixtureIds:[]},{a:q[1],b:null,winner:null,fixtureIds:[]}]});
-    rounds.push({name:'Final',ties:[{a:null,b:null,winner:null,fixtureIds:[]}]});
-  }else if(q.length===8){
-    rounds.push({name:'Quarter-finals',ties:[{a:q[0],b:q[7],winner:null,fixtureIds:[]},{a:q[3],b:q[4],winner:null,fixtureIds:[]},{a:q[1],b:q[6],winner:null,fixtureIds:[]},{a:q[2],b:q[5],winner:null,fixtureIds:[]}]});
-    rounds.push({name:'Semi-finals',ties:[{a:null,b:null,winner:null,fixtureIds:[]},{a:null,b:null,winner:null,fixtureIds:[]}]});
-    rounds.push({name:'Final',ties:[{a:null,b:null,winner:null,fixtureIds:[]}]});
-  }else{toast('⚠️ This format needs 4, 6 or 8 group qualifiers. Adjust the group count so two teams per group qualify.','err');return;}
+  const byGroup=t.groups.map((g,gi)=>{
+    const table=groupStandings(t,gi);
+    return {
+      winner:table[0]?{teamId:table[0].id,group:gi,place:1,pts:table[0].pts,gd:table[0].gd}:null,
+      runner:table[1]?{teamId:table[1].id,group:gi,place:2,pts:table[1].pts,gd:table[1].gd}:null
+    };
+  });
+  const winners=byGroup.map(x=>x.winner).filter(Boolean).sort((a,b)=>b.pts-a.pts||b.gd-a.gd);
+  const runners=byGroup.map(x=>x.runner).filter(Boolean).sort((a,b)=>b.pts-a.pts||b.gd-a.gd);
+  const q=byGroup.flatMap(x=>[x.winner,x.runner]).filter(Boolean);
+  const tie=(a,b)=>({a:a?.teamId||null,b:b?.teamId||null,winner:null,fixtureIds:[]});
+  const rounds=[];
+  if(q.length===4&&byGroup.length===2){
+    // Cross-group semi-finals: Group A winner vs Group B runner-up, and vice versa.
+    rounds.push({name:'Semi-finals',ties:[tie(byGroup[0].winner,byGroup[1].runner),tie(byGroup[1].winner,byGroup[0].runner)]});
+    rounds.push({name:'Final',ties:[tie(null,null)]});
+  }else if(q.length===6&&byGroup.length===3){
+    // The two best group winners receive byes. The remaining winner faces a runner-up from another group.
+    const byeWinners=winners.slice(0,2);
+    const remainingWinner=winners[2];
+    const eligibleRunners=runners.filter(r=>r.group!==remainingWinner.group);
+    const opponent=eligibleRunners[eligibleRunners.length-1];
+    const otherRunners=runners.filter(r=>r.teamId!==opponent.teamId);
+    rounds.push({name:'Quarter-finals',ties:[tie(remainingWinner,opponent),tie(otherRunners[0],otherRunners[1])]});
+    rounds.push({name:'Semi-finals',ties:[tie(byeWinners[0],null),tie(byeWinners[1],null)]});
+    rounds.push({name:'Final',ties:[tie(null,null)]});
+  }else if(q.length===8&&byGroup.length===4){
+    // Cross-group quarter-finals, pairing groups A/B and C/D.
+    rounds.push({name:'Quarter-finals',ties:[
+      tie(byGroup[0].winner,byGroup[1].runner),
+      tie(byGroup[1].winner,byGroup[0].runner),
+      tie(byGroup[2].winner,byGroup[3].runner),
+      tie(byGroup[3].winner,byGroup[2].runner)
+    ]});
+    rounds.push({name:'Semi-finals',ties:[tie(null,null),tie(null,null)]});
+    rounds.push({name:'Final',ties:[tie(null,null)]});
+  }else{toast('⚠️ This format needs 2, 3 or 4 groups with two qualifiers per group.','err');return;}
   t.ko={rounds,thirdPlace:{a:null,b:null,winner:null,fixtureIds:[]}};
   t.phase='knockout';materializeKO(t);toast('🏁 Knockout bracket generated!','ok');
 }
