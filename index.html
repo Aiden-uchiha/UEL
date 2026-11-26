@@ -2464,8 +2464,19 @@ function progressTournament(tid){
     const third=t.ko.thirdPlace||(t.ko.thirdPlace={a:null,b:null,winner:null,fixtureIds:[]});
     // Publish each semi-final loser immediately. Do not wait for both semi-finals:
     // the other third-place slot remains TBD until the second semi-final ends.
-    const loserA=sf.ties[0]&&sf.ties[0].loser?sf.ties[0].loser:null;
-    const loserB=sf.ties[1]&&sf.ties[1].loser?sf.ties[1].loser:null;
+    const getSemiLoser=tie=>{
+      if(!tie)return null;
+      if(tie.loser)return tie.loser;
+      // Backfill older saves where a semi-final winner was stored but its loser was not.
+      const fixture=(tie.fixtureIds||[]).map(fixtureById).find(Boolean);
+      const match=fixture&&fixture.played&&fixture.matchId?matchById(fixture.matchId):null;
+      if(!match)return null;
+      const aggregate=matchAggregate(match);
+      if(aggregate.legs.length<2||aggregate.a===aggregate.b)return null;
+      return aggregate.a>aggregate.b?match.teamBId:match.teamAId;
+    };
+    const loserA=getSemiLoser(sf.ties[0]);
+    const loserB=getSemiLoser(sf.ties[1]);
     const participantsChanged=third.a!==loserA||third.b!==loserB;
     third.a=loserA;
     third.b=loserB;
