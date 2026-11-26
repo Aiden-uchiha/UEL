@@ -461,6 +461,15 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
 .ko-third-panel>.ko-match-card{max-width:560px}
 .ko-bracket-multi{grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:22px}
 .ko-bracket-multi .ko-bracket-round{justify-content:flex-start}
+.ko-round-deciders{justify-content:space-around;min-height:400px;padding-left:clamp(20px,3vw,42px)}
+.ko-medal-match{min-width:0;display:flex;flex-direction:column;gap:7px}
+.ko-medal-label{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--gold);font-size:10px;font-weight:900;letter-spacing:1px}
+.ko-medal-label b{color:var(--dim);font-size:8px;text-align:right}
+.ko-bronze-caption{margin:0;color:var(--dim);font-size:10px;line-height:1.4}
+@media(max-width:760px){
+ .ko-round-deciders{min-height:0;padding-left:0;gap:18px}
+ .ko-medal-match{gap:6px}
+}
 @media(max-width:760px){
  .ko-bracket-flow{grid-template-columns:minmax(0,1fr);gap:18px;padding:8px 0}
  .ko-bracket-connectors{display:none}
@@ -3803,7 +3812,15 @@ function tournamentKnockoutHTML(t){
   const finalRound=rounds.find(r=>String(r.name||'').toLowerCase()==='final');
   const twoRoundFlow=rounds.length===2&&semiRound&&finalRound;
   const canCrossOver=!!(editState&&t.groups&&t.groups.length===2&&rounds[0]===semiRound);
-  let html='<section class="tour-panel ko-bracket-panel"><div class="tour-panel-head"><div><span>ELIMINATION STAGE</span><h3>Knockout Bracket</h3><p class="ko-bracket-subtitle">Winners move forward · Semi-final losers compete for bronze</p></div><b>'+rounds.length+' rounds</b></div>';
+  const third=t.ko.thirdPlace;
+  const thirdTie=third?{a:third.a,b:third.b,winner:third.winner,fixtureIds:third.fixtureIds||[]}:null;
+  const knownThird=third?[third.a,third.b].filter(Boolean).length:0;
+  const bronzeCard=third?'<div class="ko-medal-match"><div class="ko-medal-label"><span>🥉 THIRD-PLACE PLAY-OFF</span><b>'+(third.winner?'DECIDED':knownThird===2?'READY':'WAITING FOR SEMI-FINAL LOSERS')+'</b></div>'+
+    (knownThird===1?'<p class="ko-bronze-caption">One semi-final is complete. Its loser is placed here; the other slot stays TBD.</p>':knownThird===0?'<p class="ko-bronze-caption">Both semi-final losers will appear here once their matches finish.</p>':'')+
+    tournamentBracketCard(thirdTie,'Third-place match')+
+    (third.winner?'<div class="hint" style="margin-top:8px">🥉 Third place: '+teamLink(teamById(third.winner),22)+'</div>':'')+'</div>':'';
+  const finalCards=finalRound?finalRound.ties.map(tie=>'<div class="ko-medal-match"><div class="ko-medal-label"><span>🏆 GRAND FINAL</span><b>'+(tie.winner?'CHAMPION DECIDED':'TITLE MATCH')+'</b></div>'+tournamentBracketCard(tie,finalRound.name)+'</div>').join(''):'';
+  let html='<section class="tour-panel ko-bracket-panel"><div class="tour-panel-head"><div><span>ELIMINATION STAGE</span><h3>Knockout Bracket</h3><p class="ko-bracket-subtitle">Semi-final winners play for the title · Semi-final losers play for bronze</p></div><b>'+rounds.length+' rounds</b></div>';
   if(app.isAdmin&&editState){
     html+='<div class="ko-admin-tools"><span>ADMIN DRAW CONTROLS</span><div>'+
       (canCrossOver?'<button class="btn sm gold" data-act="tournament:draw:cross" data-id="'+esc(t.id)+'">↔ Apply Group A/B cross-over</button>':'')+
@@ -3816,26 +3833,20 @@ function tournamentKnockoutHTML(t){
       '<svg class="ko-bracket-connectors" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M52 27 H61 V50 H69 M52 73 H61 V50" fill="none" stroke="rgba(0,240,255,.62)" stroke-width=".65" vector-effect="non-scaling-stroke"/><path d="M66 47 L69 50 L66 53" fill="none" stroke="rgba(255,213,61,.9)" stroke-width=".8" vector-effect="non-scaling-stroke"/></svg>'+
       '<section class="ko-bracket-round ko-round-semifinals"><div class="ko-round-label"><span>SEMI-FINALS</span><b>'+semiRound.ties.length+' MATCHES</b></div>'+
       semiRound.ties.map(tie=>tournamentBracketCard(tie,semiRound.name)).join('')+'</section>'+
-      '<section class="ko-bracket-round ko-round-final"><div class="ko-round-label"><span>GRAND FINAL</span><b>1 MATCH</b></div>'+
-      finalRound.ties.map(tie=>tournamentBracketCard(tie,finalRound.name)).join('')+'</section>'+
-      '</div>';
+      '<section class="ko-bracket-round ko-round-deciders"><div class="ko-round-label"><span>PLACEMENT &amp; FINAL</span><b>BRONZE FIRST</b></div>'+
+      bronzeCard+finalCards+'</section></div>';
   }else{
     html+='<div class="ko-bracket-flow ko-bracket-multi">';
-    rounds.forEach(round=>{
+    rounds.filter(round=>round!==finalRound).forEach(round=>{
       html+='<section class="ko-bracket-round"><div class="ko-round-label"><span>'+esc(round.name)+'</span><b>'+round.ties.length+' MATCH'+(round.ties.length===1?'':'ES')+'</b></div>'+
         round.ties.map(tie=>tournamentBracketCard(tie,round.name)).join('')+'</section>';
     });
+    if(finalRound){
+      html+='<section class="ko-bracket-round ko-round-deciders"><div class="ko-round-label"><span>PLACEMENT &amp; FINAL</span><b>BRONZE FIRST</b></div>'+bronzeCard+finalCards+'</section>';
+    }else if(third)html+=bronzeCard;
     html+='</div>';
   }
   html+='</section>';
-  const third=t.ko.thirdPlace;
-  if(third){
-    const thirdTie={a:third.a,b:third.b,winner:third.winner,fixtureIds:third.fixtureIds||[]};
-    const known=[third.a,third.b].filter(Boolean).length;
-    html+='<section class="tour-panel ko-third-panel"><div class="tour-panel-head"><div><span>PLACEMENT MATCH</span><h3>Third-place match</h3><p class="ko-bracket-subtitle">'+(known===2?'Semi-final losers · Play for bronze':known===1?'One semi-final is complete · Waiting for the other loser':'Waiting for both semi-final losers')+'</p></div><b>'+(third.winner?'3RD PLACE DECIDED':'BRONZE MEDAL')+'</b></div>'+
-      tournamentBracketCard(thirdTie,'Third-place match')+
-      (third.winner?'<div class="hint" style="margin-top:10px">🥉 Third place: '+teamLink(teamById(third.winner),22)+'</div>':'')+'</section>';
-  }
   if(t.completed&&t.winner)html+='<div class="tour-champion"><div>🏆</div><span>TOURNAMENT CHAMPION</span><h2>'+teamLink(teamById(t.winner),34)+'</h2></div>';
   return html;
 }
