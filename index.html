@@ -2491,6 +2491,27 @@ function rebuildTournamentKO(tid){
   materializeKO(t);progressTournament(tid);
 }
 
+// Prevent edits/deletes to an earlier knockout result after a downstream match
+// has been played. This avoids silently deleting a final/bronze result during rebuild.
+function tournamentHasPlayedDownstream(fixture){
+  if(!fixture||!fixture.tournamentId||fixture.stage!=='ko')return null;
+  const t=tourById(fixture.tournamentId);if(!t||!t.ko)return null;
+  const rounds=t.ko.rounds||[];
+  const idx=Number.isInteger(Number(fixture.koRound))?Number(fixture.koRound):rounds.findIndex(r=>String(r.name||'').toLowerCase()===String(fixture.round||'').toLowerCase());
+  if(idx<0)return null;
+  const laterIds=rounds.slice(idx+1).flatMap(r=>r.ties.flatMap(tie=>tie.fixtureIds||[]));
+  const roundName=String(fixture.round||'').toLowerCase();
+  if(roundName!=='final'&&roundName!=='third-place match'&&t.ko.thirdPlace)
+    laterIds.push(...(t.ko.thirdPlace.fixtureIds||[]));
+  return app.state.fixtures.find(f=>f.tournamentId===fixture.tournamentId&&f.played&&laterIds.includes(f.id))||null;
+}
+function guardTournamentDownstreamEdit(fixture){
+  const downstream=tournamentHasPlayedDownstream(fixture);
+  if(!downstream)return false;
+  toast('🔒 This knockout result cannot be edited or deleted after '+(downstream.round||'a later-round match')+' has been played. Delete the later result first.','err');
+  return true;
+}
+
 const VIEWS = {};
 
 /* ---------- REGISTRY ---------- */
@@ -5952,6 +5973,7 @@ document.addEventListener('click', async e => {
     if (!app.isAdmin) return;
     const f = fixtureById(id), m = f && f.matchId ? matchById(f.matchId) : null;
     if (!f || !m) return toast('⚠️ Match result not found', 'err');
+    if(guardTournamentDownstreamEdit(f))return;
     const isFinal = f.stage === 'ko' && String(f.round || '').toLowerCase() === 'final';
     const minimumLegs = isFinal ? 4 : 2;
     app._draft = buildMatchDraft(f, m);
@@ -5981,6 +6003,7 @@ document.addEventListener('click', async e => {
     const f = fixtureById(m.fixtureId) || {
       id: m.fixtureId || uuid(), teamAId:m.teamAId, teamBId:m.teamBId, legs: legCount(m) || 1, round:'', competition:'League'
     };
+    if(guardTournamentDownstreamEdit(f))return;
     app._draft = buildMatchDraft(f, m);
     openModal('✏️ Edit Match', matchFormBody(),
       `<button class="btn lime" data-act="match:save">💾 Update Match</button><button class="btn" data-act="modal:close">Cancel</button>`);
@@ -6022,6 +6045,7 @@ document.addEventListener('click', async e => {
     revertMatch(m);
     app.state.matches = app.state.matches.filter(x => x.id !== id);
     const f = fixtureById(m.fixtureId);
+    if(f&&guardTournamentDownstreamEdit(f))return;
     if (f){ f.played = false; f.matchId = null; }
     if (f && f.tournamentId) rebuildTournamentKO(f.tournamentId);
     await logAdmin('Deleted match result');
@@ -6417,6 +6441,7 @@ async function saveMatch(){
   const f = fixtureById(d.fixtureId);
   if (!f) return toast('❌ Fixture no longer exists', 'err');
   const isEdit = !!d.matchId;
+  if(isEdit&&guardTournamentDownstreamEdit(f))return;
   const tournamentMinimum=f.tournamentId
     ?(f.stage==='ko'&&String(f.round||'').toLowerCase()==='final'?4:2):1;
   if(d.legs<tournamentMinimum)return toast('⚠️ This tournament match needs at least '+tournamentMinimum+' legs','err');
