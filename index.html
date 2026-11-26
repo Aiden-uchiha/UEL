@@ -434,6 +434,44 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
   .md-voting-panel .prediction-choice{min-height:82px;padding:7px 4px}
   .md-voting-panel .prediction-choice b{font-size:10px}
 }
+/* Tournament bracket layout: clear two-sided progression, responsive round columns */
+.ko-bracket-panel{width:100%;overflow:hidden}
+.ko-bracket-subtitle{margin:5px 0 0;color:var(--dim);font-size:11px;letter-spacing:.15px;font-weight:500}
+.ko-bracket-flow{position:relative;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:clamp(22px,4vw,64px);align-items:stretch;width:100%;min-width:0;padding:12px 4px 6px}
+.ko-bracket-round{position:relative;z-index:1;display:flex;flex-direction:column;gap:18px;min-width:0}
+.ko-round-label{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border:1px solid rgba(0,240,255,.38);border-radius:10px;background:linear-gradient(105deg,rgba(0,240,255,.1),rgba(255,43,214,.06))}
+.ko-round-label span{color:var(--cyan);font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase}
+.ko-round-label b{color:var(--dim);font-size:9px;white-space:nowrap}
+.ko-round-semifinals{justify-content:space-between;min-height:400px;padding-right:clamp(22px,3vw,46px)}
+.ko-round-final{justify-content:center;padding-left:clamp(20px,3vw,42px)}
+.ko-bracket-connectors{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;overflow:visible}
+.ko-match-card{min-width:0;width:100%;padding:14px;border:1px solid rgba(0,240,255,.25);border-radius:14px;background:linear-gradient(145deg,rgba(20,28,47,.98),rgba(10,15,27,.98));box-shadow:0 7px 22px rgba(0,0,0,.2)}
+.ko-team-row{display:flex;align-items:center;justify-content:space-between;gap:9px;min-height:52px;padding:8px 10px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:rgba(0,0,0,.23)}
+.ko-team-row.winner{border-color:rgba(139,255,60,.48);background:rgba(139,255,60,.08)}
+.ko-team-identity{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.ko-team-identity>span:last-child{min-width:0;overflow-wrap:anywhere;font-size:12px;font-weight:800;line-height:1.3}
+.ko-team-identity img{width:38px;height:38px;object-fit:contain;flex:0 0 38px}
+.ko-team-score{min-width:28px;text-align:center;font-size:18px;color:var(--gold);font-variant-numeric:tabular-nums}
+.ko-tbd-mark{display:flex;align-items:center;justify-content:center;width:38px;height:38px;flex:0 0 38px;border:1px dashed var(--line);border-radius:9px;color:var(--dim);font-weight:900}
+.ko-versus{text-align:center;padding:6px 0;color:var(--dim);font-size:9px;font-weight:900;letter-spacing:2px}
+.ko-match-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin-top:12px}
+.ko-open-match{width:100%;min-height:40px;font-size:10px!important}
+.ko-match-aggregate{margin-top:9px;padding-top:8px;border-top:1px solid rgba(0,240,255,.14);text-align:center;color:var(--dim);font-size:10px;font-weight:800;letter-spacing:.8px}
+.ko-third-panel{margin-top:18px}
+.ko-third-panel>.ko-match-card{max-width:560px}
+.ko-bracket-multi{grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:22px}
+.ko-bracket-multi .ko-bracket-round{justify-content:flex-start}
+@media(max-width:760px){
+ .ko-bracket-flow{grid-template-columns:minmax(0,1fr);gap:18px;padding:8px 0}
+ .ko-bracket-connectors{display:none}
+ .ko-round-semifinals{min-height:0;padding-right:0;gap:14px}
+ .ko-round-final{padding-left:0;gap:12px}
+ .ko-bracket-round{gap:12px}
+ .ko-round-label{position:sticky;top:0;z-index:2}
+ .ko-match-card{padding:12px}
+ .ko-third-panel>.ko-match-card{max-width:none}
+ .ko-bracket-multi{grid-template-columns:minmax(0,1fr)}
+}
 </style>
 </head>
 <body>
@@ -2403,10 +2441,19 @@ function progressTournament(tid){
       }
     });
   });
-  const sf=rounds.find(r=>r.name==='Semi-finals');
-  if(sf&&sf.ties.every(x=>x.winner)){
+  const sf=rounds.find(r=>String(r.name||'').toLowerCase()==='semi-finals');
+  if(sf){
     const third=t.ko.thirdPlace||(t.ko.thirdPlace={a:null,b:null,winner:null,fixtureIds:[]});
-    third.a=sf.ties[0].loser||null;third.b=sf.ties[1].loser||null;
+    // Publish each semi-final loser immediately. Do not wait for both semi-finals:
+    // the other third-place slot remains TBD until the second semi-final ends.
+    const loserA=sf.ties[0]&&sf.ties[0].loser?sf.ties[0].loser:null;
+    const loserB=sf.ties[1]&&sf.ties[1].loser?sf.ties[1].loser:null;
+    const participantsChanged=third.a!==loserA||third.b!==loserB;
+    third.a=loserA;
+    third.b=loserB;
+    if(participantsChanged)third.winner=null;
+    // materializeKO removes any obsolete 3rd-place fixture if the participants changed
+    // and creates the match as soon as both losers are known.
     materializeKO(t);
   }
   // Resolve the third-place match whenever its result is recorded; it normally happens before the final.
@@ -3699,35 +3746,49 @@ function tournamentBracketCard(tie,roundName){
     '<div class="ko-match-actions">'+actions+'</div></article>';
 }
 function tournamentKnockoutHTML(t){
-  if (!t.ko) return '<div class="empty"><span class="big">🏁</span>Knockout bracket will appear when the group stage is complete.</div>';
+  if(!t.ko)return '<div class="empty"><span class="big">🏁</span>Knockout bracket will appear when the group stage is complete.</div>';
+  const rounds=t.ko.rounds||[];
   const editState=tournamentSemiFinalEditState(t);
-  const canCrossOver=!!(editState&&t.groups&&t.groups.length===2&&t.ko.rounds[0]&&String(t.ko.rounds[0].name||'').toLowerCase()==='semi-finals');
-  let html='<section class="tour-panel"><div class="tour-panel-head"><div><span>ELIMINATION STAGE</span><h3>Knockout Bracket</h3></div><b>'+t.ko.rounds.length+' rounds</b></div>';
+  const semiRound=rounds.find(r=>String(r.name||'').toLowerCase()==='semi-finals');
+  const finalRound=rounds.find(r=>String(r.name||'').toLowerCase()==='final');
+  const twoRoundFlow=rounds.length===2&&semiRound&&finalRound;
+  const canCrossOver=!!(editState&&t.groups&&t.groups.length===2&&rounds[0]===semiRound);
+  let html='<section class="tour-panel ko-bracket-panel"><div class="tour-panel-head"><div><span>ELIMINATION STAGE</span><h3>Knockout Bracket</h3><p class="ko-bracket-subtitle">Winners move forward · Semi-final losers compete for bronze</p></div><b>'+rounds.length+' rounds</b></div>';
   if(app.isAdmin&&editState){
     html+='<div class="ko-admin-tools"><span>ADMIN DRAW CONTROLS</span><div>'+
       (canCrossOver?'<button class="btn sm gold" data-act="tournament:draw:cross" data-id="'+esc(t.id)+'">↔ Apply Group A/B cross-over</button>':'')+
       '<button class="btn sm lime" data-act="tournament:draw:edit" data-id="'+esc(t.id)+'">✏️ Change semi-final opponents</button></div></div>';
   }else if(app.isAdmin){
-    html+='<p class="hint ko-draw-lock">Draw editing locks after a semi-final is recorded, so existing results cannot be overwritten.</p>';
+    html+='<p class="hint ko-draw-lock">Draw editing locks after a semi-final is recorded, so completed match results stay protected.</p>';
   }
-  html+='<div class="kobracket">';
-  t.ko.rounds.forEach(round=>{
-    html+='<div class="kocol"><div class="ko-round-label"><span>'+esc(round.name)+'</span><b>'+round.ties.length+' MATCH'+(round.ties.length===1?'':'ES')+'</b></div>';
-    round.ties.forEach(tie=>{html+=tournamentBracketCard(tie,round.name);});
+  if(twoRoundFlow){
+    html+='<div class="ko-bracket-flow ko-bracket-two-rounds">'+
+      '<svg class="ko-bracket-connectors" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M52 27 H61 V50 H69 M52 73 H61 V50" fill="none" stroke="rgba(0,240,255,.62)" stroke-width=".65" vector-effect="non-scaling-stroke"/><path d="M66 47 L69 50 L66 53" fill="none" stroke="rgba(255,213,61,.9)" stroke-width=".8" vector-effect="non-scaling-stroke"/></svg>'+
+      '<section class="ko-bracket-round ko-round-semifinals"><div class="ko-round-label"><span>SEMI-FINALS</span><b>'+semiRound.ties.length+' MATCHES</b></div>'+
+      semiRound.ties.map(tie=>tournamentBracketCard(tie,semiRound.name)).join('')+'</section>'+
+      '<section class="ko-bracket-round ko-round-final"><div class="ko-round-label"><span>GRAND FINAL</span><b>1 MATCH</b></div>'+
+      finalRound.ties.map(tie=>tournamentBracketCard(tie,finalRound.name)).join('')+'</section>'+
+      '</div>';
+  }else{
+    html+='<div class="ko-bracket-flow ko-bracket-multi">';
+    rounds.forEach(round=>{
+      html+='<section class="ko-bracket-round"><div class="ko-round-label"><span>'+esc(round.name)+'</span><b>'+round.ties.length+' MATCH'+(round.ties.length===1?'':'ES')+'</b></div>'+
+        round.ties.map(tie=>tournamentBracketCard(tie,round.name)).join('')+'</section>';
+    });
     html+='</div>';
-  });
-  html+='</div></section>';
+  }
+  html+='</section>';
   const third=t.ko.thirdPlace;
   if(third){
     const thirdTie={a:third.a,b:third.b,winner:third.winner,fixtureIds:third.fixtureIds||[]};
-    html+='<section class="tour-panel ko-third-panel"><div class="tour-panel-head"><div><span>PLACEMENT MATCH</span><h3>Third-place match</h3></div><b>'+(third.winner?'3RD PLACE DECIDED':'BRONZE MEDAL')+'</b></div>'+
+    const known=[third.a,third.b].filter(Boolean).length;
+    html+='<section class="tour-panel ko-third-panel"><div class="tour-panel-head"><div><span>PLACEMENT MATCH</span><h3>Third-place match</h3><p class="ko-bracket-subtitle">'+(known===2?'Semi-final losers · Play for bronze':known===1?'One semi-final is complete · Waiting for the other loser':'Waiting for both semi-final losers')+'</p></div><b>'+(third.winner?'3RD PLACE DECIDED':'BRONZE MEDAL')+'</b></div>'+
       tournamentBracketCard(thirdTie,'Third-place match')+
       (third.winner?'<div class="hint" style="margin-top:10px">🥉 Third place: '+teamLink(teamById(third.winner),22)+'</div>':'')+'</section>';
   }
   if(t.completed&&t.winner)html+='<div class="tour-champion"><div>🏆</div><span>TOURNAMENT CHAMPION</span><h2>'+teamLink(teamById(t.winner),34)+'</h2></div>';
   return html;
 }
-
 function tournamentDetail(t){
   const groupFixtures = app.state.fixtures.filter(f=>f.tournamentId===t.id && f.stage==='group');
   const allFixtures = app.state.fixtures.filter(f=>f.tournamentId===t.id);
