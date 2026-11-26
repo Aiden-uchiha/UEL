@@ -845,6 +845,24 @@ function migrate(){
     changed = true;
   });
 
+  // Reconcile existing knockout brackets once a saved season is loaded.
+  // Older saves may have a recorded semi-final loser but no third-place slot yet.
+  if(!ARCHIVE_MODE){
+    (app.state.tournaments||[]).forEach(t=>{
+      if(!t||!t.ko)return;
+      const snapshot=()=>{
+        const fixtureIds=new Set(app.state.fixtures.filter(f=>f.tournamentId===t.id).map(f=>f.id));
+        return JSON.stringify({
+          knockout:t.ko,winner:t.winner,completed:t.completed,phase:t.phase,
+          fixtures:app.state.fixtures.filter(f=>f.tournamentId===t.id),
+          matches:app.state.matches.filter(m=>m.tournamentId===t.id||fixtureIds.has(m.fixtureId))
+        });
+      };
+      const before=snapshot();
+      progressTournament(t.id);
+      if(snapshot()!==before)changed=true;
+    });
+  }
   return changed;
 }
 
