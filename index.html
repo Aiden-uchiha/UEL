@@ -6040,12 +6040,12 @@ document.addEventListener('click', async e => {
     if (!app.isAdmin) return;
     const m = matchById(id);
     if (!m) return;
+    const f = fixtureById(m.fixtureId);
+    if(f&&guardTournamentDownstreamEdit(f))return;
     if (!confirm('Delete this result? Team treasuries will be reverted.')) return;
     revertLoanSettlements(m);
     revertMatch(m);
     app.state.matches = app.state.matches.filter(x => x.id !== id);
-    const f = fixtureById(m.fixtureId);
-    if(f&&guardTournamentDownstreamEdit(f))return;
     if (f){ f.played = false; f.matchId = null; }
     if (f && f.tournamentId) rebuildTournamentKO(f.tournamentId);
     await logAdmin('Deleted match result');
