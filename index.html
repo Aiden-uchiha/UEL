@@ -481,6 +481,33 @@ tr.leg-total td{font-weight:900;color:var(--gold);background:rgba(255,213,61,.06
  .ko-third-panel>.ko-match-card{max-width:none}
  .ko-bracket-multi{grid-template-columns:minmax(0,1fr)}
 }
+/* Final-specific winner routes; bronze play-off remains a separate losers' fixture. */
+.ko-bracket-scroll{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;padding:8px 2px 18px;scrollbar-width:thin;scrollbar-color:var(--cyan) rgba(255,255,255,.06);-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.ko-bracket-scroll::-webkit-scrollbar{height:8px}
+.ko-bracket-scroll::-webkit-scrollbar-thumb{background:linear-gradient(90deg,var(--cyan),var(--magenta));border-radius:99px}
+.ko-bracket-flow.ko-bracket-two-rounds{width:100%;min-width:940px;min-height:700px;grid-template-columns:minmax(360px, .95fr) minmax(320px,.8fr);column-gap:clamp(145px,18vw,230px);padding:16px 8px 20px;box-sizing:border-box}
+.ko-bracket-flow.ko-bracket-two-rounds .ko-round-semifinals{min-height:650px;justify-content:space-between;padding-right:0}
+.ko-bracket-flow.ko-bracket-two-rounds .ko-round-deciders{min-height:650px;justify-content:flex-start;padding-left:0;gap:16px}
+.ko-bracket-flow.ko-bracket-two-rounds .ko-round-deciders .ko-medal-match:last-child{margin-top:auto}
+.ko-bracket-flow.ko-bracket-two-rounds .ko-round-deciders .ko-medal-match:first-of-type{margin-top:0}
+.ko-bracket-flow.ko-bracket-two-rounds .ko-medal-match{position:relative;z-index:2}
+.ko-bracket-connectors{display:block!important;position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;overflow:visible}
+.ko-winner-route{fill:none;stroke:rgba(255,213,74,.88);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 4px rgba(255,213,74,.24));vector-effect:non-scaling-stroke}
+.ko-route-label rect{fill:rgba(12,20,34,.96);stroke:rgba(255,213,74,.65);stroke-width:1;vector-effect:non-scaling-stroke}
+.ko-route-label text{fill:#ffd54a;font-size:13px;font-weight:900;letter-spacing:1px}
+.ko-round-semifinals,.ko-round-deciders{z-index:2}
+.ko-bracket-two-rounds .ko-match-card{position:relative;z-index:2}
+.ko-bracket-two-rounds .ko-round-deciders .ko-medal-match:first-of-type .ko-medal-label{color:var(--magenta)}
+.ko-bracket-two-rounds .ko-round-deciders .ko-medal-match:last-child .ko-medal-label{color:var(--gold)}
+@media(max-width:760px){
+  .ko-bracket-scroll{overflow-x:auto;overflow-y:hidden;margin:0 -2px;padding:8px 2px 20px}
+  .ko-bracket-flow.ko-bracket-two-rounds{display:grid;grid-template-columns:380px 330px;column-gap:190px;width:900px;min-width:900px;min-height:680px;padding:12px 8px 18px}
+  .ko-bracket-flow.ko-bracket-two-rounds .ko-round-semifinals{min-height:640px;gap:22px;padding:0}
+  .ko-bracket-flow.ko-bracket-two-rounds .ko-round-deciders{min-height:640px;gap:15px;padding:0}
+  .ko-bracket-connectors{display:block!important}
+  .ko-bracket-two-rounds .ko-match-card{padding:12px}
+  .ko-bracket-two-rounds .ko-round-label{position:relative;top:auto}
+}
 </style>
 </head>
 <body>
@@ -3829,12 +3856,17 @@ function tournamentKnockoutHTML(t){
     html+='<p class="hint ko-draw-lock">Draw editing locks after a semi-final is recorded, so completed match results stay protected.</p>';
   }
   if(twoRoundFlow){
-    html+='<div class="ko-bracket-flow ko-bracket-two-rounds">'+
-      '<svg class="ko-bracket-connectors" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M52 27 H61 V50 H69 M52 73 H61 V50" fill="none" stroke="rgba(0,240,255,.62)" stroke-width=".65" vector-effect="non-scaling-stroke"/><path d="M66 47 L69 50 L66 53" fill="none" stroke="rgba(255,213,61,.9)" stroke-width=".8" vector-effect="non-scaling-stroke"/></svg>'+
+    html+='<div class="ko-bracket-scroll"><div class="ko-bracket-flow ko-bracket-two-rounds">'+
+      '<svg class="ko-bracket-connectors" viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">'+
+      '<defs><marker id="koFinalArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6" fill="none" stroke="#ffd54a" stroke-width="1.2"/></marker></defs>'+
+      '<path class="ko-winner-route" d="M398 205 C500 205 515 430 684 475" marker-end="url(#koFinalArrow)"/>'+
+      '<path class="ko-winner-route" d="M398 525 C500 525 545 525 684 535" marker-end="url(#koFinalArrow)"/>'+
+      '<g class="ko-route-label"><rect x="470" y="345" width="132" height="28" rx="8"/><text x="536" y="363" text-anchor="middle">WINNERS → FINAL</text></g>'+
+      '</svg>'+
       '<section class="ko-bracket-round ko-round-semifinals"><div class="ko-round-label"><span>SEMI-FINALS</span><b>'+semiRound.ties.length+' MATCHES</b></div>'+
       semiRound.ties.map(tie=>tournamentBracketCard(tie,semiRound.name)).join('')+'</section>'+
       '<section class="ko-bracket-round ko-round-deciders"><div class="ko-round-label"><span>PLACEMENT &amp; FINAL</span><b>BRONZE FIRST</b></div>'+
-      bronzeCard+finalCards+'</section></div>';
+      bronzeCard+finalCards+'</section></div></div>';
   }else{
     html+='<div class="ko-bracket-flow ko-bracket-multi">';
     rounds.filter(round=>round!==finalRound).forEach(round=>{
